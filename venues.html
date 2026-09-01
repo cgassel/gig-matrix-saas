@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Venues — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
+    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { font-size: 1.05rem; margin: 0; }
+    .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+    .content { max-width: 1000px; margin: 28px auto; padding: 0 20px 60px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .toolbar button.add-btn { background: #A07018; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+    .toolbar select, .toolbar input { padding: 9px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: #fff; }
+    .toolbar input { flex: 1; min-width: 180px; }
+
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    th { background: #f2ede4; text-align: left; padding: 12px 14px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b5e48; }
+    td { padding: 12px 14px; font-size: 0.86rem; border-top: 1px solid #eee; }
+    tr:hover td { background: #faf8f4; }
+    .cat-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; background: #f2ede4; color: #A07018; }
+    .row-actions { display: flex; gap: 8px; }
+    .row-actions button { border: none; background: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; padding: 4px 6px; }
+    .edit-btn { color: #A07018; }
+    .delete-btn { color: #8B2000; }
+    .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 26px 28px; margin: auto; }
+    .modal h2 { color: #A07018; font-size: 1.1rem; margin: 0 0 18px; }
+    .modal label { display: block; font-size: 0.78rem; font-weight: 700; color: #6b5e48; margin: 14px 0 5px; }
+    .modal label:first-of-type { margin-top: 0; }
+    .modal input, .modal select, .modal textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; }
+    .modal textarea { min-height: 70px; resize: vertical; }
+    .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+    .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+    .btn-save { background: #A07018; color: #fff; }
+    .btn-cancel { background: #f0ebe0; color: #555; }
+    .btn-delete-confirm { background: #8B2000; color: #fff; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.error { background: #8B2000; }
+
+    @media (max-width: 640px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { background: #fff; border-radius: 10px; margin-bottom: 10px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      td { border: none; padding: 4px 0; }
+      td:before { content: attr(data-label); font-weight: 700; color: #6b5e48; font-size: 0.68rem; text-transform: uppercase; display: block; }
+      .modal .row2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Gig Matrix</h1>
+      <div class="biz" id="bizName"></div>
+    </div>
+    <div class="topbar-right">
+      <a href="dashboard.html">&larr; Dashboard</a>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="toolbar">
+      <button class="add-btn" onclick="openAddModal()">+ Add Venue</button>
+      <select id="filterCategory" onchange="renderTable()">
+        <option value="">All Categories</option>
+        <option value="Club">Clubs</option>
+        <option value="Private Party">Private Parties</option>
+        <option value="Festival">Festivals</option>
+      </select>
+      <input type="text" id="searchBox" placeholder="Search venues, cities, contacts..." oninput="renderTable()">
+    </div>
+
+    <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
+
+    <table id="venuesTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Contact</th>
+          <th>City / State</th>
+          <th>Phone</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="venuesBody"></tbody>
+    </table>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <p>No venues yet. Click "+ Add Venue" to add your first one.</p>
+    </div>
+  </div>
+
+  <!-- Add / Edit modal -->
+  <div class="modal-overlay" id="venueModal">
+    <div class="modal">
+      <h2 id="modalTitle">Add Venue</h2>
+      <form id="venueForm">
+        <label>Category</label>
+        <select id="vCategory" onchange="updateCategoryUI()">
+          <option value="Club">Club</option>
+          <option value="Private Party">Private Party</option>
+          <option value="Festival">Festival</option>
+        </select>
+
+        <div id="companyGroup" style="display:none;">
+          <label>Company Name</label>
+          <input type="text" id="vCompanyName" placeholder="For corporate events">
+        </div>
+
+        <label id="vNameLabel">Venue Name *</label>
+        <input type="text" id="vName" required>
+
+        <div class="row2">
+          <div>
+            <label>Contact Name</label>
+            <input type="text" id="vContactName">
+          </div>
+          <div>
+            <label>Phone</label>
+            <input type="tel" id="vPhone">
+          </div>
+        </div>
+
+        <label>Email</label>
+        <input type="email" id="vEmail">
+
+        <label>Address</label>
+        <input type="text" id="vAddress">
+
+        <div class="row2">
+          <div>
+            <label>City</label>
+            <input type="text" id="vCity">
+          </div>
+          <div>
+            <label>State</label>
+            <input type="text" id="vState">
+          </div>
+        </div>
+
+        <label>Capacity</label>
+        <input type="number" id="vCapacity" min="0">
+
+        <label>Notes</label>
+        <textarea id="vNotes"></textarea>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeVenueModal()">Cancel</button>
+          <button type="submit" class="btn-save" id="saveBtn">Save Venue</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <h2>Delete Venue</h2>
+      <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+        <button type="button" class="btn-delete-confirm" id="confirmDeleteBtn" onclick="doDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script>
+    var currentBusinessId = null;
+    var allVenues = [];
+    var editingVenueId = null;
+    var pendingDeleteId = null;
+
+    (async function init() {
+      var { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      var { data: profile, error } = await sb
+        .from('profiles')
+        .select('business_id, businesses(name)')
+        .single();
+
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
+
+      currentBusinessId = profile.business_id;
+      document.getElementById('bizName').textContent = profile.businesses.name;
+
+      await loadVenues();
+    })();
+
+    async function loadVenues() {
+      var { data, error } = await sb
+        .from('venues')
+        .select('*')
+        .order('name', { ascending: true });
+
+      document.getElementById('loadingState').style.display = 'none';
+
+      if (error) {
+        showToast('Error loading venues: ' + error.message, 'error');
+        return;
+      }
+
+      allVenues = data || [];
+      renderTable();
+    }
+
+    function renderTable() {
+      var category = document.getElementById('filterCategory').value;
+      var search = document.getElementById('searchBox').value.toLowerCase();
+
+      var filtered = allVenues.filter(function(v) {
+        if (category && v.category !== category) return false;
+        if (search) {
+          var haystack = [v.name, v.city, v.state, v.contact_name, v.company_name].join(' ').toLowerCase();
+          if (haystack.indexOf(search) === -1) return false;
+        }
+        return true;
+      });
+
+      var table = document.getElementById('venuesTable');
+      var emptyState = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        table.style.display = 'none';
+        emptyState.style.display = 'block';
+        emptyState.querySelector('p').textContent = allVenues.length === 0
+          ? 'No venues yet. Click "+ Add Venue" to add your first one.'
+          : 'No venues match your filters.';
+        return;
+      }
+
+      table.style.display = 'table';
+      emptyState.style.display = 'none';
+
+      var html = '';
+      filtered.forEach(function(v) {
+        var displayName = v.name + (v.company_name ? ' (' + esc(v.company_name) + ')' : '');
+        html +=
+          '<tr>' +
+            '<td data-label="Name"><strong>' + esc(displayName) + '</strong></td>' +
+            '<td data-label="Category"><span class="cat-pill">' + esc(v.category) + '</span></td>' +
+            '<td data-label="Contact">' + esc(v.contact_name || '\u2013') + '</td>' +
+            '<td data-label="City / State">' + esc([v.city, v.state].filter(Boolean).join(', ') || '\u2013') + '</td>' +
+            '<td data-label="Phone">' + esc(v.phone || '\u2013') + '</td>' +
+            '<td><div class="row-actions">' +
+              '<button class="edit-btn" onclick="openEditModal(\'' + v.id + '\')">Edit</button>' +
+              '<button class="delete-btn" onclick="openDeleteModal(\'' + v.id + '\')">Delete</button>' +
+            '</div></td>' +
+          '</tr>';
+      });
+      document.getElementById('venuesBody').innerHTML = html;
+    }
+
+    // ── Add / Edit modal ────────────────────────────────────────────────────
+
+    function updateCategoryUI() {
+      var category = document.getElementById('vCategory').value;
+      var companyGroup = document.getElementById('companyGroup');
+      var nameLabel = document.getElementById('vNameLabel');
+
+      if (category === 'Private Party') {
+        companyGroup.style.display = 'block';
+        nameLabel.textContent = 'Party Name *';
+      } else if (category === 'Festival') {
+        companyGroup.style.display = 'none';
+        nameLabel.textContent = 'Festival Name *';
+      } else {
+        companyGroup.style.display = 'none';
+        nameLabel.textContent = 'Venue Name *';
+      }
+    }
+
+    function openAddModal() {
+      editingVenueId = null;
+      document.getElementById('modalTitle').textContent = 'Add Venue';
+      document.getElementById('venueForm').reset();
+      document.getElementById('vCategory').value = 'Club';
+      updateCategoryUI();
+      document.getElementById('venueModal').classList.add('show');
+    }
+
+    function openEditModal(id) {
+      var v = allVenues.find(function(x) { return x.id === id; });
+      if (!v) return;
+      editingVenueId = id;
+      document.getElementById('modalTitle').textContent = 'Edit Venue';
+      document.getElementById('vCategory').value      = v.category || 'Club';
+      document.getElementById('vCompanyName').value    = v.company_name || '';
+      document.getElementById('vName').value            = v.name || '';
+      document.getElementById('vContactName').value     = v.contact_name || '';
+      document.getElementById('vPhone').value           = v.phone || '';
+      document.getElementById('vEmail').value            = v.email || '';
+      document.getElementById('vAddress').value          = v.address || '';
+      document.getElementById('vCity').value              = v.city || '';
+      document.getElementById('vState').value             = v.state || '';
+      document.getElementById('vCapacity').value          = v.capacity || '';
+      document.getElementById('vNotes').value             = v.notes || '';
+      updateCategoryUI();
+      document.getElementById('venueModal').classList.add('show');
+    }
+
+    function closeVenueModal() {
+      document.getElementById('venueModal').classList.remove('show');
+      editingVenueId = null;
+    }
+
+    document.getElementById('venueForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      var venueData = {
+        category:      document.getElementById('vCategory').value,
+        company_name:  document.getElementById('vCompanyName').value.trim() || null,
+        name:          document.getElementById('vName').value.trim(),
+        contact_name:  document.getElementById('vContactName').value.trim() || null,
+        phone:         document.getElementById('vPhone').value.trim() || null,
+        email:         document.getElementById('vEmail').value.trim() || null,
+        address:       document.getElementById('vAddress').value.trim() || null,
+        city:          document.getElementById('vCity').value.trim() || null,
+        state:         document.getElementById('vState').value.trim() || null,
+        capacity:      document.getElementById('vCapacity').value ? parseInt(document.getElementById('vCapacity').value) : null,
+        notes:         document.getElementById('vNotes').value.trim() || null
+      };
+
+      var btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving\u2026';
+
+      try {
+        if (editingVenueId) {
+          var { error } = await sb.from('venues').update(venueData).eq('id', editingVenueId);
+          if (error) throw error;
+          showToast('Venue updated.');
+        } else {
+          venueData.business_id = currentBusinessId; // required — RLS checks this on insert
+          var { error: insErr } = await sb.from('venues').insert(venueData);
+          if (insErr) throw insErr;
+          showToast('Venue added.');
+        }
+        closeVenueModal();
+        await loadVenues();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Venue';
+      }
+    });
+
+    // ── Delete ──────────────────────────────────────────────────────────────
+
+    function openDeleteModal(id) {
+      var v = allVenues.find(function(x) { return x.id === id; });
+      if (!v) return;
+      pendingDeleteId = id;
+      document.getElementById('deleteMsg').textContent = 'Delete "' + v.name + '"? This cannot be undone.';
+      document.getElementById('deleteModal').classList.add('show');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').classList.remove('show');
+      pendingDeleteId = null;
+    }
+
+    async function doDelete() {
+      if (!pendingDeleteId) return;
+      var btn = document.getElementById('confirmDeleteBtn');
+      btn.disabled = true;
+      btn.textContent = 'Deleting\u2026';
+
+      try {
+        var { error } = await sb.from('venues').delete().eq('id', pendingDeleteId);
+        if (error) throw error;
+        showToast('Venue deleted.');
+        closeDeleteModal();
+        await loadVenues();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function showToast(msg, type) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast' + (type === 'error' ? ' error' : '');
+      void t.offsetWidth;
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 3500);
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function logout() {
+      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
+    }
+  </script>
+</body>
+</html>
