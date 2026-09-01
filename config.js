@@ -7,7 +7,7 @@
 // Where to find these: Supabase dashboard → gear icon (Settings) → API
 // ============================================================================
 
-const SUPABASE_URL = 'PASTE_YOUR_PROJECT_URL_HERE';       // e.g. https://xxxxx.supabase.co
-const SUPABASE_ANON_KEY = 'PASTE_YOUR_ANON_KEY_HERE';      // the long "anon / public" key — safe to expose, this is what RLS is for
+const SUPABASE_URL = ' https://nqwnemqatlktynssailk.supabase.co/rest/v1/';       // e.g. https://xxxxx.supabase.co
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5xd25lbXFhdGxrdHluc3NhaWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgyODc4NjksImV4cCI6MjEwMzg2Mzg2OX0.k58zIushSVhVbw_qLgtCXlcNnVt-Dsm8OugirdtaCJw';      // the long "anon / public" key — safe to expose, this is what RLS is for
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
