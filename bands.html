@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bands — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
+    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { font-size: 1.05rem; margin: 0; }
+    .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+    .content { max-width: 1000px; margin: 28px auto; padding: 0 20px 60px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .toolbar button.add-btn { background: #A07018; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+    .toolbar input { padding: 9px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: #fff; flex: 1; min-width: 180px; }
+
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    th { background: #f2ede4; text-align: left; padding: 12px 14px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b5e48; }
+    td { padding: 12px 14px; font-size: 0.86rem; border-top: 1px solid #eee; }
+    tr:hover td { background: #faf8f4; }
+    .genre-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; background: #f2ede4; color: #A07018; }
+    .row-actions { display: flex; gap: 8px; }
+    .row-actions button { border: none; background: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; padding: 4px 6px; }
+    .edit-btn { color: #A07018; }
+    .delete-btn { color: #8B2000; }
+    .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 26px 28px; margin: auto; }
+    .modal h2 { color: #A07018; font-size: 1.1rem; margin: 0 0 18px; }
+    .modal label { display: block; font-size: 0.78rem; font-weight: 700; color: #6b5e48; margin: 14px 0 5px; }
+    .modal label:first-of-type { margin-top: 0; }
+    .modal input, .modal textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; }
+    .modal textarea { min-height: 70px; resize: vertical; }
+    .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal .hint { font-size: 0.72rem; color: #999; margin-top: 4px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+    .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+    .btn-save { background: #A07018; color: #fff; }
+    .btn-cancel { background: #f0ebe0; color: #555; }
+    .btn-delete-confirm { background: #8B2000; color: #fff; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.error { background: #8B2000; }
+
+    @media (max-width: 640px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { background: #fff; border-radius: 10px; margin-bottom: 10px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      td { border: none; padding: 4px 0; }
+      td:before { content: attr(data-label); font-weight: 700; color: #6b5e48; font-size: 0.68rem; text-transform: uppercase; display: block; }
+      .modal .row2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Gig Matrix</h1>
+      <div class="biz" id="bizName"></div>
+    </div>
+    <div class="topbar-right">
+      <a href="venues.html">Venues</a>
+      <a href="dashboard.html">&larr; Dashboard</a>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="toolbar">
+      <button class="add-btn" onclick="openAddModal()">+ Add Band</button>
+      <input type="text" id="searchBox" placeholder="Search bands, genres, contacts..." oninput="renderTable()">
+    </div>
+
+    <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
+
+    <table id="bandsTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Genre</th>
+          <th>Contact</th>
+          <th>Phone</th>
+          <th>Pay Rate</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="bandsBody"></tbody>
+    </table>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <p>No bands yet. Click "+ Add Band" to add your first one.</p>
+    </div>
+  </div>
+
+  <!-- Add / Edit modal -->
+  <div class="modal-overlay" id="bandModal">
+    <div class="modal">
+      <h2 id="modalTitle">Add Band</h2>
+      <form id="bandForm">
+        <label>Band Name *</label>
+        <input type="text" id="bName" required>
+
+        <label>Genre</label>
+        <input type="text" id="bGenre" placeholder="e.g. Rock, Country, Cover Band">
+
+        <div class="row2">
+          <div>
+            <label>Contact Name</label>
+            <input type="text" id="bContactName">
+          </div>
+          <div>
+            <label>Phone</label>
+            <input type="tel" id="bPhone">
+          </div>
+        </div>
+
+        <label>Email</label>
+        <input type="email" id="bEmail">
+
+        <div class="row2">
+          <div>
+            <label>Pay Rate — No Sound</label>
+            <input type="number" id="bPayNoSound" min="0" step="1">
+          </div>
+          <div>
+            <label>Pay Rate — With Sound</label>
+            <input type="number" id="bPayWithSound" min="0" step="1">
+          </div>
+        </div>
+        <div class="hint">The band's usual rate when the venue provides sound/lights, vs. when the band brings their own.</div>
+
+        <label>Notes</label>
+        <textarea id="bNotes"></textarea>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeBandModal()">Cancel</button>
+          <button type="submit" class="btn-save" id="saveBtn">Save Band</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <h2>Delete Band</h2>
+      <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+        <button type="button" class="btn-delete-confirm" id="confirmDeleteBtn" onclick="doDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script>
+    var currentBusinessId = null;
+    var allBands = [];
+    var editingBandId = null;
+    var pendingDeleteId = null;
+
+    (async function init() {
+      var { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      var { data: profile, error } = await sb
+        .from('profiles')
+        .select('business_id, businesses(name)')
+        .single();
+
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
+
+      currentBusinessId = profile.business_id;
+      document.getElementById('bizName').textContent = profile.businesses.name;
+
+      await loadBands();
+    })();
+
+    async function loadBands() {
+      var { data, error } = await sb
+        .from('bands')
+        .select('*')
+        .order('name', { ascending: true });
+
+      document.getElementById('loadingState').style.display = 'none';
+
+      if (error) {
+        showToast('Error loading bands: ' + error.message, 'error');
+        return;
+      }
+
+      allBands = data || [];
+      renderTable();
+    }
+
+    function renderTable() {
+      var search = document.getElementById('searchBox').value.toLowerCase();
+
+      var filtered = allBands.filter(function(b) {
+        if (search) {
+          var haystack = [b.name, b.genre, b.contact_name].join(' ').toLowerCase();
+          if (haystack.indexOf(search) === -1) return false;
+        }
+        return true;
+      });
+
+      var table = document.getElementById('bandsTable');
+      var emptyState = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        table.style.display = 'none';
+        emptyState.style.display = 'block';
+        emptyState.querySelector('p').textContent = allBands.length === 0
+          ? 'No bands yet. Click "+ Add Band" to add your first one.'
+          : 'No bands match your search.';
+        return;
+      }
+
+      table.style.display = 'table';
+      emptyState.style.display = 'none';
+
+      var html = '';
+      filtered.forEach(function(b) {
+        var payStr = [
+          b.pay_rate_no_sound   != null ? '$' + b.pay_rate_no_sound + ' (no sound)'   : null,
+          b.pay_rate_with_sound != null ? '$' + b.pay_rate_with_sound + ' (w/ sound)' : null
+        ].filter(Boolean).join(' / ') || '\u2013';
+
+        html +=
+          '<tr>' +
+            '<td data-label="Name"><strong>' + esc(b.name) + '</strong></td>' +
+            '<td data-label="Genre">' + (b.genre ? '<span class="genre-pill">' + esc(b.genre) + '</span>' : '\u2013') + '</td>' +
+            '<td data-label="Contact">' + esc(b.contact_name || '\u2013') + '</td>' +
+            '<td data-label="Phone">' + esc(b.phone || '\u2013') + '</td>' +
+            '<td data-label="Pay Rate">' + esc(payStr) + '</td>' +
+            '<td><div class="row-actions">' +
+              '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
+              '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>' +
+            '</div></td>' +
+          '</tr>';
+      });
+      document.getElementById('bandsBody').innerHTML = html;
+    }
+
+    // ── Add / Edit modal ────────────────────────────────────────────────────
+
+    function openAddModal() {
+      editingBandId = null;
+      document.getElementById('modalTitle').textContent = 'Add Band';
+      document.getElementById('bandForm').reset();
+      document.getElementById('bandModal').classList.add('show');
+    }
+
+    function openEditModal(id) {
+      var b = allBands.find(function(x) { return x.id === id; });
+      if (!b) return;
+      editingBandId = id;
+      document.getElementById('modalTitle').textContent = 'Edit Band';
+      document.getElementById('bName').value          = b.name || '';
+      document.getElementById('bGenre').value          = b.genre || '';
+      document.getElementById('bContactName').value    = b.contact_name || '';
+      document.getElementById('bPhone').value          = b.phone || '';
+      document.getElementById('bEmail').value          = b.email || '';
+      document.getElementById('bPayNoSound').value     = b.pay_rate_no_sound   != null ? b.pay_rate_no_sound   : '';
+      document.getElementById('bPayWithSound').value   = b.pay_rate_with_sound != null ? b.pay_rate_with_sound : '';
+      document.getElementById('bNotes').value          = b.notes || '';
+      document.getElementById('bandModal').classList.add('show');
+    }
+
+    function closeBandModal() {
+      document.getElementById('bandModal').classList.remove('show');
+      editingBandId = null;
+    }
+
+    document.getElementById('bandForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      var bandData = {
+        name:                document.getElementById('bName').value.trim(),
+        genre:               document.getElementById('bGenre').value.trim() || null,
+        contact_name:        document.getElementById('bContactName').value.trim() || null,
+        phone:               document.getElementById('bPhone').value.trim() || null,
+        email:               document.getElementById('bEmail').value.trim() || null,
+        pay_rate_no_sound:   document.getElementById('bPayNoSound').value   !== '' ? parseFloat(document.getElementById('bPayNoSound').value)   : null,
+        pay_rate_with_sound: document.getElementById('bPayWithSound').value !== '' ? parseFloat(document.getElementById('bPayWithSound').value) : null,
+        notes:               document.getElementById('bNotes').value.trim() || null
+      };
+
+      var btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving\u2026';
+
+      try {
+        if (editingBandId) {
+          var { error } = await sb.from('bands').update(bandData).eq('id', editingBandId);
+          if (error) throw error;
+          showToast('Band updated.');
+        } else {
+          bandData.business_id = currentBusinessId; // required — RLS checks this on insert
+          var { error: insErr } = await sb.from('bands').insert(bandData);
+          if (insErr) throw insErr;
+          showToast('Band added.');
+        }
+        closeBandModal();
+        await loadBands();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Band';
+      }
+    });
+
+    // ── Delete ──────────────────────────────────────────────────────────────
+
+    function openDeleteModal(id) {
+      var b = allBands.find(function(x) { return x.id === id; });
+      if (!b) return;
+      pendingDeleteId = id;
+      document.getElementById('deleteMsg').textContent = 'Delete "' + b.name + '"? This cannot be undone.';
+      document.getElementById('deleteModal').classList.add('show');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').classList.remove('show');
+      pendingDeleteId = null;
+    }
+
+    async function doDelete() {
+      if (!pendingDeleteId) return;
+      var btn = document.getElementById('confirmDeleteBtn');
+      btn.disabled = true;
+      btn.textContent = 'Deleting\u2026';
+
+      try {
+        var { error } = await sb.from('bands').delete().eq('id', pendingDeleteId);
+        if (error) throw error;
+        showToast('Band deleted.');
+        closeDeleteModal();
+        await loadBands();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function showToast(msg, type) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast' + (type === 'error' ? ' error' : '');
+      void t.offsetWidth;
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 3500);
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function logout() {
+      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
+    }
+  </script>
+</body>
+</html>
