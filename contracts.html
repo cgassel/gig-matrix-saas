@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contracts — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
+    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { font-size: 1.05rem; margin: 0; }
+    .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+    .content { max-width: 1000px; margin: 28px auto; padding: 0 20px 60px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .toolbar button.add-btn { background: #A07018; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+    .toolbar select { padding: 9px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: #fff; }
+
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    th { background: #f2ede4; text-align: left; padding: 12px 14px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b5e48; }
+    td { padding: 12px 14px; font-size: 0.86rem; border-top: 1px solid #eee; }
+    tr:hover td { background: #faf8f4; cursor: pointer; }
+    .status-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; }
+    .status-pending  { background: #fff3e0; color: #e65100; }
+    .status-awaiting { background: #e3f2fd; color: #1565c0; }
+    .status-signed   { background: #e8f5e9; color: #2e7d32; }
+    .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 14px; max-width: 560px; width: 100%; padding: 26px 28px; margin: auto; }
+    .modal h2 { color: #A07018; font-size: 1.1rem; margin: 0 0 18px; }
+    .modal label { display: block; font-size: 0.78rem; font-weight: 700; color: #6b5e48; margin: 14px 0 5px; }
+    .modal label:first-of-type { margin-top: 0; }
+    .modal select, .modal textarea, .modal input { width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.86rem; font-family: inherit; }
+    .modal textarea { min-height: 220px; font-family: 'Courier New', monospace; font-size: 0.8rem; line-height: 1.5; resize: vertical; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+    .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.86rem; cursor: pointer; }
+    .btn-save { background: #A07018; color: #fff; }
+    .btn-cancel { background: #f0ebe0; color: #555; }
+    .btn-danger { background: #8B2000; color: #fff; }
+
+    .link-box { display: flex; gap: 8px; align-items: center; background: #fdf8f0; border: 1.5px solid #d4a030; border-radius: 8px; padding: 10px 12px; margin-top: 6px; }
+    .link-box input { flex: 1; border: none; background: none; font-size: 0.78rem; font-family: monospace; padding: 0; }
+    .link-box button { flex-shrink: 0; background: #A07018; color: #fff; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+
+    .sig-row { display: flex; gap: 10px; margin: 14px 0; }
+    .sig-pill { flex: 1; padding: 10px 12px; border-radius: 8px; font-size: 0.78rem; }
+    .sig-pill.done { background: #e8f5e9; color: #2e7d32; border: 1.5px solid #a5d6a7; }
+    .sig-pill.pending { background: #fff8e1; color: #b45309; border: 1.5px solid #ffe082; }
+
+    .msg-thread { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+    .msg-empty { text-align: center; color: #999; font-size: 0.8rem; font-style: italic; padding: 10px 0; }
+    .msg-bubble { max-width: 85%; padding: 9px 13px; border-radius: 10px; font-size: 0.82rem; line-height: 1.4; }
+    .msg-bubble.theirs { align-self: flex-start; background: #f2ede4; }
+    .msg-bubble.mine { align-self: flex-end; background: #fdf1dc; border: 1px solid #d4a030; }
+    .msg-meta { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 3px; }
+    .msg-compose { display: flex; gap: 8px; margin-top: 8px; }
+    .msg-compose textarea { flex: 1; min-height: 40px; }
+    .msg-compose button { background: #A07018; color: #fff; border: none; padding: 0 16px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; }
+    .channel-tabs { display: flex; gap: 6px; margin-top: 16px; }
+    .channel-tab { flex: 1; padding: 8px; border: 1.5px solid #d4c4a0; background: #fff; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer; color: #6b5e48; }
+    .channel-tab.active { background: #A07018; color: #fff; border-color: #A07018; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.error { background: #8B2000; }
+
+    @media (max-width: 640px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { background: #fff; border-radius: 10px; margin-bottom: 10px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      td { border: none; padding: 4px 0; }
+      td:before { content: attr(data-label); font-weight: 700; color: #6b5e48; font-size: 0.68rem; text-transform: uppercase; display: block; }
+      .sig-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Gig Matrix</h1>
+      <div class="biz" id="bizName"></div>
+    </div>
+    <div class="topbar-right">
+      <a href="venues.html">Venues</a>
+      <a href="bands.html">Bands</a>
+      <a href="bookings.html">Bookings</a>
+      <a href="dashboard.html">&larr; Dashboard</a>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="toolbar">
+      <button class="add-btn" onclick="openCreateModal()">+ Create Contract</button>
+      <select id="filterStatus" onchange="renderTable()">
+        <option value="">All Statuses</option>
+        <option value="Pending Review">Pending Review</option>
+        <option value="Awaiting Venue">Awaiting Venue</option>
+        <option value="Awaiting Band">Awaiting Band</option>
+        <option value="Signed">Signed</option>
+      </select>
+      <select id="filterMine" onchange="renderTable()">
+        <option value="">All Contracts</option>
+        <option value="mine">My Contracts Only</option>
+      </select>
+    </div>
+
+    <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
+
+    <table id="contractsTable" style="display:none;">
+      <thead>
+        <tr><th>Venue</th><th>Band</th><th>Date</th><th>Assigned To</th><th>Status</th></tr>
+      </thead>
+      <tbody id="contractsBody"></tbody>
+    </table>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <p id="emptyMsg">No contracts yet.</p>
+    </div>
+  </div>
+
+  <!-- Create Contract modal -->
+  <div class="modal-overlay" id="createModal">
+    <div class="modal">
+      <h2>Create Contract</h2>
+      <label>Booking *</label>
+      <select id="cBooking" required></select>
+      <label>Manage This Contract</label>
+      <select id="cAssignedAgent" required></select>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeCreateModal()">Cancel</button>
+        <button type="button" class="btn-save" id="createBtn" onclick="createContract()">Generate Contract</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View/Edit Contract modal -->
+  <div class="modal-overlay" id="viewModal">
+    <div class="modal">
+      <h2 id="viewTitle">Contract</h2>
+
+      <div class="sig-row" id="sigSteps">
+        <div class="sig-pill" id="venueSigPill"></div>
+        <div class="sig-pill" id="bandSigPill"></div>
+      </div>
+      <p style="font-size:0.76rem;color:#999;margin:-8px 0 14px;">Signing happens in order: the venue/client signs first, then the band's link becomes active.</p>
+
+      <label>Managed By</label>
+      <div style="display:flex;gap:8px;">
+        <select id="vAssignedAgent" style="flex:1;"></select>
+        <button type="button" onclick="reassignContract()" style="background:#A07018;color:#fff;border:none;padding:0 16px;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;">Reassign</button>
+      </div>
+
+      <label>Contract Text</label>
+      <textarea id="vContractText"></textarea>
+
+      <label>Band Sign Link</label>
+      <div class="link-box">
+        <input type="text" id="bandLink" readonly>
+        <button type="button" onclick="copyLink('bandLink')">Copy</button>
+      </div>
+
+      <label>Venue Sign Link</label>
+      <div class="link-box">
+        <input type="text" id="venueLink" readonly>
+        <button type="button" onclick="copyLink('venueLink')">Copy</button>
+      </div>
+
+      <div class="channel-tabs">
+        <button type="button" class="channel-tab active" id="tabBand" onclick="switchChannel('band')">Band Messages</button>
+        <button type="button" class="channel-tab" id="tabVenue" onclick="switchChannel('venue')">Venue Messages</button>
+      </div>
+      <div class="msg-thread" id="msgThread"></div>
+      <div class="msg-compose">
+        <textarea id="msgInput" placeholder="Reply..."></textarea>
+        <button type="button" onclick="sendMessage()">Send</button>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeViewModal()">Close</button>
+        <button type="button" class="btn-danger" onclick="deleteContract()">Delete</button>
+        <button type="button" class="btn-save" id="saveContractBtn" onclick="saveContractText()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-overlay" id="deleteConfirmModal">
+    <div class="modal" style="max-width:400px;">
+      <h2>Delete Contract</h2>
+      <p style="color:#6b5e48;font-size:0.88rem;line-height:1.5;">Delete this contract? This cannot be undone.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('deleteConfirmModal').classList.remove('show')">Cancel</button>
+        <button type="button" class="btn-danger" onclick="_doDeleteContract()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script>
+    var currentBusinessId = null;
+    var currentProfileId = null;
+    var allContracts = [];
+    var allBookingsWithoutContract = [];
+    var businessAgents = [];
+    var activeContract = null;
+    var activeChannel = 'band';
+    var FRONTEND_BASE = window.location.origin + window.location.pathname.replace('contracts.html', '');
+
+    (async function init() {
+      var { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      var { data: profile, error } = await sb
+        .from('profiles')
+        .select('id, business_id, businesses(name)')
+        .single();
+
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
+
+      currentBusinessId = profile.business_id;
+      currentProfileId  = profile.id;
+      document.getElementById('bizName').textContent = profile.businesses.name;
+
+      var { data: agents } = await sb.from('profiles').select('id, name').order('name');
+      businessAgents = agents || [];
+
+      await loadContracts();
+    })();
+
+    async function loadContracts() {
+      var { data, error } = await sb
+        .from('contracts')
+        .select('*, bookings(booking_date, venues(name), bands(name))')
+        .order('created_at', { ascending: false });
+
+      document.getElementById('loadingState').style.display = 'none';
+      if (error) { showToast('Error loading contracts: ' + error.message, 'error'); return; }
+
+      allContracts = data || [];
+      renderTable();
+    }
+
+    function agentName(id) {
+      var a = businessAgents.find(function(x) { return x.id === id; });
+      return a ? a.name : '\u2013';
+    }
+
+    function renderTable() {
+      var status = document.getElementById('filterStatus').value;
+      var mineOnly = document.getElementById('filterMine').value === 'mine';
+      var filtered = allContracts.filter(function(c) {
+        if (status && c.status !== status) return false;
+        if (mineOnly && c.assigned_agent_id !== currentProfileId) return false;
+        return true;
+      });
+
+      var table = document.getElementById('contractsTable');
+      var emptyState = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        table.style.display = 'none';
+        emptyState.style.display = 'block';
+        document.getElementById('emptyMsg').textContent = allContracts.length === 0
+          ? 'No contracts yet. Click "+ Create Contract" to generate one from a booking.'
+          : 'No contracts match this filter.';
+        return;
+      }
+
+      table.style.display = 'table';
+      emptyState.style.display = 'none';
+
+      var html = '';
+      filtered.forEach(function(c) {
+        var b = c.bookings;
+        var venueName = b && b.venues ? b.venues.name : '\u2013';
+        var bandName  = b && b.bands  ? b.bands.name  : '\u2013';
+        var dateStr   = b ? new Date(b.booking_date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '\u2013';
+        var statusClass = c.status === 'Signed' ? 'status-signed' : (c.status === 'Pending Review' ? 'status-pending' : 'status-awaiting');
+        var assignedName = c.assigned_agent_id === currentProfileId ? 'You' : agentName(c.assigned_agent_id);
+
+        html +=
+          '<tr onclick="openViewModal(\'' + c.id + '\')">' +
+            '<td data-label="Venue">' + esc(venueName) + '</td>' +
+            '<td data-label="Band">' + esc(bandName) + '</td>' +
+            '<td data-label="Date">' + esc(dateStr) + '</td>' +
+            '<td data-label="Assigned To">' + esc(assignedName) + '</td>' +
+            '<td data-label="Status"><span class="status-pill ' + statusClass + '">' + esc(c.status) + '</span></td>' +
+          '</tr>';
+      });
+      document.getElementById('contractsBody').innerHTML = html;
+    }
+
+    // ── Create ──────────────────────────────────────────────────────────────
+
+    async function openCreateModal() {
+      var contractedBookingIds = allContracts.map(function(c) { return c.booking_id; });
+      var { data: bookings } = await sb
+        .from('bookings')
+        .select('id, booking_date, venues(name), bands(name)')
+        .order('booking_date', { ascending: false });
+
+      allBookingsWithoutContract = (bookings || []).filter(function(b) { return contractedBookingIds.indexOf(b.id) === -1; });
+
+      var sel = document.getElementById('cBooking');
+      if (allBookingsWithoutContract.length === 0) {
+        sel.innerHTML = '<option value="">No bookings available \u2014 create a booking first, or every booking already has a contract</option>';
+      } else {
+        sel.innerHTML = allBookingsWithoutContract.map(function(b) {
+          var v = b.venues ? b.venues.name : '?';
+          var bd = b.bands ? b.bands.name : '?';
+          var d = new Date(b.booking_date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+          return '<option value="' + b.id + '">' + esc(bd) + ' @ ' + esc(v) + ' \u2014 ' + esc(d) + '</option>';
+        }).join('');
+      }
+      var assignSel = document.getElementById('cAssignedAgent');
+      assignSel.innerHTML = businessAgents.map(function(a) {
+        var label = a.id === currentProfileId ? (a.name + ' (You)') : a.name;
+        return '<option value="' + a.id + '"' + (a.id === currentProfileId ? ' selected' : '') + '>' + esc(label) + '</option>';
+      }).join('');
+
+      document.getElementById('createModal').classList.add('show');
+    }
+
+    function closeCreateModal() {
+      document.getElementById('createModal').classList.remove('show');
+    }
+
+    function randomToken() {
+      return crypto.randomUUID().replace(/-/g, '');
+    }
+
+    function buildContractText(booking, venueName, bandName) {
+      var d = new Date(booking.booking_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+      return 'PERFORMANCE AGREEMENT\n' + '='.repeat(60) + '\n\n' +
+        'Venue: '     + venueName + '\n' +
+        'Band: '      + bandName  + '\n' +
+        'Date: '      + d + '\n' +
+        (booking.start_time ? 'Time: ' + booking.start_time.substring(0,5) + ' - ' + (booking.end_time ? booking.end_time.substring(0,5) : '') + '\n' : '') +
+        (booking.pay_amount != null ? 'Pay: $' + booking.pay_amount + '\n' : '') +
+        'Sound/Lights: ' + (booking.sound_lights || 'TBD') + '\n\n' +
+        'By signing below, both parties agree to the performance described above, ' +
+        'including the date, time, and compensation terms listed. Cancellations must ' +
+        'be communicated as early as possible. This agreement is binding once both ' +
+        'parties have signed.\n\n' +
+        '='.repeat(60) + '\n' +
+        'Band Signature: ______________________     Date: __________\n\n' +
+        'Venue Signature: _____________________     Date: __________\n';
+    }
+
+    async function createContract() {
+      var bookingId = document.getElementById('cBooking').value;
+      if (!bookingId) { showToast('Select a booking first.', 'error'); return; }
+
+      var booking = allBookingsWithoutContract.find(function(b) { return b.id === bookingId; });
+      var venueName = booking.venues ? booking.venues.name : 'Venue';
+      var bandName  = booking.bands  ? booking.bands.name  : 'Band';
+
+      var assignedAgentId = document.getElementById('cAssignedAgent').value || currentProfileId;
+
+      var btn = document.getElementById('createBtn');
+      btn.disabled = true;
+      btn.textContent = 'Generating\u2026';
+
+      try {
+        var { error } = await sb.from('contracts').insert({
+          business_id:       currentBusinessId,
+          booking_id:        bookingId,
+          assigned_agent_id: assignedAgentId,
+          created_by:        currentProfileId,
+          band_token:        randomToken(),
+          venue_token:       randomToken(),
+          status:            'Pending Review',
+          contract_text:     buildContractText(booking, venueName, bandName)
+        });
+        if (error) throw error;
+        showToast('Contract generated.');
+        closeCreateModal();
+        await loadContracts();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Generate Contract';
+      }
+    }
+
+    // ── View / Edit ─────────────────────────────────────────────────────────
+
+    async function openViewModal(id) {
+      var c = allContracts.find(function(x) { return x.id === id; });
+      if (!c) return;
+      activeContract = c;
+      activeChannel = 'band';
+
+      var b = c.bookings;
+      var venueName = b && b.venues ? b.venues.name : 'Venue';
+      var bandName  = b && b.bands  ? b.bands.name  : 'Band';
+      document.getElementById('viewTitle').textContent = bandName + ' @ ' + venueName;
+      document.getElementById('vContractText').value = c.contract_text || '';
+
+      document.getElementById('venueSigPill').className  = 'sig-pill ' + (c.venue_signed_at ? 'done' : 'pending');
+      document.getElementById('venueSigPill').textContent  = c.venue_signed_at
+        ? '\u2713 Step 1 \u2013 Venue signed: ' + c.venue_signed_name
+        : '\u23F3 Step 1 \u2013 Awaiting venue signature';
+
+      var bandLocked = !c.venue_signed_at;
+      document.getElementById('bandSigPill').className = 'sig-pill ' + (c.band_signed_at ? 'done' : 'pending');
+      document.getElementById('bandSigPill').textContent = c.band_signed_at
+        ? '\u2713 Step 2 \u2013 Band signed: ' + c.band_signed_name
+        : (bandLocked ? '\u{1F512} Step 2 \u2013 Locked until venue signs' : '\u23F3 Step 2 \u2013 Awaiting band signature');
+
+      var assignSel = document.getElementById('vAssignedAgent');
+      assignSel.innerHTML = businessAgents.map(function(a) {
+        var label = a.id === currentProfileId ? (a.name + ' (You)') : a.name;
+        return '<option value="' + a.id + '"' + (a.id === c.assigned_agent_id ? ' selected' : '') + '>' + esc(label) + '</option>';
+      }).join('');
+
+      document.getElementById('bandLink').value  = FRONTEND_BASE + 'sign-contract.html?token=' + c.band_token;
+      document.getElementById('venueLink').value = FRONTEND_BASE + 'sign-contract.html?token=' + c.venue_token;
+
+      switchChannel('band');
+      document.getElementById('viewModal').classList.add('show');
+    }
+
+    async function reassignContract() {
+      if (!activeContract) return;
+      var newAgentId = document.getElementById('vAssignedAgent').value;
+      try {
+        var { error } = await sb.from('contracts').update({ assigned_agent_id: newAgentId }).eq('id', activeContract.id);
+        if (error) throw error;
+        activeContract.assigned_agent_id = newAgentId;
+        showToast('Contract reassigned to ' + agentName(newAgentId) + '.');
+        await loadContracts();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    }
+
+    function closeViewModal() {
+      document.getElementById('viewModal').classList.remove('show');
+      activeContract = null;
+    }
+
+    async function saveContractText() {
+      if (!activeContract) return;
+      var newText = document.getElementById('vContractText').value;
+      var btn = document.getElementById('saveContractBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving\u2026';
+      try {
+        // First send: goes to the venue first, per the sequential signing
+        // flow — the band's link stays locked until the venue signs.
+        var update = { contract_text: newText };
+        if (activeContract.status === 'Pending Review') {
+          update.status  = 'Awaiting Venue';
+          update.sent_at = new Date().toISOString();
+        }
+        var { error } = await sb.from('contracts').update(update).eq('id', activeContract.id);
+        if (error) throw error;
+        showToast('Contract saved and sent.');
+        closeViewModal();
+        await loadContracts();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+      }
+    }
+
+    async function deleteContract() {
+      if (!activeContract) return;
+      document.getElementById('deleteConfirmModal').classList.add('show');
+    }
+
+    async function _doDeleteContract() {
+      document.getElementById('deleteConfirmModal').classList.remove('show');
+      if (!activeContract) return;
+      try {
+        var { error } = await sb.from('contracts').delete().eq('id', activeContract.id);
+        if (error) throw error;
+        showToast('Contract deleted.');
+        closeViewModal();
+        await loadContracts();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      }
+    }
+
+    function copyLink(elId) {
+      var el = document.getElementById(elId);
+      el.select();
+      document.execCommand('copy');
+      showToast('Link copied.');
+    }
+
+    // ── Messaging ───────────────────────────────────────────────────────────
+
+    function switchChannel(channel) {
+      activeChannel = channel;
+      document.getElementById('tabBand').classList.toggle('active', channel === 'band');
+      document.getElementById('tabVenue').classList.toggle('active', channel === 'venue');
+      loadMessages();
+    }
+
+    async function loadMessages() {
+      if (!activeContract) return;
+      var { data, error } = await sb
+        .from('contract_messages')
+        .select('*')
+        .eq('contract_id', activeContract.id)
+        .eq('channel', activeChannel)
+        .order('created_at', { ascending: true });
+
+      var el = document.getElementById('msgThread');
+      if (error || !data || data.length === 0) {
+        el.innerHTML = '<div class="msg-empty">No messages yet.</div>';
+        return;
+      }
+      el.innerHTML = data.map(function(m) {
+        var cls = m.from_role === 'business' ? 'mine' : 'theirs';
+        var label = m.from_role === 'business' ? 'You' : (activeChannel === 'band' ? 'Band' : 'Venue');
+        return '<div class="msg-bubble ' + cls + '"><div class="msg-meta">' + esc(label) + '</div>' + esc(m.message) + '</div>';
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function sendMessage() {
+      if (!activeContract) return;
+      var input = document.getElementById('msgInput');
+      var text = input.value.trim();
+      if (!text) return;
+      try {
+        var { error } = await sb.from('contract_messages').insert({
+          business_id: currentBusinessId,
+          contract_id: activeContract.id,
+          channel:     activeChannel,
+          from_role:   'business',
+          from_name:   'Business',
+          message:     text
+        });
+        if (error) throw error;
+        input.value = '';
+        loadMessages();
+      } catch (err) {
+        showToast('Error sending message: ' + err.message, 'error');
+      }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function showToast(msg, type) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast' + (type === 'error' ? ' error' : '');
+      void t.offsetWidth;
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 3500);
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function logout() {
+      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
+    }
+  </script>
+</body>
+</html>
