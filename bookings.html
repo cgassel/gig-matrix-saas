@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bookings — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
+    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { font-size: 1.05rem; margin: 0; }
+    .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+    .content { max-width: 1050px; margin: 28px auto; padding: 0 20px 60px; }
+    .toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .toolbar button.add-btn { background: #A07018; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
+    .toolbar select, .toolbar input { padding: 9px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: #fff; }
+    .toolbar input { flex: 1; min-width: 180px; }
+
+    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+    th { background: #f2ede4; text-align: left; padding: 12px 14px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b5e48; }
+    td { padding: 12px 14px; font-size: 0.86rem; border-top: 1px solid #eee; }
+    tr:hover td { background: #faf8f4; }
+    .status-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; }
+    .status-pending   { background: #fff8e1; color: #e65100; }
+    .status-confirmed { background: #e8f5e9; color: #2e7d32; }
+    .status-cancelled { background: #ffebee; color: #b71c1c; }
+    .row-actions { display: flex; gap: 8px; }
+    .row-actions button { border: none; background: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; padding: 4px 6px; }
+    .edit-btn { color: #A07018; }
+    .delete-btn { color: #8B2000; }
+    .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
+    .empty-state .hint { font-size: 0.8rem; color: #999; margin-top: 8px; }
+
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 14px; max-width: 480px; width: 100%; padding: 26px 28px; margin: auto; }
+    .modal h2 { color: #A07018; font-size: 1.1rem; margin: 0 0 18px; }
+    .modal label { display: block; font-size: 0.78rem; font-weight: 700; color: #6b5e48; margin: 14px 0 5px; }
+    .modal label:first-of-type { margin-top: 0; }
+    .modal input, .modal select, .modal textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; }
+    .modal textarea { min-height: 60px; resize: vertical; }
+    .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+    .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+    .btn-save { background: #A07018; color: #fff; }
+    .btn-cancel { background: #f0ebe0; color: #555; }
+    .btn-delete-confirm { background: #8B2000; color: #fff; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.error { background: #8B2000; }
+
+    @media (max-width: 640px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { background: #fff; border-radius: 10px; margin-bottom: 10px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+      td { border: none; padding: 4px 0; }
+      td:before { content: attr(data-label); font-weight: 700; color: #6b5e48; font-size: 0.68rem; text-transform: uppercase; display: block; }
+      .modal .row2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Gig Matrix</h1>
+      <div class="biz" id="bizName"></div>
+    </div>
+    <div class="topbar-right">
+      <a href="venues.html">Venues</a>
+      <a href="bands.html">Bands</a>
+      <a href="dashboard.html">&larr; Dashboard</a>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="toolbar">
+      <button class="add-btn" onclick="openAddModal()">+ Add Booking</button>
+      <select id="filterStatus" onchange="renderTable()">
+        <option value="">All Statuses</option>
+        <option value="Pending">Pending</option>
+        <option value="Confirmed">Confirmed</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+      <input type="text" id="searchBox" placeholder="Search venue, band..." oninput="renderTable()">
+    </div>
+
+    <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
+
+    <table id="bookingsTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Venue</th>
+          <th>Band</th>
+          <th>Pay</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="bookingsBody"></tbody>
+    </table>
+
+    <div class="empty-state" id="emptyState" style="display:none;">
+      <p id="emptyMsg">No bookings yet. Click "+ Add Booking" to create your first one.</p>
+      <p class="hint" id="emptyHint"></p>
+    </div>
+  </div>
+
+  <!-- Add / Edit modal -->
+  <div class="modal-overlay" id="bookingModal">
+    <div class="modal">
+      <h2 id="modalTitle">Add Booking</h2>
+      <form id="bookingForm">
+        <label>Venue *</label>
+        <select id="bkVenue" required></select>
+
+        <label>Band *</label>
+        <select id="bkBand" required></select>
+
+        <div class="row2">
+          <div>
+            <label>Date *</label>
+            <input type="date" id="bkDate" required>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="bkStatus">
+              <option value="Pending">Pending</option>
+              <option value="Confirmed">Confirmed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Start Time</label>
+            <input type="time" id="bkStartTime" value="20:00">
+          </div>
+          <div>
+            <label>End Time</label>
+            <input type="time" id="bkEndTime" value="23:00">
+          </div>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label>Sound/Lights</label>
+            <select id="bkSoundLights">
+              <option value="Venue">Venue provides</option>
+              <option value="Band">Band provides</option>
+            </select>
+          </div>
+          <div>
+            <label>Pay Amount</label>
+            <input type="number" id="bkPayAmount" min="0" step="1">
+          </div>
+        </div>
+
+        <label>Commission %</label>
+        <input type="number" id="bkCommission" min="0" max="100" step="0.5" placeholder="e.g. 15">
+
+        <label>Notes</label>
+        <textarea id="bkNotes"></textarea>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" onclick="closeBookingModal()">Cancel</button>
+          <button type="submit" class="btn-save" id="saveBtn">Save Booking</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+      <h2>Delete Booking</h2>
+      <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+        <button type="button" class="btn-delete-confirm" id="confirmDeleteBtn" onclick="doDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="config.js"></script>
+  <script>
+    var currentBusinessId = null;
+    var allBookings = [];
+    var allVenues = [];
+    var allBands = [];
+    var editingBookingId = null;
+    var pendingDeleteId = null;
+
+    (async function init() {
+      var { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      var { data: profile, error } = await sb
+        .from('profiles')
+        .select('business_id, businesses(name)')
+        .single();
+
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
+
+      currentBusinessId = profile.business_id;
+      document.getElementById('bizName').textContent = profile.businesses.name;
+
+      await Promise.all([loadVenuesAndBands(), loadBookings()]);
+    })();
+
+    async function loadVenuesAndBands() {
+      var [{ data: venues }, { data: bands }] = await Promise.all([
+        sb.from('venues').select('id, name, category').order('name'),
+        sb.from('bands').select('id, name').order('name')
+      ]);
+      allVenues = venues || [];
+      allBands  = bands  || [];
+
+      var venueSelect = document.getElementById('bkVenue');
+      venueSelect.innerHTML = allVenues.length
+        ? allVenues.map(function(v) { return '<option value="' + v.id + '">' + esc(v.name) + (v.category !== 'Club' ? ' (' + v.category + ')' : '') + '</option>'; }).join('')
+        : '<option value="">No venues yet — add one first</option>';
+
+      var bandSelect = document.getElementById('bkBand');
+      bandSelect.innerHTML = allBands.length
+        ? allBands.map(function(b) { return '<option value="' + b.id + '">' + esc(b.name) + '</option>'; }).join('')
+        : '<option value="">No bands yet — add one first</option>';
+    }
+
+    async function loadBookings() {
+      // Pull venue/band names through the foreign key relationships so we
+      // don't have to look them up separately for the table.
+      var { data, error } = await sb
+        .from('bookings')
+        .select('*, venues(name), bands(name)')
+        .order('booking_date', { ascending: false });
+
+      document.getElementById('loadingState').style.display = 'none';
+
+      if (error) {
+        showToast('Error loading bookings: ' + error.message, 'error');
+        return;
+      }
+
+      allBookings = data || [];
+      renderTable();
+    }
+
+    function renderTable() {
+      var status = document.getElementById('filterStatus').value;
+      var search = document.getElementById('searchBox').value.toLowerCase();
+
+      var filtered = allBookings.filter(function(b) {
+        if (status && b.status !== status) return false;
+        if (search) {
+          var haystack = [(b.venues && b.venues.name), (b.bands && b.bands.name)].join(' ').toLowerCase();
+          if (haystack.indexOf(search) === -1) return false;
+        }
+        return true;
+      });
+
+      var table = document.getElementById('bookingsTable');
+      var emptyState = document.getElementById('emptyState');
+
+      if (filtered.length === 0) {
+        table.style.display = 'none';
+        emptyState.style.display = 'block';
+        if (allBookings.length === 0) {
+          document.getElementById('emptyMsg').textContent = 'No bookings yet. Click "+ Add Booking" to create your first one.';
+          document.getElementById('emptyHint').textContent = (allVenues.length === 0 || allBands.length === 0)
+            ? 'You\'ll need at least one venue and one band first.' : '';
+        } else {
+          document.getElementById('emptyMsg').textContent = 'No bookings match your filters.';
+          document.getElementById('emptyHint').textContent = '';
+        }
+        return;
+      }
+
+      table.style.display = 'table';
+      emptyState.style.display = 'none';
+
+      var html = '';
+      filtered.forEach(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var ds = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
+        var venueName = b.venues ? b.venues.name : '(deleted venue)';
+        var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
+        var pay = b.pay_amount != null ? '$' + Number(b.pay_amount).toLocaleString() : '\u2013';
+        var statusClass = 'status-' + (b.status || 'pending').toLowerCase();
+
+        html +=
+          '<tr>' +
+            '<td data-label="Date"><strong>' + esc(ds) + '</strong></td>' +
+            '<td data-label="Venue">' + esc(venueName) + '</td>' +
+            '<td data-label="Band">' + esc(bandName) + '</td>' +
+            '<td data-label="Pay">' + esc(pay) + '</td>' +
+            '<td data-label="Status"><span class="status-pill ' + statusClass + '">' + esc(b.status || 'Pending') + '</span></td>' +
+            '<td><div class="row-actions">' +
+              '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
+              '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>' +
+            '</div></td>' +
+          '</tr>';
+      });
+      document.getElementById('bookingsBody').innerHTML = html;
+    }
+
+    // ── Add / Edit modal ────────────────────────────────────────────────────
+
+    function openAddModal() {
+      if (allVenues.length === 0 || allBands.length === 0) {
+        showToast('Add at least one venue and one band before creating a booking.', 'error');
+        return;
+      }
+      editingBookingId = null;
+      document.getElementById('modalTitle').textContent = 'Add Booking';
+      document.getElementById('bookingForm').reset();
+      document.getElementById('bkStatus').value = 'Pending';
+      document.getElementById('bkSoundLights').value = 'Venue';
+      document.getElementById('bkStartTime').value = '20:00';
+      document.getElementById('bkEndTime').value = '23:00';
+      document.getElementById('bookingModal').classList.add('show');
+    }
+
+    function openEditModal(id) {
+      var b = allBookings.find(function(x) { return x.id === id; });
+      if (!b) return;
+      editingBookingId = id;
+      document.getElementById('modalTitle').textContent = 'Edit Booking';
+      document.getElementById('bkVenue').value       = b.venue_id || '';
+      document.getElementById('bkBand').value         = b.band_id || '';
+      document.getElementById('bkDate').value         = b.booking_date || '';
+      document.getElementById('bkStatus').value       = b.status || 'Pending';
+      document.getElementById('bkStartTime').value    = b.start_time ? b.start_time.substring(0,5) : '20:00';
+      document.getElementById('bkEndTime').value      = b.end_time   ? b.end_time.substring(0,5)   : '23:00';
+      document.getElementById('bkSoundLights').value  = b.sound_lights || 'Venue';
+      document.getElementById('bkPayAmount').value    = b.pay_amount != null ? b.pay_amount : '';
+      document.getElementById('bkCommission').value   = b.commission_pct != null ? b.commission_pct : '';
+      document.getElementById('bkNotes').value        = b.notes || '';
+      document.getElementById('bookingModal').classList.add('show');
+    }
+
+    function closeBookingModal() {
+      document.getElementById('bookingModal').classList.remove('show');
+      editingBookingId = null;
+    }
+
+    document.getElementById('bookingForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      var bookingData = {
+        venue_id:       document.getElementById('bkVenue').value,
+        band_id:        document.getElementById('bkBand').value,
+        booking_date:   document.getElementById('bkDate').value,
+        start_time:     document.getElementById('bkStartTime').value || null,
+        end_time:       document.getElementById('bkEndTime').value || null,
+        sound_lights:   document.getElementById('bkSoundLights').value,
+        pay_amount:     document.getElementById('bkPayAmount').value !== '' ? parseFloat(document.getElementById('bkPayAmount').value) : null,
+        status:         document.getElementById('bkStatus').value,
+        commission_pct: document.getElementById('bkCommission').value !== '' ? parseFloat(document.getElementById('bkCommission').value) : null,
+        notes:          document.getElementById('bkNotes').value.trim() || null
+      };
+
+      var btn = document.getElementById('saveBtn');
+      btn.disabled = true;
+      btn.textContent = 'Saving\u2026';
+
+      try {
+        if (editingBookingId) {
+          var { error } = await sb.from('bookings').update(bookingData).eq('id', editingBookingId);
+          if (error) throw error;
+          showToast('Booking updated.');
+        } else {
+          bookingData.business_id = currentBusinessId; // required — RLS checks this on insert
+          var { error: insErr } = await sb.from('bookings').insert(bookingData);
+          if (insErr) throw insErr;
+          showToast('Booking added.');
+        }
+        closeBookingModal();
+        await loadBookings();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save Booking';
+      }
+    });
+
+    // ── Delete ──────────────────────────────────────────────────────────────
+
+    function openDeleteModal(id) {
+      var b = allBookings.find(function(x) { return x.id === id; });
+      if (!b) return;
+      pendingDeleteId = id;
+      var venueName = b.venues ? b.venues.name : 'this venue';
+      var bandName  = b.bands  ? b.bands.name  : 'this band';
+      document.getElementById('deleteMsg').textContent = 'Delete the booking for ' + bandName + ' at ' + venueName + '? This cannot be undone.';
+      document.getElementById('deleteModal').classList.add('show');
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteModal').classList.remove('show');
+      pendingDeleteId = null;
+    }
+
+    async function doDelete() {
+      if (!pendingDeleteId) return;
+      var btn = document.getElementById('confirmDeleteBtn');
+      btn.disabled = true;
+      btn.textContent = 'Deleting\u2026';
+
+      try {
+        var { error } = await sb.from('bookings').delete().eq('id', pendingDeleteId);
+        if (error) throw error;
+        showToast('Booking deleted.');
+        closeDeleteModal();
+        await loadBookings();
+      } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Delete';
+      }
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+
+    function showToast(msg, type) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast' + (type === 'error' ? ' error' : '');
+      void t.offsetWidth;
+      t.classList.add('show');
+      setTimeout(function() { t.classList.remove('show'); }, 3500);
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function logout() {
+      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
+    }
+  </script>
+</body>
+</html>
