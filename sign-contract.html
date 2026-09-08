@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance Agreement — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
+    .topbar { background: #A07018; padding: 16px 24px; color: #fff; }
+    .topbar h1 { font-size: 1.05rem; margin: 0; }
+    .topbar .sub { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+    .content { max-width: 640px; margin: 28px auto; padding: 0 20px 60px; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); padding: 26px 28px; margin-bottom: 18px; }
+    .role-badge { display: inline-block; background: #fdf1dc; color: #A07018; font-size: 0.72rem; font-weight: 700; padding: 4px 12px; border-radius: 12px; margin-bottom: 14px; }
+    .contract-text { background: #fafafa; border: 1px solid #e0d8c8; border-radius: 10px; padding: 20px; font-family: 'Courier New', monospace; font-size: 0.82rem; line-height: 1.6; white-space: pre-wrap; max-height: 420px; overflow-y: auto; margin-bottom: 20px; }
+    .already-signed { background: #e8f5e9; border: 1.5px solid #a5d6a7; color: #2e7d32; border-radius: 10px; padding: 14px 16px; font-size: 0.88rem; font-weight: 600; margin-bottom: 18px; }
+    label { display: block; font-size: 0.8rem; font-weight: 700; color: #6b5e48; margin-bottom: 6px; }
+    input[type="text"] { width: 100%; padding: 12px 14px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.95rem; font-style: italic; margin-bottom: 16px; font-family: inherit; }
+    button.sign-btn { width: 100%; padding: 14px; background: #A07018; color: #fff; border: none; border-radius: 10px; font-size: 0.95rem; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; }
+    button.sign-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .loading-state, .error-state { text-align: center; padding: 60px 20px; color: #6b5e48; }
+    .msg-thread { display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow-y: auto; margin-bottom: 12px; }
+    .msg-empty { text-align: center; color: #999; font-size: 0.82rem; font-style: italic; padding: 10px 0; }
+    .msg-bubble { max-width: 85%; padding: 9px 13px; border-radius: 10px; font-size: 0.85rem; line-height: 1.4; }
+    .msg-bubble.theirs { align-self: flex-start; background: #fdf1dc; border: 1px solid #d4a030; }
+    .msg-bubble.mine { align-self: flex-end; background: #f2ede4; }
+    .msg-meta { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 3px; }
+    .msg-compose { display: flex; gap: 8px; }
+    .msg-compose textarea { flex: 1; min-height: 44px; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-family: inherit; font-size: 0.85rem; resize: vertical; }
+    .msg-compose button { background: #A07018; color: #fff; border: none; padding: 0 18px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+    h2 { font-size: 1.05rem; color: #A07018; margin: 0 0 6px; }
+    .card p.sub { color: #6b5e48; font-size: 0.85rem; margin: 0 0 14px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <h1>Gig Matrix</h1>
+    <div class="sub">Performance Agreement</div>
+  </div>
+
+  <div class="content">
+    <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
+    <div class="error-state" id="errorState" style="display:none;"><p>This link is invalid or has expired.</p></div>
+
+    <div id="mainContent" style="display:none;">
+      <div class="card">
+        <span class="role-badge" id="roleBadge"></span>
+        <div id="alreadySignedBox"></div>
+        <div class="contract-text" id="contractText"></div>
+
+        <div id="signSection">
+          <label>Type your full legal name to sign</label>
+          <input type="text" id="signedName" placeholder="Your full name" oninput="updateSignBtn()">
+          <button class="sign-btn" id="signBtn" disabled onclick="doSign()">Sign Agreement</button>
+          <div id="signError" style="display:none;background:#fdecea;color:#8B2000;border:1.5px solid #f5c6c0;border-radius:8px;padding:10px 14px;font-size:0.85rem;margin-top:12px;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>&#128172; Questions or need a change?</h2>
+        <p class="sub">Send a message and they'll see it right away.</p>
+        <div class="msg-thread" id="msgThread"></div>
+        <div class="msg-compose">
+          <textarea id="msgInput" placeholder="Ask a question..."></textarea>
+          <button type="button" onclick="sendMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    var token = new URLSearchParams(window.location.search).get('token');
+    var contractData = null;
+
+    (async function init() {
+      if (!token) { showError(); return; }
+
+      var { data, error } = await sb.rpc('get_contract_by_token', { p_token: token });
+      document.getElementById('loadingState').style.display = 'none';
+
+      if (error || !data) { showError(); return; }
+
+      contractData = data;
+      render();
+      loadMessages();
+      document.getElementById('mainContent').style.display = 'block';
+    })();
+
+    function showError() {
+      document.getElementById('errorState').style.display = 'block';
+    }
+
+    function render() {
+      var roleLabel = contractData.role === 'band' ? 'Band / Performer' : 'Venue';
+      document.getElementById('roleBadge').textContent = 'Signing as: ' + roleLabel;
+      document.getElementById('contractText').textContent = contractData.contractText || '';
+
+      if (contractData.alreadySigned) {
+        var signedName = contractData.role === 'band' ? contractData.bandSignedName : contractData.venueSignedName;
+        document.getElementById('alreadySignedBox').innerHTML =
+          '<div class="already-signed">&#x2713; You already signed this as ' + esc(signedName) + '.</div>';
+        document.getElementById('signSection').style.display = 'none';
+      } else if (contractData.role === 'band' && !contractData.canSignNow) {
+        // Sequential signing: the venue/client always signs first. The
+        // band's link exists and can be viewed at any time, but signing
+        // itself is locked until that happens.
+        document.getElementById('alreadySignedBox').innerHTML =
+          '<div class="already-signed" style="background:#fff8e1;border-color:#ffe082;color:#b45309;">' +
+          '&#x23F3; Waiting on the venue to sign first. You\'ll be able to sign once they have \u2014 feel free to check back, or ask a question below.</div>';
+        document.getElementById('signSection').style.display = 'none';
+      }
+    }
+
+    function updateSignBtn() {
+      var name = document.getElementById('signedName').value.trim();
+      document.getElementById('signBtn').disabled = name.length < 2;
+    }
+
+    async function doSign() {
+      var name = document.getElementById('signedName').value.trim();
+      if (name.length < 2) return;
+      var btn = document.getElementById('signBtn');
+      btn.disabled = true;
+      btn.textContent = 'Signing\u2026';
+
+      try {
+        var { data, error } = await sb.rpc('sign_contract_by_token', { p_token: token, p_signed_name: name });
+        if (error || !data || !data.success) throw new Error((data && data.message) || (error && error.message) || 'Signing failed.');
+
+        document.getElementById('signSection').innerHTML =
+          '<div class="already-signed">&#x2713; Thanks, ' + esc(name) + ' — your signature has been recorded.' +
+          (data.newStatus === 'Signed' ? ' Both parties have now signed!' : '') + '</div>';
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = 'Sign Agreement';
+        var errEl = document.getElementById('signError');
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      }
+    }
+
+    async function loadMessages() {
+      var { data } = await sb.rpc('get_contract_messages_by_token', { p_token: token });
+      var el = document.getElementById('msgThread');
+      if (!data || data.length === 0) {
+        el.innerHTML = '<div class="msg-empty">No messages yet.</div>';
+        return;
+      }
+      el.innerHTML = data.map(function(m) {
+        var cls = m.from_role === contractData.role ? 'mine' : 'theirs';
+        var label = m.from_role === contractData.role ? 'You' : 'Gig Matrix';
+        return '<div class="msg-bubble ' + cls + '"><div class="msg-meta">' + esc(label) + '</div>' + esc(m.message) + '</div>';
+      }).join('');
+      el.scrollTop = el.scrollHeight;
+    }
+
+    async function sendMessage() {
+      var input = document.getElementById('msgInput');
+      var text = input.value.trim();
+      if (!text) return;
+      var { error } = await sb.rpc('post_contract_message_by_token', { p_token: token, p_message: text });
+      if (!error) { input.value = ''; loadMessages(); }
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>
