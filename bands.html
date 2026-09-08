@@ -24,25 +24,42 @@
     th { background: #f2ede4; text-align: left; padding: 12px 14px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b5e48; }
     td { padding: 12px 14px; font-size: 0.86rem; border-top: 1px solid #eee; }
     tr:hover td { background: #faf8f4; }
-    .genre-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; background: #f2ede4; color: #A07018; }
+    .genre-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; background: #f2ede4; color: #A07018; margin: 1px 2px 1px 0; }
+    .rating-badge { display: inline-block; font-size: 0.72rem; font-weight: 800; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: #fdf1dc; color: #A07018; }
     .row-actions { display: flex; gap: 8px; }
     .row-actions button { border: none; background: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; padding: 4px 6px; }
     .edit-btn { color: #A07018; }
     .delete-btn { color: #8B2000; }
     .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
 
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; z-index: 500; }
     .modal-overlay.show { display: flex; }
-    .modal { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 26px 28px; margin: auto; }
-    .modal h2 { color: #A07018; font-size: 1.1rem; margin: 0 0 18px; }
-    .modal label { display: block; font-size: 0.78rem; font-weight: 700; color: #6b5e48; margin: 14px 0 5px; }
-    .modal label:first-of-type { margin-top: 0; }
-    .modal input, .modal textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; }
+    .modal { background: #fff; border-radius: 14px; max-width: 720px; width: 100%; margin: auto; overflow: hidden; }
+    .modal-header { background: linear-gradient(160deg,#3a2608 0%,#6a4a10 10%,#a07020 20%,#d4a030 30%,#f0c050 42%,#e8b838 50%,#c08820 60%,#906010 70%,#6a4810 82%,#4a3008 90%,#2e1e06 100%); padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h2 { color: #fff; font-size: 1.1rem; margin: 0; }
+    .modal-header .close-x { background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; line-height: 1; }
+    .modal-body { padding: 22px 24px; }
+    .section-label { background: #f2ede4; color: #7A5210; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 12px; border-left: 4px solid #A07018; border-radius: 4px; margin: 20px 0 14px; }
+    .section-label:first-child { margin-top: 0; }
+    .modal label { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #6b5e48; margin: 12px 0 5px; }
+    .modal label .req { color: #8B2000; }
+    .modal input[type="text"], .modal input[type="email"], .modal input[type="tel"], .modal input[type="number"], .modal input[type="url"], .modal select, .modal textarea {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; background: #fff;
+    }
+    .modal input[disabled] { background: #f2ede4; color: #999; }
     .modal textarea { min-height: 70px; resize: vertical; }
-    .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .modal .hint { font-size: 0.72rem; color: #999; margin-top: 4px; }
-    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
-    .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+    .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field-hint { font-size: 0.72rem; color: #999; margin-top: 4px; font-style: italic; }
+    .pct-wrap { position: relative; }
+    .pct-wrap span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #999; font-size: 0.85rem; }
+
+    .pill-selector { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; background: #fdf8f0; border: 1px solid #e8dcc8; border-radius: 10px; }
+    .pill-btn { padding: 8px 16px; border: 1.5px solid #d4c4a0; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.82rem; font-weight: 700; color: #6b5e48; white-space: nowrap; }
+    .pill-btn:hover { border-color: #A07018; }
+    .pill-btn.selected { background: #A07018; color: #fff; border-color: #A07018; }
+
+    .modal-footer { display: flex; gap: 10px; padding: 18px 24px 22px; }
+    .modal-footer button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
     .btn-save { background: #A07018; color: #fff; }
     .btn-cancel { background: #f0ebe0; color: #555; }
     .btn-delete-confirm { background: #8B2000; color: #fff; }
@@ -58,6 +75,7 @@
       td { border: none; padding: 4px 0; }
       td:before { content: attr(data-label); font-weight: 700; color: #6b5e48; font-size: 0.68rem; text-transform: uppercase; display: block; }
       .modal .row2 { grid-template-columns: 1fr; }
+      .modal-footer { flex-direction: column; }
     }
   </style>
 </head>
@@ -70,6 +88,7 @@
     <div class="topbar-right">
       <a href="venues.html">Venues</a>
       <a href="bookings.html">Bookings</a>
+      <a href="contracts.html">Contracts</a>
       <a href="dashboard.html">&larr; Dashboard</a>
       <button onclick="logout()">Sign Out</button>
     </div>
@@ -85,14 +104,7 @@
 
     <table id="bandsTable" style="display:none;">
       <thead>
-        <tr>
-          <th>Name</th>
-          <th>Genre</th>
-          <th>Contact</th>
-          <th>Phone</th>
-          <th>Pay Rate</th>
-          <th></th>
-        </tr>
+        <tr><th>Name</th><th>Genre(s)</th><th>Size</th><th>Rating</th><th>Pay Rate</th><th></th></tr>
       </thead>
       <tbody id="bandsBody"></tbody>
     </table>
@@ -105,57 +117,177 @@
   <!-- Add / Edit modal -->
   <div class="modal-overlay" id="bandModal">
     <div class="modal">
-      <h2 id="modalTitle">Add Band</h2>
-      <form id="bandForm">
-        <label>Band Name *</label>
-        <input type="text" id="bName" required>
+      <div class="modal-header">
+        <h2 id="modalTitle">&#128640; Add New Band</h2>
+        <button type="button" class="close-x" onclick="closeBandModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="bandForm">
 
-        <label>Genre</label>
-        <input type="text" id="bGenre" placeholder="e.g. Rock, Country, Cover Band">
+          <div class="section-label">Basic Information</div>
+          <label>Band Name <span class="req">*</span></label>
+          <input type="text" id="bName" required>
 
-        <div class="row2">
-          <div>
-            <label>Contact Name</label>
-            <input type="text" id="bContactName">
+          <div class="row2">
+            <div>
+              <label>Contact Name <span class="req">*</span></label>
+              <input type="text" id="bContactName" required>
+            </div>
+            <div>
+              <label>Name on W9</label>
+              <input type="text" id="bNameOnW9">
+            </div>
           </div>
-          <div>
-            <label>Phone</label>
-            <input type="tel" id="bPhone">
+
+          <label>Email <span class="req">*</span></label>
+          <input type="email" id="bEmail" required>
+
+          <label>Phone <span class="req">*</span></label>
+          <input type="tel" id="bPhone" required placeholder="555-1234">
+
+          <label>W9 Status</label>
+          <select id="bW9Status">
+            <option value="No">No</option>
+            <option value="Yes">Yes</option>
+          </select>
+
+          <div class="section-label">Payment Rates &amp; Commission</div>
+          <div class="row2">
+            <div>
+              <label>Pay Rate (No Sound/Lights) <span class="req">*</span></label>
+              <input type="number" id="bPayNoSound" min="0" step="1" required placeholder="500">
+              <div class="field-hint">Venue provides sound</div>
+            </div>
+            <div>
+              <label>Pay Rate (With Sound/Lights) <span class="req">*</span></label>
+              <input type="number" id="bPayWithSound" min="0" step="1" required placeholder="750">
+              <div class="field-hint">Band brings equipment</div>
+            </div>
           </div>
-        </div>
-
-        <label>Email</label>
-        <input type="email" id="bEmail">
-
-        <div class="row2">
-          <div>
-            <label>Pay Rate — No Sound</label>
-            <input type="number" id="bPayNoSound" min="0" step="1">
+          <div class="row2">
+            <div>
+              <label>Private Party Rate</label>
+              <input type="number" id="bPrivatePartyRate" min="0" step="1" placeholder="1000">
+            </div>
+            <div>
+              <label>Agency Commission <span class="req">*</span></label>
+              <div class="pct-wrap">
+                <input type="number" id="bCommission" min="0" max="100" step="0.5" required placeholder="15">
+                <span>%</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <label>Pay Rate — With Sound</label>
-            <input type="number" id="bPayWithSound" min="0" step="1">
+
+          <div class="section-label">Performance Details</div>
+          <label>Band Size <span class="req">*</span></label>
+          <div class="pill-selector" id="bandSizeSelector">
+            <button type="button" class="pill-btn" data-value="Solo">&#127925; Solo</button>
+            <button type="button" class="pill-btn" data-value="Duo">&#127932; Duo</button>
+            <button type="button" class="pill-btn" data-value="Trio">&#127931; Trio</button>
+            <button type="button" class="pill-btn" data-value="Full Band">&#127928; Full Band</button>
           </div>
-        </div>
-        <div class="hint">The band's usual rate when the venue provides sound/lights, vs. when the band brings their own.</div>
 
-        <label>Notes</label>
-        <textarea id="bNotes"></textarea>
+          <label style="margin-top:16px;">Genre(s) <span class="req">*</span></label>
+          <div class="pill-selector" id="genreSelector">
+            <button type="button" class="pill-btn" data-value="Rock">&#127928; Rock</button>
+            <button type="button" class="pill-btn" data-value="Classic Rock">&#127925; Classic Rock</button>
+            <button type="button" class="pill-btn" data-value="Blues">&#127930; Blues</button>
+            <button type="button" class="pill-btn" data-value="Jazz">&#127911; Jazz</button>
+            <button type="button" class="pill-btn" data-value="Country">&#127920; Country</button>
+            <button type="button" class="pill-btn" data-value="R&B/Soul">&#128150; R&amp;B/Soul</button>
+            <button type="button" class="pill-btn" data-value="Folk">&#127925; Folk</button>
+            <button type="button" class="pill-btn" data-value="Alternative">&#9889; Alternative</button>
+            <button type="button" class="pill-btn" data-value="Funk">&#127925; Funk</button>
+            <button type="button" class="pill-btn" data-value="Pop">&#9728; Pop</button>
+            <button type="button" class="pill-btn" data-value="Cover Band">&#127925; Cover Band</button>
+            <button type="button" class="pill-btn" data-value="Reggae">&#127811; Reggae</button>
+            <button type="button" class="pill-btn" data-value="Hip-Hop">&#127911; Hip-Hop</button>
+            <button type="button" class="pill-btn" data-value="Metal">&#129304; Metal</button>
+            <button type="button" class="pill-btn" data-value="Other">&#127908; Other</button>
+          </div>
+          <div class="field-hint">Select all genres that apply &mdash; used for venue matching</div>
 
-        <div class="modal-actions">
-          <button type="button" class="btn-cancel" onclick="closeBandModal()">Cancel</button>
-          <button type="submit" class="btn-save" id="saveBtn">Save Band</button>
-        </div>
-      </form>
+          <div class="row2">
+            <div>
+              <label>Number of Members <span class="req">*</span></label>
+              <input type="number" id="bNumMembers" min="1" step="1" required placeholder="4">
+            </div>
+            <div>
+              <label>Typical Draw <span class="req">*</span></label>
+              <input type="number" id="bTypicalDraw" min="0" step="1" required placeholder="75" oninput="updateBandRating()">
+              <div class="field-hint">Avg people band brings</div>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label>Band Rating (Auto)</label>
+              <input type="text" id="bRating" disabled>
+              <div class="field-hint">A=150+, B=75+, C=40+, D=25+</div>
+            </div>
+            <div>
+              <label>Hometown</label>
+              <input type="text" id="bHometown" placeholder="St. Louis, MO">
+            </div>
+          </div>
+
+          <div class="section-label">Travel</div>
+          <div class="row2">
+            <div>
+              <label>Can Travel?</label>
+              <select id="bCanTravel">
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </div>
+            <div>
+              <label>Max Distance (miles)</label>
+              <input type="number" id="bMaxDistance" min="0" step="1" placeholder="50">
+            </div>
+          </div>
+
+          <div class="section-label">Marketing &amp; Links</div>
+          <div class="row2">
+            <div>
+              <label>Promo Video</label>
+              <input type="url" id="bPromoVideo" placeholder="https://youtube.com/...">
+            </div>
+            <div>
+              <label>Facebook</label>
+              <input type="url" id="bFacebook" placeholder="https://facebook.com/...">
+            </div>
+          </div>
+          <div class="row2">
+            <div>
+              <label>Instagram</label>
+              <input type="url" id="bInstagram" placeholder="https://instagram.com/...">
+            </div>
+            <div>
+              <label>Website</label>
+              <input type="url" id="bWebsite" placeholder="https://bandname.com">
+            </div>
+          </div>
+
+          <label>Notes</label>
+          <textarea id="bNotes" placeholder="Additional info..."></textarea>
+
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeBandModal()">Cancel</button>
+        <button type="button" class="btn-save" id="saveBtn" onclick="submitBandForm()">&#128640; Add Band</button>
+      </div>
     </div>
   </div>
 
   <!-- Delete confirm modal -->
   <div class="modal-overlay" id="deleteModal">
-    <div class="modal">
-      <h2>Delete Band</h2>
-      <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
-      <div class="modal-actions">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header"><h2>Delete Band</h2></div>
+      <div class="modal-body">
+        <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
+      </div>
+      <div class="modal-footer">
         <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
         <button type="button" class="btn-delete-confirm" id="confirmDeleteBtn" onclick="doDelete()">Delete</button>
       </div>
@@ -170,6 +302,8 @@
     var allBands = [];
     var editingBandId = null;
     var pendingDeleteId = null;
+    var selectedBandSize = null;
+    var selectedGenres = [];
 
     (async function init() {
       var { data: { session } } = await sb.auth.getSession();
@@ -185,35 +319,41 @@
       currentBusinessId = profile.business_id;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
+      // Wire up the pill selectors
+      document.getElementById('bandSizeSelector').addEventListener('click', function(e) {
+        var btn = e.target.closest('.pill-btn');
+        if (!btn) return;
+        selectedBandSize = btn.dataset.value;
+        this.querySelectorAll('.pill-btn').forEach(function(b) { b.classList.remove('selected'); });
+        btn.classList.add('selected');
+      });
+
+      document.getElementById('genreSelector').addEventListener('click', function(e) {
+        var btn = e.target.closest('.pill-btn');
+        if (!btn) return;
+        var val = btn.dataset.value;
+        var idx = selectedGenres.indexOf(val);
+        if (idx === -1) { selectedGenres.push(val); btn.classList.add('selected'); }
+        else { selectedGenres.splice(idx, 1); btn.classList.remove('selected'); }
+      });
+
       await loadBands();
     })();
 
     async function loadBands() {
-      var { data, error } = await sb
-        .from('bands')
-        .select('*')
-        .order('name', { ascending: true });
-
+      var { data, error } = await sb.from('bands').select('*').order('name', { ascending: true });
       document.getElementById('loadingState').style.display = 'none';
-
-      if (error) {
-        showToast('Error loading bands: ' + error.message, 'error');
-        return;
-      }
-
+      if (error) { showToast('Error loading bands: ' + error.message, 'error'); return; }
       allBands = data || [];
       renderTable();
     }
 
     function renderTable() {
       var search = document.getElementById('searchBox').value.toLowerCase();
-
       var filtered = allBands.filter(function(b) {
-        if (search) {
-          var haystack = [b.name, b.genre, b.contact_name].join(' ').toLowerCase();
-          if (haystack.indexOf(search) === -1) return false;
-        }
-        return true;
+        if (!search) return true;
+        var haystack = [b.name, (b.genres || []).join(' '), b.contact_name].join(' ').toLowerCase();
+        return haystack.indexOf(search) !== -1;
       });
 
       var table = document.getElementById('bandsTable');
@@ -233,6 +373,7 @@
 
       var html = '';
       filtered.forEach(function(b) {
+        var genreHtml = (b.genres || []).map(function(g) { return '<span class="genre-pill">' + esc(g) + '</span>'; }).join('') || '\u2013';
         var payStr = [
           b.pay_rate_no_sound   != null ? '$' + b.pay_rate_no_sound + ' (no sound)'   : null,
           b.pay_rate_with_sound != null ? '$' + b.pay_rate_with_sound + ' (w/ sound)' : null
@@ -241,9 +382,9 @@
         html +=
           '<tr>' +
             '<td data-label="Name"><strong>' + esc(b.name) + '</strong></td>' +
-            '<td data-label="Genre">' + (b.genre ? '<span class="genre-pill">' + esc(b.genre) + '</span>' : '\u2013') + '</td>' +
-            '<td data-label="Contact">' + esc(b.contact_name || '\u2013') + '</td>' +
-            '<td data-label="Phone">' + esc(b.phone || '\u2013') + '</td>' +
+            '<td data-label="Genre(s)">' + genreHtml + '</td>' +
+            '<td data-label="Size">' + esc(b.band_size || '\u2013') + '</td>' +
+            '<td data-label="Rating">' + (b.band_rating ? '<span class="rating-badge">' + esc(b.band_rating) + '</span>' : '\u2013') + '</td>' +
             '<td data-label="Pay Rate">' + esc(payStr) + '</td>' +
             '<td><div class="row-actions">' +
               '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
@@ -254,12 +395,40 @@
       document.getElementById('bandsBody').innerHTML = html;
     }
 
+    // ── Band Rating auto-calc (A=150+, B=75+, C=40+, D=25+) ──────────────────
+    function calculateBandRating(draw) {
+      draw = parseInt(draw) || 0;
+      if (draw >= 150) return 'A';
+      if (draw >= 75)  return 'B';
+      if (draw >= 40)  return 'C';
+      if (draw >= 25)  return 'D';
+      return '';
+    }
+    function updateBandRating() {
+      var draw = document.getElementById('bTypicalDraw').value;
+      document.getElementById('bRating').value = calculateBandRating(draw);
+    }
+
+    // ── Pill selector helpers ────────────────────────────────────────────────
+    function setPillSelection(containerId, values) {
+      var container = document.getElementById(containerId);
+      container.querySelectorAll('.pill-btn').forEach(function(btn) {
+        btn.classList.toggle('selected', values.indexOf(btn.dataset.value) !== -1);
+      });
+    }
+
     // ── Add / Edit modal ────────────────────────────────────────────────────
 
     function openAddModal() {
       editingBandId = null;
-      document.getElementById('modalTitle').textContent = 'Add Band';
+      document.getElementById('modalTitle').textContent = '\u{1F680} Add New Band';
+      document.getElementById('saveBtn').textContent = '\u{1F680} Add Band';
       document.getElementById('bandForm').reset();
+      document.getElementById('bRating').value = '';
+      selectedBandSize = null;
+      selectedGenres = [];
+      setPillSelection('bandSizeSelector', []);
+      setPillSelection('genreSelector', []);
       document.getElementById('bandModal').classList.add('show');
     }
 
@@ -268,14 +437,35 @@
       if (!b) return;
       editingBandId = id;
       document.getElementById('modalTitle').textContent = 'Edit Band';
-      document.getElementById('bName').value          = b.name || '';
-      document.getElementById('bGenre').value          = b.genre || '';
-      document.getElementById('bContactName').value    = b.contact_name || '';
-      document.getElementById('bPhone').value          = b.phone || '';
-      document.getElementById('bEmail').value          = b.email || '';
-      document.getElementById('bPayNoSound').value     = b.pay_rate_no_sound   != null ? b.pay_rate_no_sound   : '';
-      document.getElementById('bPayWithSound').value   = b.pay_rate_with_sound != null ? b.pay_rate_with_sound : '';
-      document.getElementById('bNotes').value          = b.notes || '';
+      document.getElementById('saveBtn').textContent = 'Save Changes';
+
+      document.getElementById('bName').value              = b.name || '';
+      document.getElementById('bContactName').value        = b.contact_name || '';
+      document.getElementById('bNameOnW9').value            = b.name_on_w9 || '';
+      document.getElementById('bEmail').value                = b.email || '';
+      document.getElementById('bPhone').value                = b.phone || '';
+      document.getElementById('bW9Status').value              = b.w9_status || 'No';
+      document.getElementById('bPayNoSound').value             = b.pay_rate_no_sound   != null ? b.pay_rate_no_sound   : '';
+      document.getElementById('bPayWithSound').value           = b.pay_rate_with_sound != null ? b.pay_rate_with_sound : '';
+      document.getElementById('bPrivatePartyRate').value       = b.private_party_rate  != null ? b.private_party_rate  : '';
+      document.getElementById('bCommission').value             = b.commission_pct      != null ? b.commission_pct      : '';
+      document.getElementById('bNumMembers').value              = b.num_members        != null ? b.num_members        : '';
+      document.getElementById('bTypicalDraw').value              = b.typical_draw       != null ? b.typical_draw       : '';
+      document.getElementById('bRating').value                    = b.band_rating || calculateBandRating(b.typical_draw);
+      document.getElementById('bHometown').value                   = b.hometown || '';
+      document.getElementById('bCanTravel').value                   = b.can_travel || 'No';
+      document.getElementById('bMaxDistance').value                 = b.max_distance_miles != null ? b.max_distance_miles : '';
+      document.getElementById('bPromoVideo').value                   = b.promo_video_url || '';
+      document.getElementById('bFacebook').value                      = b.facebook_url || '';
+      document.getElementById('bInstagram').value                      = b.instagram_url || '';
+      document.getElementById('bWebsite').value                         = b.website_url || '';
+      document.getElementById('bNotes').value                            = b.notes || '';
+
+      selectedBandSize = b.band_size || null;
+      selectedGenres = b.genres ? b.genres.slice() : [];
+      setPillSelection('bandSizeSelector', selectedBandSize ? [selectedBandSize] : []);
+      setPillSelection('genreSelector', selectedGenres);
+
       document.getElementById('bandModal').classList.add('show');
     }
 
@@ -284,17 +474,38 @@
       editingBandId = null;
     }
 
-    document.getElementById('bandForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
+    async function submitBandForm() {
+      var form = document.getElementById('bandForm');
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+
+      if (!selectedBandSize) { showToast('Please select a band size.', 'error'); return; }
+      if (selectedGenres.length === 0) { showToast('Please select at least one genre.', 'error'); return; }
+
+      var typicalDraw = document.getElementById('bTypicalDraw').value ? parseInt(document.getElementById('bTypicalDraw').value) : null;
 
       var bandData = {
         name:                document.getElementById('bName').value.trim(),
-        genre:               document.getElementById('bGenre').value.trim() || null,
         contact_name:        document.getElementById('bContactName').value.trim() || null,
-        phone:               document.getElementById('bPhone').value.trim() || null,
+        name_on_w9:          document.getElementById('bNameOnW9').value.trim() || null,
         email:               document.getElementById('bEmail').value.trim() || null,
+        phone:               document.getElementById('bPhone').value.trim() || null,
+        w9_status:           document.getElementById('bW9Status').value,
         pay_rate_no_sound:   document.getElementById('bPayNoSound').value   !== '' ? parseFloat(document.getElementById('bPayNoSound').value)   : null,
         pay_rate_with_sound: document.getElementById('bPayWithSound').value !== '' ? parseFloat(document.getElementById('bPayWithSound').value) : null,
+        private_party_rate:  document.getElementById('bPrivatePartyRate').value !== '' ? parseFloat(document.getElementById('bPrivatePartyRate').value) : null,
+        commission_pct:      document.getElementById('bCommission').value !== '' ? parseFloat(document.getElementById('bCommission').value) : null,
+        band_size:           selectedBandSize,
+        genres:              selectedGenres,
+        num_members:         document.getElementById('bNumMembers').value !== '' ? parseInt(document.getElementById('bNumMembers').value) : null,
+        typical_draw:        typicalDraw,
+        band_rating:         calculateBandRating(typicalDraw),
+        hometown:            document.getElementById('bHometown').value.trim() || null,
+        can_travel:          document.getElementById('bCanTravel').value,
+        max_distance_miles:  document.getElementById('bMaxDistance').value !== '' ? parseInt(document.getElementById('bMaxDistance').value) : null,
+        promo_video_url:     document.getElementById('bPromoVideo').value.trim() || null,
+        facebook_url:        document.getElementById('bFacebook').value.trim() || null,
+        instagram_url:       document.getElementById('bInstagram').value.trim() || null,
+        website_url:         document.getElementById('bWebsite').value.trim() || null,
         notes:               document.getElementById('bNotes').value.trim() || null
       };
 
@@ -319,9 +530,9 @@
         showToast('Error: ' + err.message, 'error');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Save Band';
+        btn.textContent = editingBandId ? 'Save Changes' : '\u{1F680} Add Band';
       }
-    });
+    }
 
     // ── Delete ──────────────────────────────────────────────────────────────
 
@@ -343,7 +554,6 @@
       var btn = document.getElementById('confirmDeleteBtn');
       btn.disabled = true;
       btn.textContent = 'Deleting\u2026';
-
       try {
         var { error } = await sb.from('bands').delete().eq('id', pendingDeleteId);
         if (error) throw error;
