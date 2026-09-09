@@ -32,20 +32,72 @@
     .delete-btn { color: #8B2000; }
     .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
 
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
+    /* ── Modal shell ─────────────────────────────────────────────────────── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; z-index: 500; }
     .modal-overlay.show { display: flex; }
-    .modal { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 26px 28px; margin: auto; }
-    .modal h2 { color: #A07018; font-size: 1.1rem; margin: 0 0 18px; }
-    .modal label { display: block; font-size: 0.78rem; font-weight: 700; color: #6b5e48; margin: 14px 0 5px; }
-    .modal label:first-of-type { margin-top: 0; }
-    .modal input, .modal select, .modal textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; }
-    .modal textarea { min-height: 70px; resize: vertical; }
-    .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
-    .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+    .modal { background: #fff; border-radius: 14px; max-width: 780px; width: 100%; margin: auto; overflow: hidden; }
+    .modal-header { background: linear-gradient(160deg,#3a2608 0%,#6a4a10 10%,#a07020 20%,#d4a030 30%,#f0c050 42%,#e8b838 50%,#c08820 60%,#906010 70%,#6a4810 82%,#4a3008 90%,#2e1e06 100%); padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
+    .modal-header h2 { color: #fff; font-size: 1.1rem; margin: 0; }
+    .modal-header .close-x { background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; line-height: 1; }
+    .modal-body { padding: 22px 24px; }
+    .modal-footer { display: flex; gap: 10px; padding: 18px 24px 22px; }
+    .modal-footer button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
     .btn-save { background: #A07018; color: #fff; }
     .btn-cancel { background: #f0ebe0; color: #555; }
     .btn-delete-confirm { background: #8B2000; color: #fff; }
+
+    /* ── Form fields (matches the real app's field styling) ─────────────── */
+    .section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #7A5210; background: #f2ede4; padding: 8px 14px; border-radius: 6px; margin: 28px 0 16px; }
+    .section-title:first-child { margin-top: 0; }
+    .form-group { margin-bottom: 18px; }
+    .form-group label { display: block; font-weight: 600; color: #1a1408; margin-bottom: 6px; font-size: 0.85rem; }
+    .required { color: #D32F2F; }
+    .form-group input[type="text"], .form-group input[type="email"], .form-group input[type="tel"], .form-group input[type="number"], .form-group select, .form-group textarea {
+      width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; background: #fff;
+    }
+    .form-group textarea { resize: vertical; min-height: 70px; }
+    .help-text { font-size: 0.76rem; color: #999; margin-top: 5px; font-style: italic; }
+    .geocode-status { font-size: 0.8rem; margin-top: 6px; padding: 7px 11px; border-radius: 6px; }
+    .geocode-status.loading { background: #e3f2fd; color: #1976d2; }
+    .geocode-status.success { background: #e8f5e9; color: #2e7d32; }
+    .geocode-status.error   { background: #ffebee; color: #c62828; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+
+    /* ── Tag picker (checkbox-based multi-select pills) ──────────────────── */
+    .tag-picker { border: 1.5px solid #e8dcc8; border-radius: 10px; padding: 12px; background: #fdf8f0; }
+    .tag-picker-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tag-option { display: none; }
+    .tag-label { display: inline-flex; align-items: center; gap: 5px; padding: 6px 14px; border-radius: 20px; border: 1.5px solid #d4c4a0; background: #fff; font-size: 0.8rem; font-weight: 700; color: #6b5e48; cursor: pointer; user-select: none; }
+    .tag-label:hover { border-color: #A07018; }
+    .tag-option:checked + .tag-label { background: #A07018; border-color: #A07018; color: #fff; }
+
+    /* ── Radio cards (single-select) ─────────────────────────────────────── */
+    .radio-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+    .radio-card-input { display: none; }
+    .radio-card-label { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 8px; border-radius: 10px; border: 1.5px solid #d4c4a0; background: #fff; cursor: pointer; font-size: 0.76rem; font-weight: 700; color: #6b5e48; text-align: center; user-select: none; }
+    .radio-card-label small { font-weight: 400; opacity: 0.8; }
+    .radio-card-label:hover { border-color: #A07018; }
+    .radio-card-input:checked + .radio-card-label { background: #A07018; border-color: #A07018; color: #fff; }
+
+    /* ── Slider ───────────────────────────────────────────────────────────── */
+    .slider-row { display: flex; align-items: center; gap: 12px; }
+    .slider-row input[type="range"] { flex: 1; accent-color: #A07018; }
+    .slider-val { font-family: monospace; font-size: 0.85rem; font-weight: 700; color: #A07018; min-width: 44px; text-align: right; }
+
+    /* ── Rating display ───────────────────────────────────────────────────── */
+    .rating-display { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #fdf8f0; border: 1.5px solid #e8dcc8; border-radius: 8px; }
+    .rating-badge { width: 36px; height: 36px; border-radius: 8px; background: #9e9e9e; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 800; font-family: monospace; flex-shrink: 0; }
+    .rating-desc { font-size: 0.78rem; color: #6b5e48; }
+    .rating-desc strong { color: #1a1408; font-size: 0.84rem; }
+
+    /* ── Matching profile preview ─────────────────────────────────────────── */
+    .pref-summary { background: #fdf8f0; border: 1.5px solid #e8dcc8; border-radius: 10px; padding: 14px 16px; margin-top: 16px; display: none; }
+    .pref-summary h4 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.6px; color: #A07018; margin: 0 0 8px; font-weight: 800; }
+    .pref-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .pref-chip { background: #A07018; color: #fff; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 12px; }
+    .pref-chip.green { background: #558B2F; }
+    .pref-chip.gold  { background: #b7860a; }
 
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
     .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
@@ -57,7 +109,8 @@
       tr { background: #fff; border-radius: 10px; margin-bottom: 10px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
       td { border: none; padding: 4px 0; }
       td:before { content: attr(data-label); font-weight: 700; color: #6b5e48; font-size: 0.68rem; text-transform: uppercase; display: block; }
-      .modal .row2 { grid-template-columns: 1fr; }
+      .row2, .row3 { grid-template-columns: 1fr; }
+      .modal-footer { flex-direction: column; }
     }
   </style>
 </head>
@@ -68,8 +121,10 @@
       <div class="biz" id="bizName"></div>
     </div>
     <div class="topbar-right">
+      <a href="venue-map.html">Map</a>
       <a href="bands.html">Bands</a>
       <a href="bookings.html">Bookings</a>
+      <a href="contracts.html">Contracts</a>
       <a href="dashboard.html">&larr; Dashboard</a>
       <button onclick="logout()">Sign Out</button>
     </div>
@@ -91,14 +146,7 @@
 
     <table id="venuesTable" style="display:none;">
       <thead>
-        <tr>
-          <th>Name</th>
-          <th>Category</th>
-          <th>Contact</th>
-          <th>City / State</th>
-          <th>Phone</th>
-          <th></th>
-        </tr>
+        <tr><th>Name</th><th>Category</th><th>Contact</th><th>City / State</th><th>Phone</th><th></th></tr>
       </thead>
       <tbody id="venuesBody"></tbody>
     </table>
@@ -111,71 +159,255 @@
   <!-- Add / Edit modal -->
   <div class="modal-overlay" id="venueModal">
     <div class="modal">
-      <h2 id="modalTitle">Add Venue</h2>
-      <form id="venueForm">
-        <label>Category</label>
-        <select id="vCategory" onchange="updateCategoryUI()">
-          <option value="Club">Club</option>
-          <option value="Private Party">Private Party</option>
-          <option value="Festival">Festival</option>
-        </select>
+      <div class="modal-header">
+        <h2 id="modalTitle">&#127963; Add New Venue</h2>
+        <button type="button" class="close-x" onclick="closeVenueModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="venueForm">
 
-        <div id="companyGroup" style="display:none;">
-          <label>Company Name</label>
-          <input type="text" id="vCompanyName" placeholder="For corporate events">
-        </div>
+          <div class="section-title">&#128203; Basic Information</div>
 
-        <label id="vNameLabel">Venue Name *</label>
-        <input type="text" id="vName" required>
-
-        <div class="row2">
-          <div>
-            <label>Contact Name</label>
-            <input type="text" id="vContactName">
+          <div class="form-group">
+            <label>Venue Category <span class="required">*</span></label>
+            <select id="vCategory" onchange="updateCategoryUI()">
+              <option value="Club">Club</option>
+              <option value="Private Party">Private Party</option>
+              <option value="Festival">Festival</option>
+            </select>
           </div>
-          <div>
-            <label>Phone</label>
-            <input type="tel" id="vPhone">
+
+          <div class="form-group" id="companyNameGroup" style="display:none;">
+            <label>Company Name</label>
+            <input type="text" id="vCompanyName" placeholder="For corporate events, e.g. Acme Corp">
           </div>
-        </div>
 
-        <label>Email</label>
-        <input type="email" id="vEmail">
-
-        <label>Address</label>
-        <input type="text" id="vAddress">
-
-        <div class="row2">
-          <div>
-            <label>City</label>
-            <input type="text" id="vCity">
+          <div class="form-group">
+            <label id="vNameLabel">Venue Name <span class="required">*</span></label>
+            <input type="text" id="vName" required placeholder="The Blue Note">
           </div>
-          <div>
-            <label>State</label>
-            <input type="text" id="vState">
+
+          <div class="row2">
+            <div class="form-group">
+              <label>Contact Name <span class="required">*</span></label>
+              <input type="text" id="vContactName" required placeholder="Jane Smith">
+            </div>
+            <div class="form-group">
+              <label>Phone <span class="required">*</span></label>
+              <input type="tel" id="vPhone" required placeholder="555-1234">
+            </div>
           </div>
-        </div>
 
-        <label>Capacity</label>
-        <input type="number" id="vCapacity" min="0">
+          <div class="form-group">
+            <label>Email <span class="required">*</span></label>
+            <input type="email" id="vEmail" required placeholder="booking@venue.com">
+          </div>
 
-        <label>Notes</label>
-        <textarea id="vNotes"></textarea>
+          <div class="section-title">&#128205; Location</div>
 
-        <div class="modal-actions">
-          <button type="button" class="btn-cancel" onclick="closeVenueModal()">Cancel</button>
-          <button type="submit" class="btn-save" id="saveBtn">Save Venue</button>
-        </div>
-      </form>
+          <div class="form-group">
+            <label>Street Address <span class="required">*</span></label>
+            <input type="text" id="vAddress" required placeholder="123 Main Street" onblur="triggerGeocode()">
+            <div class="geocode-status" id="geocodeStatus" style="display:none;"></div>
+            <div class="help-text">Coordinates are auto-detected for the venue map</div>
+          </div>
+
+          <div class="row3">
+            <div class="form-group">
+              <label>City <span class="required">*</span></label>
+              <input type="text" id="vCity" required placeholder="St. Louis" onblur="triggerGeocode()">
+            </div>
+            <div class="form-group">
+              <label>State <span class="required">*</span></label>
+              <select id="vState" required onchange="triggerGeocode()">
+                <option value="">-- Select --</option>
+                <option value="AL">AL</option><option value="AR">AR</option>
+                <option value="IA">IA</option><option value="IL">IL</option>
+                <option value="IN">IN</option><option value="KS">KS</option>
+                <option value="KY">KY</option><option value="MO">MO</option>
+                <option value="MS">MS</option><option value="OK">OK</option>
+                <option value="TN">TN</option><option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Zip Code <span class="required">*</span></label>
+              <input type="text" id="vZip" required placeholder="63101">
+            </div>
+          </div>
+
+          <input type="hidden" id="vLatitude">
+          <input type="hidden" id="vLongitude">
+
+          <div class="section-title">&#127963;&#65039; Venue Details</div>
+
+          <div class="row2">
+            <div class="form-group">
+              <label>Capacity <span class="required">*</span></label>
+              <input type="number" id="vCapacity" required min="1" placeholder="200" oninput="updateVenueRating()">
+              <div class="help-text">Maximum occupancy</div>
+            </div>
+            <div class="form-group">
+              <label>Venue Rating</label>
+              <div class="rating-display">
+                <div class="rating-badge" id="ratingBadge">&ndash;</div>
+                <div class="rating-desc" id="ratingDesc"><strong>Enter capacity</strong><br>auto-calculated</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="form-group">
+              <label>Has Sound System? <span class="required">*</span></label>
+              <select id="vHasSound" required>
+                <option value="">-- Select --</option>
+                <option value="Yes">Yes &mdash; full PA in house</option>
+                <option value="Partial">Partial &mdash; basic system only</option>
+                <option value="No">No &mdash; band must bring</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Has Stage Lighting? <span class="required">*</span></label>
+              <select id="vHasLighting" required>
+                <option value="">-- Select --</option>
+                <option value="Yes">Yes &mdash; full rig</option>
+                <option value="Partial">Partial &mdash; basic lights</option>
+                <option value="No">No &mdash; band must bring</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="section-title">&#129309; Agency Relationship</div>
+
+          <div class="form-group">
+            <label>Exclusivity Status <span class="required">*</span></label>
+            <select id="vExclusivity" required>
+              <option value="">-- Select --</option>
+              <option value="Exclusive (Green)">&#128994; Exclusive &mdash; Books only through Gig Matrix</option>
+              <option value="Shared (Yellow)">&#128993; Shared &mdash; Books with Gig Matrix and other agencies</option>
+              <option value="Competitor Only (Red)">&#128308; Competitor Only &mdash; Uses other agencies only</option>
+              <option value="No Agency (Blue)">&#128309; No Agency &mdash; Not using any agency currently</option>
+            </select>
+            <div class="help-text">Determines pin color on the venue map</div>
+          </div>
+
+          <div class="section-title">&#127925; Band Preferences &amp; Matching Criteria</div>
+          <p style="font-size:0.82rem;color:#6b5e48;margin:-8px 0 16px;">This is used to automatically suggest and rank bands for this venue. The more detail, the better the matches.</p>
+
+          <div class="form-group">
+            <label>Preferred Genres <span class="required">*</span> <span style="font-weight:400;color:#999;">&mdash; select all that apply</span></label>
+            <div class="tag-picker">
+              <div class="tag-picker-grid" id="genreGrid"></div>
+            </div>
+            <div class="help-text">Bands matching these genres will rank highest in suggestions</div>
+          </div>
+
+          <div class="form-group">
+            <label>Pay Rate Budget Per Show <span class="required">*</span></label>
+            <input type="number" id="vPayRateBudget" required min="0" step="25" placeholder="750" oninput="updateBudgetDisplay()">
+            <div class="help-text" id="budgetHelp">Only bands whose rate falls within this budget will be shown</div>
+          </div>
+
+          <div class="form-group">
+            <label>Minimum Band Draw Expected</label>
+            <div class="slider-row">
+              <input type="range" id="vMinDrawSlider" min="0" max="300" step="5" value="0" oninput="updateDrawDisplay()">
+              <span class="slider-val" id="minDrawVal">Any</span>
+            </div>
+            <div class="help-text">Bands must typically draw at least this many people to be suggested</div>
+          </div>
+
+          <div class="form-group">
+            <label>Minimum Band Rating</label>
+            <div class="radio-cards" id="minRatingCards">
+              <input class="radio-card-input" type="radio" id="rat_any" name="minRating" value="" checked>
+              <label class="radio-card-label" for="rat_any">Any Rating</label>
+              <input class="radio-card-input" type="radio" id="rat_d" name="minRating" value="D">
+              <label class="radio-card-label" for="rat_d">D or above<br><small>25+ draw</small></label>
+              <input class="radio-card-input" type="radio" id="rat_c" name="minRating" value="C">
+              <label class="radio-card-label" for="rat_c">C or above<br><small>40+ draw</small></label>
+              <input class="radio-card-input" type="radio" id="rat_b" name="minRating" value="B">
+              <label class="radio-card-label" for="rat_b">B or above<br><small>75+ draw</small></label>
+              <input class="radio-card-input" type="radio" id="rat_a" name="minRating" value="A">
+              <label class="radio-card-label" for="rat_a">A only<br><small>150+ draw</small></label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Preferred Band Size <span style="font-weight:400;color:#999;">&mdash; select all that apply</span></label>
+            <div class="tag-picker">
+              <div class="tag-picker-grid">
+                <input class="tag-option" type="checkbox" id="sz_solo"  value="1"  name="bandSizes"><label class="tag-label" for="sz_solo">Solo (1)</label>
+                <input class="tag-option" type="checkbox" id="sz_duo"   value="2"  name="bandSizes"><label class="tag-label" for="sz_duo">Duo (2)</label>
+                <input class="tag-option" type="checkbox" id="sz_trio"  value="3"  name="bandSizes"><label class="tag-label" for="sz_trio">Trio (3)</label>
+                <input class="tag-option" type="checkbox" id="sz_4"     value="4"  name="bandSizes"><label class="tag-label" for="sz_4">4-Piece</label>
+                <input class="tag-option" type="checkbox" id="sz_5"     value="5"  name="bandSizes"><label class="tag-label" for="sz_5">5-Piece</label>
+                <input class="tag-option" type="checkbox" id="sz_large" value="6+" name="bandSizes"><label class="tag-label" for="sz_large">6+ (Large)</label>
+              </div>
+            </div>
+            <div class="help-text">Leave blank to allow any size</div>
+          </div>
+
+          <div class="form-group">
+            <label>Preferred Booking Nights <span style="font-weight:400;color:#999;">&mdash; select all that apply</span></label>
+            <div class="tag-picker">
+              <div class="tag-picker-grid">
+                <input class="tag-option" type="checkbox" id="d_mon" value="Monday"    name="prefDays"><label class="tag-label" for="d_mon">Mon</label>
+                <input class="tag-option" type="checkbox" id="d_tue" value="Tuesday"   name="prefDays"><label class="tag-label" for="d_tue">Tue</label>
+                <input class="tag-option" type="checkbox" id="d_wed" value="Wednesday" name="prefDays"><label class="tag-label" for="d_wed">Wed</label>
+                <input class="tag-option" type="checkbox" id="d_thu" value="Thursday"  name="prefDays"><label class="tag-label" for="d_thu">Thu</label>
+                <input class="tag-option" type="checkbox" id="d_fri" value="Friday"    name="prefDays"><label class="tag-label" for="d_fri">Fri</label>
+                <input class="tag-option" type="checkbox" id="d_sat" value="Saturday"  name="prefDays"><label class="tag-label" for="d_sat">Sat</label>
+                <input class="tag-option" type="checkbox" id="d_sun" value="Sunday"    name="prefDays"><label class="tag-label" for="d_sun">Sun</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Band Travel Preference</label>
+            <div class="radio-cards">
+              <input class="radio-card-input" type="radio" id="trav_any"    name="travelPref" value="Any" checked>
+              <label class="radio-card-label" for="trav_any">Any</label>
+              <input class="radio-card-input" type="radio" id="trav_local"  name="travelPref" value="Local Only">
+              <label class="radio-card-label" for="trav_local">Local Only<br><small>&lt;50 mi</small></label>
+              <input class="radio-card-input" type="radio" id="trav_region" name="travelPref" value="Regional">
+              <label class="radio-card-label" for="trav_region">Regional<br><small>&lt;200 mi</small></label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Additional Preferences / Requirements</label>
+            <textarea id="vPrefNotes" placeholder="e.g. No heavy metal. Prefer bands that bring their own PA. No bands that need more than 45 min setup."></textarea>
+            <div class="help-text">These notes are shown to agents when matching bands to this venue</div>
+          </div>
+
+          <div class="pref-summary" id="prefSummary">
+            <h4>&#10003; Matching Profile Preview</h4>
+            <div class="pref-chips" id="prefChips"></div>
+          </div>
+
+          <div class="section-title">&#128221; General Notes</div>
+          <div class="form-group">
+            <label>Internal Notes</label>
+            <textarea id="vNotes" placeholder="Internal notes about this venue (parking, load-in door, contact preferences, history with Gig Matrix...)"></textarea>
+          </div>
+
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeVenueModal()">Cancel</button>
+        <button type="button" class="btn-save" id="saveBtn" onclick="submitVenueForm()">&#10003; Add Venue to Directory</button>
+      </div>
     </div>
   </div>
 
   <!-- Delete confirm modal -->
   <div class="modal-overlay" id="deleteModal">
-    <div class="modal">
-      <h2>Delete Venue</h2>
-      <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
-      <div class="modal-actions">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header"><h2>Delete Venue</h2></div>
+      <div class="modal-body">
+        <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
+      </div>
+      <div class="modal-footer">
         <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
         <button type="button" class="btn-delete-confirm" id="confirmDeleteBtn" onclick="doDelete()">Delete</button>
       </div>
@@ -187,9 +419,21 @@
   <script src="config.js"></script>
   <script>
     var currentBusinessId = null;
+    var geocodeTimeout = null;
     var allVenues = [];
     var editingVenueId = null;
     var pendingDeleteId = null;
+
+    var GENRES = [
+      { id:'g_rock',    value:'Rock' },          { id:'g_classic', value:'Classic Rock' },
+      { id:'g_blues',   value:'Blues' },          { id:'g_jazz',    value:'Jazz' },
+      { id:'g_country', value:'Country' },        { id:'g_rb',      value:'R&B/Soul' },
+      { id:'g_folk',    value:'Folk' },           { id:'g_alt',     value:'Alternative' },
+      { id:'g_funk',    value:'Funk' },           { id:'g_pop',     value:'Pop' },
+      { id:'g_cover',   value:'Cover Band' },     { id:'g_tribal',  value:'Tribal Funk' },
+      { id:'g_reggae',  value:'Reggae' },         { id:'g_hiphop',  value:'Hip-Hop' },
+      { id:'g_metal',   value:'Metal' },          { id:'g_other',   value:'Other' }
+    ];
 
     (async function init() {
       var { data: { session } } = await sb.auth.getSession();
@@ -205,22 +449,154 @@
       currentBusinessId = profile.business_id;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
+      // Build the genre tag-picker options once
+      document.getElementById('genreGrid').innerHTML = GENRES.map(function(g) {
+        return '<input class="tag-option" type="checkbox" id="' + g.id + '" value="' + esc(g.value) + '" name="genres">' +
+               '<label class="tag-label" for="' + g.id + '">' + esc(g.value) + '</label>';
+      }).join('');
+
+      document.querySelectorAll('[name="genres"],[name="bandSizes"],[name="prefDays"],[name="minRating"],[name="travelPref"]')
+        .forEach(function(el) { el.addEventListener('change', updatePrefSummary); });
+
       await loadVenues();
     })();
 
-    async function loadVenues() {
-      var { data, error } = await sb
-        .from('venues')
-        .select('*')
-        .order('name', { ascending: true });
+    // ── Category-aware relabeling ─────────────────────────────────────────────
+    function updateCategoryUI() {
+      var category = document.getElementById('vCategory').value;
+      var companyGroup = document.getElementById('companyNameGroup');
+      var nameLabel = document.getElementById('vNameLabel');
+      var nameInput = document.getElementById('vName');
 
-      document.getElementById('loadingState').style.display = 'none';
-
-      if (error) {
-        showToast('Error loading venues: ' + error.message, 'error');
-        return;
+      if (category === 'Private Party') {
+        companyGroup.style.display = 'block';
+        nameLabel.innerHTML = 'Party Name <span class="required">*</span>';
+        nameInput.placeholder = 'e.g., Smith Wedding';
+      } else if (category === 'Festival') {
+        companyGroup.style.display = 'none';
+        nameLabel.innerHTML = 'Festival Name <span class="required">*</span>';
+        nameInput.placeholder = 'e.g., Riverside Music Festival';
+      } else {
+        companyGroup.style.display = 'none';
+        nameLabel.innerHTML = 'Venue Name <span class="required">*</span>';
+        nameInput.placeholder = 'The Blue Note';
       }
+    }
 
+    // ── Geocoding: turns the typed address into map coordinates ─────────────
+    function triggerGeocode() {
+      if (geocodeTimeout) clearTimeout(geocodeTimeout);
+      var addr  = document.getElementById('vAddress').value.trim();
+      var city  = document.getElementById('vCity').value.trim();
+      var state = document.getElementById('vState').value.trim();
+      if (!addr || !city || !state) return;
+
+      geocodeTimeout = setTimeout(function() {
+        var full = addr + ', ' + city + ', ' + state;
+        var s = document.getElementById('geocodeStatus');
+        s.style.display = 'block';
+        s.className = 'geocode-status loading';
+        s.textContent = '\u{1F4CD} Finding coordinates\u2026';
+
+        var url = 'https://us1.locationiq.com/v1/search?key=' + encodeURIComponent(LOCATIONIQ_KEY) +
+                  '&q=' + encodeURIComponent(full) + '&format=json&limit=1';
+
+        fetch(url).then(function(r) { return r.json(); }).then(function(results) {
+          if (results && results[0] && results[0].lat && results[0].lon) {
+            document.getElementById('vLatitude').value  = results[0].lat;
+            document.getElementById('vLongitude').value = results[0].lon;
+            s.className = 'geocode-status success';
+            s.textContent = '\u2713 Coordinates found: ' + parseFloat(results[0].lat).toFixed(4) + ', ' + parseFloat(results[0].lon).toFixed(4);
+          } else {
+            s.className = 'geocode-status error';
+            s.textContent = '\u26A0 Could not find coordinates \u2014 venue will not appear on the map';
+            document.getElementById('vLatitude').value  = '';
+            document.getElementById('vLongitude').value = '';
+          }
+        }).catch(function() {
+          s.className = 'geocode-status error';
+          s.textContent = '\u26A0 Geocoding error \u2014 could not reach the lookup service';
+        });
+      }, 900);
+    }
+
+    // ── Venue Rating, auto-calculated from capacity ─────────────────────────
+    function calculateVenueRating(cap) {
+      cap = parseInt(cap) || 0;
+      if (cap >= 300) return 'A';
+      if (cap >= 200) return 'B';
+      if (cap >= 100) return 'C';
+      if (cap > 0)    return 'D';
+      return '';
+    }
+    function updateVenueRating() {
+      var cap = document.getElementById('vCapacity').value;
+      var rating = calculateVenueRating(cap);
+      var badge = document.getElementById('ratingBadge');
+      var desc  = document.getElementById('ratingDesc');
+      var colors = { A:'#A07018', B:'#C8960C', C:'#7CB342', D:'#D4A017' };
+      if (rating) {
+        badge.textContent = rating;
+        badge.style.background = colors[rating];
+        var labels = { A:'300+ capacity', B:'200\u2013299 capacity', C:'100\u2013199 capacity', D:'&lt;100 capacity' };
+        desc.innerHTML = '<strong>' + rating + '-Tier Venue</strong><br>' + labels[rating];
+      } else {
+        badge.textContent = '\u2013';
+        badge.style.background = '#9e9e9e';
+        desc.innerHTML = '<strong>Enter capacity</strong><br>to calculate';
+      }
+    }
+
+    function updateBudgetDisplay() {
+      var val = parseFloat(document.getElementById('vPayRateBudget').value) || 0;
+      document.getElementById('budgetHelp').textContent = val > 0
+        ? 'Bands whose pay rate is \u2264 $' + val.toLocaleString() + ' will be suggested for this venue'
+        : 'Only bands whose rate falls within this budget will be shown';
+      updatePrefSummary();
+    }
+
+    function updateDrawDisplay() {
+      var val = parseInt(document.getElementById('vMinDrawSlider').value);
+      document.getElementById('minDrawVal').textContent = val > 0 ? val + '+' : 'Any';
+      updatePrefSummary();
+    }
+
+    function updatePrefSummary() {
+      var chips = [];
+      var budget = parseFloat(document.getElementById('vPayRateBudget').value) || 0;
+      var draw   = parseInt(document.getElementById('vMinDrawSlider').value);
+
+      document.querySelectorAll('[name="genres"]:checked').forEach(function(el) { chips.push({ label: el.value, cls: '' }); });
+      if (budget > 0) chips.push({ label: '\u2264 $' + budget.toLocaleString() + '/show', cls: '' });
+      if (draw > 0) chips.push({ label: 'Min draw: ' + draw, cls: '' });
+
+      var rat = document.querySelector('[name="minRating"]:checked');
+      if (rat && rat.value) chips.push({ label: 'Rating ' + rat.value + '+', cls: 'green' });
+
+      document.querySelectorAll('[name="bandSizes"]:checked').forEach(function(el) {
+        chips.push({ label: el.nextElementSibling.textContent.trim(), cls: 'green' });
+      });
+
+      var days = [];
+      document.querySelectorAll('[name="prefDays"]:checked').forEach(function(el) { days.push(el.value.substring(0,3)); });
+      if (days.length) chips.push({ label: days.join('/'), cls: 'gold' });
+
+      var trav = document.querySelector('[name="travelPref"]:checked');
+      if (trav && trav.value !== 'Any') chips.push({ label: trav.value, cls: 'gold' });
+
+      var summary = document.getElementById('prefSummary');
+      var chipsEl = document.getElementById('prefChips');
+      if (chips.length === 0) { summary.style.display = 'none'; return; }
+      summary.style.display = 'block';
+      chipsEl.innerHTML = chips.map(function(c) { return '<span class="pref-chip ' + c.cls + '">' + esc(c.label) + '</span>'; }).join('');
+    }
+
+    // ── Load / render list ───────────────────────────────────────────────────
+
+    async function loadVenues() {
+      var { data, error } = await sb.from('venues').select('*').order('name', { ascending: true });
+      document.getElementById('loadingState').style.display = 'none';
+      if (error) { showToast('Error loading venues: ' + error.message, 'error'); return; }
       allVenues = data || [];
       renderTable();
     }
@@ -259,7 +635,7 @@
         html +=
           '<tr>' +
             '<td data-label="Name"><strong>' + esc(displayName) + '</strong></td>' +
-            '<td data-label="Category"><span class="cat-pill">' + esc(v.category) + '</span></td>' +
+            '<td data-label="Category"><span class="cat-pill">' + esc(v.category || 'Club') + '</span></td>' +
             '<td data-label="Contact">' + esc(v.contact_name || '\u2013') + '</td>' +
             '<td data-label="City / State">' + esc([v.city, v.state].filter(Boolean).join(', ') || '\u2013') + '</td>' +
             '<td data-label="Phone">' + esc(v.phone || '\u2013') + '</td>' +
@@ -274,29 +650,27 @@
 
     // ── Add / Edit modal ────────────────────────────────────────────────────
 
-    function updateCategoryUI() {
-      var category = document.getElementById('vCategory').value;
-      var companyGroup = document.getElementById('companyGroup');
-      var nameLabel = document.getElementById('vNameLabel');
-
-      if (category === 'Private Party') {
-        companyGroup.style.display = 'block';
-        nameLabel.textContent = 'Party Name *';
-      } else if (category === 'Festival') {
-        companyGroup.style.display = 'none';
-        nameLabel.textContent = 'Festival Name *';
-      } else {
-        companyGroup.style.display = 'none';
-        nameLabel.textContent = 'Venue Name *';
-      }
+    function resetTagsAndRadios() {
+      document.querySelectorAll('.tag-option').forEach(function(el) { el.checked = false; });
+      document.getElementById('rat_any').checked = true;
+      document.getElementById('trav_any').checked = true;
+      document.getElementById('vMinDrawSlider').value = 0;
+      document.getElementById('minDrawVal').textContent = 'Any';
+      document.getElementById('prefSummary').style.display = 'none';
     }
 
     function openAddModal() {
       editingVenueId = null;
-      document.getElementById('modalTitle').textContent = 'Add Venue';
+      document.getElementById('modalTitle').textContent = '\u{1F3DB}\uFE0F Add New Venue';
+      document.getElementById('saveBtn').textContent = '\u2713 Add Venue to Directory';
       document.getElementById('venueForm').reset();
       document.getElementById('vCategory').value = 'Club';
+      document.getElementById('vLatitude').value = '';
+      document.getElementById('vLongitude').value = '';
+      document.getElementById('geocodeStatus').style.display = 'none';
       updateCategoryUI();
+      updateVenueRating();
+      resetTagsAndRadios();
       document.getElementById('venueModal').classList.add('show');
     }
 
@@ -305,18 +679,67 @@
       if (!v) return;
       editingVenueId = id;
       document.getElementById('modalTitle').textContent = 'Edit Venue';
-      document.getElementById('vCategory').value      = v.category || 'Club';
-      document.getElementById('vCompanyName').value    = v.company_name || '';
-      document.getElementById('vName').value            = v.name || '';
-      document.getElementById('vContactName').value     = v.contact_name || '';
-      document.getElementById('vPhone').value           = v.phone || '';
-      document.getElementById('vEmail').value            = v.email || '';
-      document.getElementById('vAddress').value          = v.address || '';
-      document.getElementById('vCity').value              = v.city || '';
-      document.getElementById('vState').value             = v.state || '';
-      document.getElementById('vCapacity').value          = v.capacity || '';
-      document.getElementById('vNotes').value             = v.notes || '';
+      document.getElementById('saveBtn').textContent = 'Save Changes';
+
+      document.getElementById('vCategory').value       = v.category || 'Club';
+      document.getElementById('vCompanyName').value     = v.company_name || '';
+      document.getElementById('vName').value              = v.name || '';
+      document.getElementById('vContactName').value        = v.contact_name || '';
+      document.getElementById('vPhone').value                = v.phone || '';
+      document.getElementById('vEmail').value                  = v.email || '';
+      document.getElementById('vAddress').value                 = v.address || '';
+      document.getElementById('vCity').value                     = v.city || '';
+      document.getElementById('vState').value                     = v.state || '';
+      document.getElementById('vZip').value                        = v.zip || '';
+      document.getElementById('vCapacity').value                    = v.capacity != null ? v.capacity : '';
+      document.getElementById('vHasSound').value                     = v.has_sound_status || '';
+      document.getElementById('vHasLighting').value                   = v.has_lighting_status || '';
+      document.getElementById('vExclusivity').value                    = v.exclusivity_status || '';
+      document.getElementById('vPayRateBudget').value                   = v.pay_rate_budget != null ? v.pay_rate_budget : '';
+      document.getElementById('vPrefNotes').value                        = v.pref_notes || '';
+      document.getElementById('vNotes').value                             = v.notes || '';
+      document.getElementById('vLatitude').value  = v.latitude  != null ? v.latitude  : '';
+      document.getElementById('vLongitude').value = v.longitude != null ? v.longitude : '';
+
+      var geoStatus = document.getElementById('geocodeStatus');
+      if (v.latitude != null && v.longitude != null) {
+        geoStatus.style.display = 'block';
+        geoStatus.className = 'geocode-status success';
+        geoStatus.textContent = '\u2713 Coordinates on file: ' + Number(v.latitude).toFixed(4) + ', ' + Number(v.longitude).toFixed(4);
+      } else {
+        geoStatus.style.display = 'none';
+      }
+
       updateCategoryUI();
+      updateVenueRating();
+      resetTagsAndRadios();
+
+      (v.preferred_genres_list || []).forEach(function(g) {
+        var el = document.querySelector('[name="genres"][value="' + CSS.escape(g) + '"]');
+        if (el) el.checked = true;
+      });
+      (v.preferred_band_sizes || []).forEach(function(s) {
+        var el = document.querySelector('[name="bandSizes"][value="' + CSS.escape(s) + '"]');
+        if (el) el.checked = true;
+      });
+      (v.preferred_days_list || []).forEach(function(d) {
+        var el = document.querySelector('[name="prefDays"][value="' + CSS.escape(d) + '"]');
+        if (el) el.checked = true;
+      });
+      if (v.min_band_rating) {
+        var ratEl = document.querySelector('[name="minRating"][value="' + CSS.escape(v.min_band_rating) + '"]');
+        if (ratEl) ratEl.checked = true;
+      }
+      if (v.travel_preference) {
+        var travEl = document.querySelector('[name="travelPref"][value="' + CSS.escape(v.travel_preference) + '"]');
+        if (travEl) travEl.checked = true;
+      }
+      if (v.min_band_draw != null) {
+        document.getElementById('vMinDrawSlider').value = v.min_band_draw;
+        document.getElementById('minDrawVal').textContent = v.min_band_draw > 0 ? v.min_band_draw + '+' : 'Any';
+      }
+      updatePrefSummary();
+
       document.getElementById('venueModal').classList.add('show');
     }
 
@@ -325,21 +748,50 @@
       editingVenueId = null;
     }
 
-    document.getElementById('venueForm').addEventListener('submit', async function(e) {
-      e.preventDefault();
+    async function submitVenueForm() {
+      var form = document.getElementById('venueForm');
+      if (!form.checkValidity()) { form.reportValidity(); return; }
+
+      var genres = [];
+      document.querySelectorAll('[name="genres"]:checked').forEach(function(el) { genres.push(el.value); });
+      if (genres.length === 0) { showToast('Please select at least one preferred genre.', 'error'); return; }
+
+      var bandSizes = [];
+      document.querySelectorAll('[name="bandSizes"]:checked').forEach(function(el) { bandSizes.push(el.value); });
+      var prefDays = [];
+      document.querySelectorAll('[name="prefDays"]:checked').forEach(function(el) { prefDays.push(el.value); });
+      var minRating  = (document.querySelector('[name="minRating"]:checked')  || {}).value || null;
+      var travelPref = (document.querySelector('[name="travelPref"]:checked') || {}).value || 'Any';
+      var minDraw     = parseInt(document.getElementById('vMinDrawSlider').value) || 0;
+      var capacity    = document.getElementById('vCapacity').value !== '' ? parseInt(document.getElementById('vCapacity').value) : null;
 
       var venueData = {
-        category:      document.getElementById('vCategory').value,
-        company_name:  document.getElementById('vCompanyName').value.trim() || null,
-        name:          document.getElementById('vName').value.trim(),
-        contact_name:  document.getElementById('vContactName').value.trim() || null,
-        phone:         document.getElementById('vPhone').value.trim() || null,
-        email:         document.getElementById('vEmail').value.trim() || null,
-        address:       document.getElementById('vAddress').value.trim() || null,
-        city:          document.getElementById('vCity').value.trim() || null,
-        state:         document.getElementById('vState').value.trim() || null,
-        capacity:      document.getElementById('vCapacity').value ? parseInt(document.getElementById('vCapacity').value) : null,
-        notes:         document.getElementById('vNotes').value.trim() || null
+        category:               document.getElementById('vCategory').value,
+        company_name:           document.getElementById('vCompanyName').value.trim() || null,
+        name:                   document.getElementById('vName').value.trim(),
+        contact_name:           document.getElementById('vContactName').value.trim(),
+        phone:                  document.getElementById('vPhone').value.trim(),
+        email:                  document.getElementById('vEmail').value.trim(),
+        address:                document.getElementById('vAddress').value.trim(),
+        city:                   document.getElementById('vCity').value.trim(),
+        state:                  document.getElementById('vState').value,
+        zip:                    document.getElementById('vZip').value.trim(),
+        capacity:               capacity,
+        venue_rating:           calculateVenueRating(capacity),
+        latitude:               document.getElementById('vLatitude').value  !== '' ? parseFloat(document.getElementById('vLatitude').value)  : null,
+        longitude:              document.getElementById('vLongitude').value !== '' ? parseFloat(document.getElementById('vLongitude').value) : null,
+        has_sound_status:       document.getElementById('vHasSound').value,
+        has_lighting_status:    document.getElementById('vHasLighting').value,
+        exclusivity_status:     document.getElementById('vExclusivity').value,
+        pay_rate_budget:        document.getElementById('vPayRateBudget').value !== '' ? parseFloat(document.getElementById('vPayRateBudget').value) : null,
+        preferred_genres_list:  genres,
+        preferred_band_sizes:   bandSizes,
+        preferred_days_list:    prefDays,
+        min_band_rating:        minRating,
+        travel_preference:      travelPref,
+        min_band_draw:          minDraw,
+        pref_notes:             document.getElementById('vPrefNotes').value.trim() || null,
+        notes:                  document.getElementById('vNotes').value.trim() || null
       };
 
       var btn = document.getElementById('saveBtn');
@@ -363,9 +815,9 @@
         showToast('Error: ' + err.message, 'error');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Save Venue';
+        btn.textContent = editingVenueId ? 'Save Changes' : '\u2713 Add Venue to Directory';
       }
-    });
+    }
 
     // ── Delete ──────────────────────────────────────────────────────────────
 
@@ -387,7 +839,6 @@
       var btn = document.getElementById('confirmDeleteBtn');
       btn.disabled = true;
       btn.textContent = 'Deleting\u2026';
-
       try {
         var { error } = await sb.from('venues').delete().eq('id', pendingDeleteId);
         if (error) throw error;
