@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Venue Map — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
+    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
+    .topbar h1 { font-size: 1.05rem; margin: 0; }
+    .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+    .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+    #map { position: absolute; top: 57px; left: 0; right: 0; bottom: 0; }
+    .loading-banner { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: #fff; padding: 10px 20px; border-radius: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.15); font-size: 0.85rem; color: #6b5e48; z-index: 1000; }
+    .empty-banner { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: #fff; padding: 24px 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); text-align: center; z-index: 1000; max-width: 320px; }
+    .empty-banner p { color: #6b5e48; font-size: 0.9rem; line-height: 1.5; margin: 0; }
+
+    .popup-title { font-weight: 700; font-size: 0.92rem; color: #A07018; margin-bottom: 3px; }
+    .popup-detail { font-size: 0.8rem; color: #555; margin-bottom: 2px; }
+    .popup-link { display: inline-block; margin-top: 6px; font-size: 0.78rem; font-weight: 700; color: #A07018; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div>
+      <h1>Gig Matrix</h1>
+      <div class="biz" id="bizName"></div>
+    </div>
+    <div class="topbar-right">
+      <a href="venues.html">Venue List</a>
+      <a href="dashboard.html">&larr; Dashboard</a>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div id="map"></div>
+  <div class="loading-banner" id="loadingBanner">Loading venues&#8230;</div>
+  <div class="empty-banner" id="emptyBanner" style="display:none;">
+    <p>No venues have coordinates yet. Add a street address, city, and state on a venue to have it show up here automatically.</p>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    var map = null;
+
+    (async function init() {
+      var { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      var { data: profile, error } = await sb
+        .from('profiles')
+        .select('business_id, businesses(name)')
+        .single();
+
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
+
+      document.getElementById('bizName').textContent = profile.businesses.name;
+
+      map = L.map('map').setView([38.6270, -90.1994], 11); // defaults to St. Louis until venues load
+
+      L.tileLayer('https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=' + LOCATIONIQ_KEY, {
+        attribution: '&copy; <a href="https://locationiq.com">LocationIQ</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+        subdomains: 'abc'
+      }).addTo(map);
+
+      await loadVenues();
+    })();
+
+    async function loadVenues() {
+      var { data, error } = await sb
+        .from('venues')
+        .select('id, name, company_name, category, address, city, state, phone, latitude, longitude')
+        .not('latitude', 'is', null)
+        .not('longitude', 'is', null);
+
+      document.getElementById('loadingBanner').style.display = 'none';
+
+      if (error) {
+        document.getElementById('emptyBanner').style.display = 'block';
+        document.querySelector('#emptyBanner p').textContent = 'Error loading venues: ' + error.message;
+        return;
+      }
+
+      var venues = data || [];
+      if (venues.length === 0) {
+        document.getElementById('emptyBanner').style.display = 'block';
+        return;
+      }
+
+      var bounds = [];
+      venues.forEach(function(v) {
+        var lat = parseFloat(v.latitude), lng = parseFloat(v.longitude);
+        if (isNaN(lat) || isNaN(lng)) return;
+        bounds.push([lat, lng]);
+
+        var displayName = v.name + (v.company_name ? ' (' + esc(v.company_name) + ')' : '');
+        var addr = [v.address, v.city, v.state].filter(Boolean).join(', ');
+
+        var popupHtml =
+          '<div class="popup-title">' + esc(displayName) + '</div>' +
+          (addr ? '<div class="popup-detail">' + esc(addr) + '</div>' : '') +
+          (v.phone ? '<div class="popup-detail">' + esc(v.phone) + '</div>' : '') +
+          '<a class="popup-link" href="venues.html">Edit in Venue List &rarr;</a>';
+
+        L.marker([lat, lng]).addTo(map).bindPopup(popupHtml);
+      });
+
+      if (bounds.length > 0) {
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      }
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function logout() {
+      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
+    }
+  </script>
+</body>
+</html>
