@@ -14,7 +14,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // the map tiles themselves. Get this from your LocationIQ dashboard —
 // it's fine to expose in frontend code, LocationIQ's free tier is
 // specifically designed to be called directly from the browser.
-const LOCATIONIQ_KEY = 'pk.258a033d2b1d1e9411781d2286380fc0
-';
+const LOCATIONIQ_KEY = 'pk.258a033d2b1d1e9411781d2286380fc0';
 
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
