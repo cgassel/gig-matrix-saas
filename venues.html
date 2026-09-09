@@ -425,14 +425,14 @@
     var pendingDeleteId = null;
 
     var GENRES = [
-      { id:'g_rock',    value:'Rock' },          { id:'g_classic', value:'Classic Rock' },
-      { id:'g_blues',   value:'Blues' },          { id:'g_jazz',    value:'Jazz' },
-      { id:'g_country', value:'Country' },        { id:'g_rb',      value:'R&B/Soul' },
-      { id:'g_folk',    value:'Folk' },           { id:'g_alt',     value:'Alternative' },
-      { id:'g_funk',    value:'Funk' },           { id:'g_pop',     value:'Pop' },
-      { id:'g_cover',   value:'Cover Band' },     { id:'g_tribal',  value:'Tribal Funk' },
-      { id:'g_reggae',  value:'Reggae' },         { id:'g_hiphop',  value:'Hip-Hop' },
-      { id:'g_metal',   value:'Metal' },          { id:'g_other',   value:'Other' }
+      { id:'g_rock',    value:'Rock',         icon:'\u{1F3B8}' }, { id:'g_classic', value:'Classic Rock', icon:'\u{1F399}\uFE0F' },
+      { id:'g_blues',   value:'Blues',        icon:'\u{1F3BA}' }, { id:'g_jazz',    value:'Jazz',          icon:'\u{1F3B7}' },
+      { id:'g_country', value:'Country',      icon:'\u{1F920}' }, { id:'g_rb',      value:'R&B/Soul',      icon:'\u{1F3A4}' },
+      { id:'g_folk',    value:'Folk',         icon:'\u{1FA95}' }, { id:'g_alt',     value:'Alternative',   icon:'\u26A1' },
+      { id:'g_funk',    value:'Funk',         icon:'\u{1F57A}' }, { id:'g_pop',     value:'Pop',           icon:'\u{1F31F}' },
+      { id:'g_cover',   value:'Cover Band',   icon:'\u{1F3B5}' }, { id:'g_tribal',  value:'Tribal Funk',   icon:'\u{1F941}' },
+      { id:'g_reggae',  value:'Reggae',       icon:'\u{1F334}' }, { id:'g_hiphop',  value:'Hip-Hop',       icon:'\u{1F3A7}' },
+      { id:'g_metal',   value:'Metal',        icon:'\u{1F918}' }, { id:'g_other',   value:'Other',         icon:'\u{1F3BC}' }
     ];
 
     (async function init() {
@@ -452,7 +452,7 @@
       // Build the genre tag-picker options once
       document.getElementById('genreGrid').innerHTML = GENRES.map(function(g) {
         return '<input class="tag-option" type="checkbox" id="' + g.id + '" value="' + esc(g.value) + '" name="genres">' +
-               '<label class="tag-label" for="' + g.id + '">' + esc(g.value) + '</label>';
+               '<label class="tag-label" for="' + g.id + '">' + g.icon + ' ' + esc(g.value) + '</label>';
       }).join('');
 
       document.querySelectorAll('[name="genres"],[name="bandSizes"],[name="prefDays"],[name="minRating"],[name="travelPref"]')
