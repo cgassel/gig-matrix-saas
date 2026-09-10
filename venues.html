@@ -394,6 +394,23 @@
             <div class="pref-chips" id="prefChips"></div>
           </div>
 
+          <div class="section-title" id="portalLoginSection" style="display:none;">&#128273; Venue Portal Login</div>
+          <div class="form-group" id="portalLoginGroup" style="display:none;">
+            <p style="font-size:0.82rem;color:#6b5e48;margin:0 0 12px;">Set a username and password for this venue to log in and see their own bookings, calendar, and preferences. Leave blank to leave an existing login unchanged.</p>
+            <div class="row2">
+              <div>
+                <label>Username</label>
+                <input type="text" id="vPortalUsername" placeholder="e.g. bluenote_stl">
+              </div>
+              <div>
+                <label>Password</label>
+                <input type="text" id="vPortalPassword" placeholder="Set a new password">
+              </div>
+            </div>
+            <button type="button" onclick="savePortalLogin()" style="margin-top:10px;padding:9px 16px;background:#A07018;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:0.82rem;cursor:pointer;">Save Portal Login</button>
+            <span id="portalLoginStatus" style="margin-left:10px;font-size:0.8rem;"></span>
+          </div>
+
           <div class="section-title">&#128221; General Notes</div>
           <div class="form-group">
             <label>Internal Notes</label>
@@ -682,6 +699,9 @@
       document.getElementById('vLatitude').value = '';
       document.getElementById('vLongitude').value = '';
       document.getElementById('geocodeStatus').style.display = 'none';
+      document.getElementById('portalLoginSection').style.display = 'none';
+      document.getElementById('portalLoginGroup').style.display = 'none';
+      document.getElementById('portalLoginStatus').textContent = '';
       updateCategoryUI();
       updateVenueRating();
       resetTagsAndRadios();
@@ -694,6 +714,11 @@
       editingVenueId = id;
       document.getElementById('modalTitle').textContent = 'Edit Venue';
       document.getElementById('saveBtn').textContent = 'Save Changes';
+      document.getElementById('portalLoginSection').style.display = 'block';
+      document.getElementById('portalLoginGroup').style.display = 'block';
+      document.getElementById('vPortalUsername').value = '';
+      document.getElementById('vPortalPassword').value = '';
+      document.getElementById('portalLoginStatus').textContent = '';
 
       document.getElementById('vCategory').value       = v.category || 'Club';
       document.getElementById('vCompanyName').value     = v.company_name || '';
@@ -887,6 +912,38 @@
 
     function esc(s) {
       return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function savePortalLogin() {
+      if (!editingVenueId) return;
+      var username = document.getElementById('vPortalUsername').value.trim();
+      var password = document.getElementById('vPortalPassword').value;
+      var statusEl = document.getElementById('portalLoginStatus');
+
+      if (!username || !password) {
+        statusEl.style.color = '#8B2000';
+        statusEl.textContent = 'Enter both a username and password.';
+        return;
+      }
+
+      statusEl.style.color = '#6b5e48';
+      statusEl.textContent = 'Saving\u2026';
+
+      try {
+        var result = await sb.rpc('set_portal_login', {
+          p_business_id: currentBusinessId,
+          p_owner_type: 'venue',
+          p_owner_id: editingVenueId,
+          p_username: username,
+          p_password: password
+        });
+        if (result.error) throw result.error;
+        statusEl.style.color = '#2e7d32';
+        statusEl.textContent = '\u2713 Login saved. Give this username and password to the venue.';
+      } catch (err) {
+        statusEl.style.color = '#8B2000';
+        statusEl.textContent = 'Error: ' + err.message;
+      }
     }
 
     function logout() {
