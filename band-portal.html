@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Band Portal — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 36px 32px; max-width: 420px; width: 100%; text-align: center; }
+    h1 { font-size: 1.3rem; color: #A07018; margin: 0 0 8px; }
+    p { color: #6b5e48; font-size: 0.9rem; line-height: 1.5; }
+    .name { font-size: 1.6rem; font-weight: 700; color: #1a1408; margin: 14px 0; }
+    .badge { display: inline-block; background: #f2ede4; color: #A07018; font-size: 0.72rem; font-weight: 700; padding: 3px 12px; border-radius: 10px; margin-bottom: 10px; }
+    button { margin-top: 24px; padding: 11px 22px; background: #A07018; color: #fff; border: none; border-radius: 8px; font-size: 0.88rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+    .note { margin-top: 20px; padding: 12px 14px; background: #fdf8f0; border-radius: 8px; font-size: 0.78rem; color: #6b5e48; text-align: left; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <p>Checking your session\u2026</p>
+  </div>
+
+  <script src="config.js"></script>
+  <script>
+    (async function init() {
+      var token = sessionStorage.getItem('gm_portal_token');
+      var type  = sessionStorage.getItem('gm_portal_type');
+      var name  = sessionStorage.getItem('gm_portal_name');
+
+      if (!token || type !== 'band') {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      var result = await sb.rpc('portal_session_check', { p_token: token });
+      var rows = result.data || [];
+
+      if (result.error || rows.length === 0) {
+        sessionStorage.clear();
+        window.location.href = 'login.html';
+        return;
+      }
+
+      document.getElementById('card').innerHTML =
+        '<div class="badge">Band Portal</div>' +
+        '<div class="name">' + esc(name || 'Your Band') + '</div>' +
+        '<p>You are logged in and your session is valid.</p>' +
+        '<div class="note">This is a placeholder page confirming the login system works end to end. The real Band Portal (bookings calendar, preferences, band suggestions) is being built next.</div>' +
+        '<button onclick="logout()">Sign Out</button>';
+    })();
+
+    function logout() {
+      sessionStorage.clear();
+      window.location.href = 'login.html';
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+  </script>
+</body>
+</html>
