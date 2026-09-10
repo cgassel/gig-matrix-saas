@@ -273,6 +273,23 @@
           <label>Notes</label>
           <textarea id="bNotes" placeholder="Additional info..."></textarea>
 
+          <div id="bandPortalLoginSection" style="display:none;margin-top:22px;padding-top:18px;border-top:1.5px solid #eee;">
+            <label style="font-size:0.95rem;color:#A07018;">&#128273; Band Portal Login</label>
+            <p style="font-size:0.82rem;color:#6b5e48;margin:4px 0 12px;">Set a username and password for this band to log in and see their own gigs, calendar, and submit availability. Leave blank to leave an existing login unchanged.</p>
+            <div class="row2">
+              <div>
+                <label>Username</label>
+                <input type="text" id="bPortalUsername" placeholder="e.g. thehighnotes">
+              </div>
+              <div>
+                <label>Password</label>
+                <input type="text" id="bPortalPassword" placeholder="Set a new password">
+              </div>
+            </div>
+            <button type="button" onclick="saveBandPortalLogin()" style="margin-top:10px;padding:9px 16px;background:#A07018;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:0.82rem;cursor:pointer;">Save Portal Login</button>
+            <span id="bandPortalLoginStatus" style="margin-left:10px;font-size:0.8rem;"></span>
+          </div>
+
         </form>
       </div>
       <div class="modal-footer">
@@ -431,6 +448,7 @@
       selectedGenres = [];
       setPillSelection('bandSizeSelector', []);
       setPillSelection('genreSelector', []);
+      document.getElementById('bandPortalLoginSection').style.display = 'none';
       document.getElementById('bandModal').classList.add('show');
     }
 
@@ -440,6 +458,10 @@
       editingBandId = id;
       document.getElementById('modalTitle').textContent = 'Edit Band';
       document.getElementById('saveBtn').textContent = 'Save Changes';
+      document.getElementById('bandPortalLoginSection').style.display = 'block';
+      document.getElementById('bPortalUsername').value = '';
+      document.getElementById('bPortalPassword').value = '';
+      document.getElementById('bandPortalLoginStatus').textContent = '';
 
       document.getElementById('bName').value              = b.name || '';
       document.getElementById('bContactName').value        = b.contact_name || '';
@@ -583,6 +605,38 @@
 
     function esc(s) {
       return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function saveBandPortalLogin() {
+      if (!editingBandId) return;
+      var username = document.getElementById('bPortalUsername').value.trim();
+      var password = document.getElementById('bPortalPassword').value;
+      var statusEl = document.getElementById('bandPortalLoginStatus');
+
+      if (!username || !password) {
+        statusEl.style.color = '#8B2000';
+        statusEl.textContent = 'Enter both a username and password.';
+        return;
+      }
+
+      statusEl.style.color = '#6b5e48';
+      statusEl.textContent = 'Saving\u2026';
+
+      try {
+        var result = await sb.rpc('set_portal_login', {
+          p_business_id: currentBusinessId,
+          p_owner_type: 'band',
+          p_owner_id: editingBandId,
+          p_username: username,
+          p_password: password
+        });
+        if (result.error) throw result.error;
+        statusEl.style.color = '#2e7d32';
+        statusEl.textContent = '\u2713 Login saved. Give this username and password to the band.';
+      } catch (err) {
+        statusEl.style.color = '#8B2000';
+        statusEl.textContent = 'Error: ' + err.message;
+      }
     }
 
     function logout() {
