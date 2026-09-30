@@ -206,9 +206,12 @@
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
+  <script src="contract-template.js"></script>
   <script>
     var currentBusinessId = null;
     var currentProfileId = null;
+    var currentAgencyName = 'Gig Matrix';
+    var contractTemplateOverride = null;
     var allContracts = [];
     var allBookingsWithoutContract = [];
     var businessAgents = [];
@@ -222,13 +225,15 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('id, business_id, businesses(name)')
+        .select('id, business_id, businesses(name, contract_template)')
         .single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
       currentProfileId  = profile.id;
+      currentAgencyName = (profile.businesses && profile.businesses.name) || 'Gig Matrix';
+      contractTemplateOverride = profile.businesses ? profile.businesses.contract_template : null;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
       var { data: agents } = await sb.from('profiles').select('id, name').order('name');
@@ -306,7 +311,7 @@
       var contractedBookingIds = allContracts.map(function(c) { return c.booking_id; });
       var { data: bookings } = await sb
         .from('bookings')
-        .select('id, booking_date, venues(name), bands(name)')
+        .select('id, booking_date, start_time, end_time, pay_amount, sound_lights, notes, commission_pct, venues(*), bands(*)')
         .order('booking_date', { ascending: false });
 
       allBookingsWithoutContract = (bookings || []).filter(function(b) { return contractedBookingIds.indexOf(b.id) === -1; });
@@ -335,26 +340,29 @@
       document.getElementById('createModal').classList.remove('show');
     }
 
-    function randomToken() {
-      return crypto.randomUUID().replace(/-/g, '');
-    }
-
     function buildContractText(booking, venueName, bandName) {
-      var d = new Date(booking.booking_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-      return 'PERFORMANCE AGREEMENT\n' + '='.repeat(60) + '\n\n' +
-        'Venue: '     + venueName + '\n' +
-        'Band: '      + bandName  + '\n' +
-        'Date: '      + d + '\n' +
-        (booking.start_time ? 'Time: ' + booking.start_time.substring(0,5) + ' - ' + (booking.end_time ? booking.end_time.substring(0,5) : '') + '\n' : '') +
-        (booking.pay_amount != null ? 'Pay: $' + booking.pay_amount + '\n' : '') +
-        'Sound/Lights: ' + (booking.sound_lights || 'TBD') + '\n\n' +
-        'By signing below, both parties agree to the performance described above, ' +
-        'including the date, time, and compensation terms listed. Cancellations must ' +
-        'be communicated as early as possible. This agreement is binding once both ' +
-        'parties have signed.\n\n' +
-        '='.repeat(60) + '\n' +
-        'Band Signature: ______________________     Date: __________\n\n' +
-        'Venue Signature: _____________________     Date: __________\n';
+      var venue = booking.venues || {};
+      var band  = booking.bands  || {};
+      var tmpl  = contractTemplateOverride || DEFAULT_CONTRACT_TEMPLATE;
+      return fillContractTemplate(tmpl, {
+        agencyName:    currentAgencyName,
+        bandName:      bandName,
+        venueName:     venueName,
+        venueContact:  venue.contact_name,
+        venueEmail:    venue.email,
+        venuePhone:    venue.phone,
+        bandContact:   band.contact_name,
+        bandPhone:     band.phone,
+        bandEmail:     band.email,
+        date:          booking.booking_date,
+        startTime:     booking.start_time,
+        endTime:       booking.end_time,
+        payAmount:     booking.pay_amount,
+        soundLights:   booking.sound_lights,
+        notes:         booking.notes,
+        commissionPct: booking.commission_pct,
+        bookingId:     booking.id
+      });
     }
 
     async function createContract() {
@@ -380,10 +388,12 @@
           band_token:        randomToken(),
           venue_token:       randomToken(),
           status:            'Pending Review',
-          contract_text:     buildContractText(booking, venueName, bandName)
+          contract_text:     buildContractText(booking, venueName, bandName),
+          band_email:        booking.bands  ? booking.bands.email  : null,
+          venue_email:       booking.venues ? booking.venues.email : null
         });
         if (error) throw error;
-        showToast('Contract generated.');
+        showToast('Contract generated. Open it to review, then Save & Send.');
         closeCreateModal();
         await loadContracts();
       } catch (err) {
@@ -457,17 +467,47 @@
       var btn = document.getElementById('saveContractBtn');
       btn.disabled = true;
       btn.textContent = 'Saving\u2026';
+      var isFirstSend = activeContract.status === 'Pending Review';
       try {
         // First send: goes to the venue first, per the sequential signing
-        // flow — the band's link stays locked until the venue signs.
+        // flow -- the band's link stays locked until the venue signs.
         var update = { contract_text: newText };
-        if (activeContract.status === 'Pending Review') {
+        if (isFirstSend) {
           update.status  = 'Awaiting Venue';
           update.sent_at = new Date().toISOString();
         }
         var { error } = await sb.from('contracts').update(update).eq('id', activeContract.id);
         if (error) throw error;
-        showToast('Contract saved and sent.');
+
+        if (isFirstSend) {
+          var b = activeContract.bookings || {};
+          var venueName = b.venues ? b.venues.name : 'the venue';
+          var bandName  = b.bands  ? b.bands.name  : 'the band';
+          var perfDate  = b.booking_date ? new Date(b.booking_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' }) : '';
+          var bandSignUrl  = FRONTEND_BASE + 'sign-contract.html?token=' + activeContract.band_token;
+          var venueSignUrl = FRONTEND_BASE + 'sign-contract.html?token=' + activeContract.venue_token;
+          var notes = [];
+          var sentAny = false;
+
+          if (activeContract.venue_email) {
+            var vRes = await sendAppEmail(sb, activeContract.venue_email, venueName,
+              'Performance Agreement - ' + bandName + ' at ' + venueName + ' on ' + perfDate,
+              'Please review and sign: ' + venueSignUrl,
+              contractSignEmailHtml({ role:'venue', toName: venueName, agencyName: currentAgencyName, venueName: venueName, bandName: bandName, date: perfDate, signUrl: venueSignUrl }));
+            if (vRes.success) sentAny = true; else notes.push('Venue email failed: ' + vRes.error);
+          }
+          if (activeContract.band_email) {
+            var bRes = await sendAppEmail(sb, activeContract.band_email, bandName,
+              'Performance Agreement - ' + bandName + ' at ' + venueName + ' on ' + perfDate,
+              'Please review and sign (activates once the venue signs first): ' + bandSignUrl,
+              contractSignEmailHtml({ role:'band', toName: bandName, agencyName: currentAgencyName, venueName: venueName, bandName: bandName, date: perfDate, signUrl: bandSignUrl }));
+            if (bRes.success) sentAny = true; else notes.push('Band email failed: ' + bRes.error);
+          }
+          if (sentAny) await sb.from('contracts').update({ sent_via_email: true }).eq('id', activeContract.id);
+          showToast(sentAny ? 'Contract saved and emailed.' : ('Contract saved. ' + (notes.join(' ') || 'No email on file to send to.')), sentAny ? undefined : 'error');
+        } else {
+          showToast('Contract updated.');
+        }
         closeViewModal();
         await loadContracts();
       } catch (err) {
