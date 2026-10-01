@@ -445,6 +445,7 @@
   <script src="config.js"></script>
   <script>
     var currentBusinessId = null;
+    var currentRole = null;
     var geocodeTimeout = null;
     var allVenues = [];
     var editingVenueId = null;
@@ -467,12 +468,13 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('business_id, businesses(name)')
+        .select('business_id, role, businesses(name)')
         .single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
+      currentRole = profile.role;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
       // Build the genre tag-picker options once
@@ -719,8 +721,9 @@
       editingVenueId = id;
       document.getElementById('modalTitle').textContent = 'Edit Venue';
       document.getElementById('saveBtn').textContent = 'Save Changes';
-      document.getElementById('portalLoginSection').style.display = 'block';
-      document.getElementById('portalLoginGroup').style.display = 'block';
+      var canSetLogin = currentRole === 'admin' || currentRole === 'owner';
+      document.getElementById('portalLoginSection').style.display = canSetLogin ? 'block' : 'none';
+      document.getElementById('portalLoginGroup').style.display = canSetLogin ? 'block' : 'none';
       document.getElementById('vPortalUsername').value = '';
       document.getElementById('vPortalPassword').value = '';
       document.getElementById('portalLoginStatus').textContent = '';
