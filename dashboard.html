@@ -1,77 +1,614 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — Gig Matrix</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; }
-    .topbar { background: #A07018; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
-    .topbar-right { display: flex; align-items: center; gap: 10px; }
-    .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
-    .topbar h1 { font-size: 1.1rem; margin: 0; }
-    .topbar button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-    .content { max-width: 600px; margin: 40px auto; padding: 0 20px; }
-    .card { background: #fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.06); padding: 28px; }
-    .card p { color: #6b5e48; line-height: 1.6; }
-    .card strong { color: #1a1408; }
-    .loading { text-align: center; padding: 60px 20px; color: #6b5e48; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Dashboard — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
+    --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+    --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
+    --green:#2e7d5c; --green-dark:#2e7d32;
+    --red:#8B2000; --amber:#b45309;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 72px; }
+
+  .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-size: 1.05rem; margin: 0; }
+  .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+  .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+  .page-wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 24px; }
+  .page-header { margin-bottom: 18px; }
+  .page-header h1 { font-size: 1.4rem; font-weight: 700; color: var(--bronze2); letter-spacing: -0.5px; margin: 0; }
+  .page-header p { color: var(--muted); font-size: 0.88rem; margin-top: 3px; }
+
+  .quick-nav { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 16px; }
+  .nav-btn { background: var(--card); border: 1.5px solid var(--border); color: var(--bronze2); padding: 8px 4px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.18s; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: inherit; text-align: center; line-height: 1.2; min-height: 58px; justify-content: center; text-decoration: none; }
+  .nav-btn .nav-icon { font-size: 1.2rem; }
+  .nav-btn:hover { background: var(--bronze2); color: white; border-color: var(--bronze2); }
+  .nav-btn.green { border-color: #c8e6c9; color: #1b5e20; }
+  .nav-btn.green:hover { background: var(--green); color: white; border-color: var(--green); }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border-radius: 10px; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-left: 3px solid transparent; position:relative; overflow:hidden; }
+  .stat-card.blue { border-left-color: var(--bronze2); }
+  .stat-card.green { border-left-color: var(--green); }
+  .stat-card.gold { border-left-color: var(--bronze1); }
+  .stat-card.red { border-left-color: var(--red); }
+  .stat-label { font-size: 0.65rem; font-weight: 600; text-transform:uppercase; letter-spacing:0.6px; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-size: 1.25rem; font-weight: 700; color: var(--text); font-family: 'Consolas', monospace; letter-spacing:-0.5px; line-height: 1; }
+  .stat-value.loading-shimmer { background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; color: transparent; min-width: 60px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .stat-sub { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .stat-icon { position: absolute; right: 14px; top: 14px; font-size: 1.4rem; opacity: 0.15; }
+
+  .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .panel, .panel-full { background: var(--card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.04); overflow: hidden; }
+  .panel-full { margin-bottom: 16px; }
+  .panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .panel-title { font-size: 0.88rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .panel-badge { background: var(--bg); color: var(--muted); font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; font-family: 'Consolas', monospace; }
+  .booking-item { padding: 12px 18px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+  .booking-item:last-child { border-bottom: none; }
+  .booking-names { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+  .booking-meta { font-size: 0.75rem; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+  .booking-date { font-family: 'Consolas', monospace; font-size: 0.78rem; font-weight: 500; color: var(--bronze2); white-space: nowrap; text-align: right; }
+  .booking-pay { font-family: 'Consolas', monospace; font-size: 0.8rem; font-weight: 600; color: var(--green-dark); }
+  .status-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .status-confirmed { background:#e8f5e9;color:#2e7d32; } .status-pending { background:#fff8e1;color:#e65100; }
+  .status-cancelled { background:#ffebee;color:#b71c1c; } .status-tentative { background:#e3f2fd;color:#1565c0; }
+  .open-venue-item { padding: 11px 18px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+  .open-venue-item:last-child { border-bottom: none; }
+  .open-dates-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .open-date-chip { background:#e8f5e9;color:#2e7d32;font-size:0.68rem;font-family:'Consolas',monospace;font-weight:500;padding:2px 7px;border-radius:6px; }
+  .venue-city { font-size: 0.73rem; color: var(--muted); }
+  .earnings-row { padding: 10px 18px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; align-items: center; font-size: 0.84rem; }
+  .earnings-row:last-child { border-bottom: none; }
+  .earnings-count { font-family:'Consolas',monospace;font-size:0.75rem;color:var(--muted);text-align:right; }
+  .earnings-amount { font-family:'Consolas',monospace;font-weight:600;color:var(--text);text-align:right;min-width:70px; }
+  .empty-state { padding: 32px 20px; text-align: center; color: var(--muted); }
+  .empty-state .empty-icon { font-size: 2rem; margin-bottom: 8px; opacity: 0.5; }
+  .empty-state p { font-size: 0.84rem; }
+  .refresh-btn { background:none;border:1.5px solid var(--border);color:var(--muted);font-size:0.75rem;font-family:inherit;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px; }
+  .period-tabs { display:flex;gap:3px; }
+  .period-tab { padding:3px 9px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:none;background:none;color:var(--muted);font-family:inherit; }
+  .period-tab.active { background:var(--bronze2);color:white; }
+  .contact-alert-item { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+  .contact-alert-item:last-child { border-bottom: none; }
+  .contact-alert-name { font-size: 0.87rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .contact-alert-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .contact-badge { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .contact-badge.red { background: #ffebee; color: #c62828; }
+  .contact-badge.orange { background: #fff3e0; color: #e65100; }
+  .contact-badge.blue { background: #e3f2fd; color: #1565c0; }
+  .contact-badge.green { background: #e8f5e9; color: #2e7d32; }
+
+  .bottom-nav { display:none;position:fixed;bottom:0;left:0;right:0;height:64px;background:var(--bg2);border-top:1px solid var(--border);z-index:150;padding:0 4px;align-items:center;justify-content:space-around;box-shadow:0 -2px 12px rgba(0,0,0,0.08); }
+  .bnav-btn { display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:8px;font-family:inherit;color:var(--muted);flex:1;min-width:0;text-decoration:none; }
+  .bnav-btn.primary { color:var(--bronze2); }
+  .bnav-btn .bnav-icon { font-size:1.3rem;line-height:1; }
+  .bnav-btn .bnav-label { font-size:0.6rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
+
+  .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .loading-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .quick-nav { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 640px) {
+    body { padding-bottom: 80px; }
+    .page-wrap { padding: 14px 12px 20px; }
+    .page-header h1 { font-size: 1.2rem; }
+    .quick-nav { display: none; }
+    .bottom-nav { display: flex; }
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .stat-card { padding: 8px 12px; }
+    .stat-value { font-size: 1.1rem; }
+    .panel-row { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+    .booking-item, .alert-item, .open-venue-item, .contact-alert-item { padding: 11px 14px; }
+    .earnings-row { padding: 9px 14px; gap: 8px; }
+    .topbar-right a { display: none; }
+  }
+</style>
 </head>
 <body>
+
   <div class="topbar">
-    <h1>Gig Matrix</h1>
+    <div>
+      <h1>Gig Matrix</h1>
+      <div class="biz" id="bizName"></div>
+    </div>
     <div class="topbar-right">
+      <a href="bands.html">Bands</a>
       <a href="venues.html">Venues</a>
       <a href="venue-map.html">Map</a>
-      <a href="bands.html">Bands</a>
       <a href="bookings.html">Bookings</a>
       <a href="contracts.html">Contracts</a>
       <button onclick="logout()">Sign Out</button>
     </div>
   </div>
 
-  <div class="content">
-    <div class="loading" id="loadingState"><p>Loading&#8230;</p></div>
+  <div class="page-wrap">
+    <div class="loading-state" id="loadingState"><p>Loading your dashboard&#8230;</p></div>
 
-    <div class="card" id="dashCard" style="display:none;">
-      <p>Welcome, <strong id="ownerName"></strong>.</p>
-      <p>Business: <strong id="businessName"></strong></p>
-      <p style="margin-top:20px;font-size:0.85rem;color:#999;">
-        This confirms login, your business record, and Row Level Security are all working —
-        you're only ever able to see data tagged with your own business_id.
-      </p>
+    <div id="dashBody" style="display:none;">
+      <div class="page-header">
+        <h1 id="welcomeText">Dashboard</h1>
+        <p id="dateText"></p>
+      </div>
+
+      <div class="quick-nav">
+        <a class="nav-btn green" href="bands.html?add=1"><span class="nav-icon">&#127928;</span>Add Band</a>
+        <a class="nav-btn green" href="venues.html?add=1"><span class="nav-icon">&#127970;</span>Add Venue</a>
+        <a class="nav-btn green" href="create-booking.html"><span class="nav-icon">&#128197;</span>Create Booking</a>
+        <a class="nav-btn" href="bands.html"><span class="nav-icon">&#128203;</span>Band Directory</a>
+        <a class="nav-btn" href="venues.html"><span class="nav-icon">&#127963;</span>Venue Directory</a>
+        <a class="nav-btn" href="venue-map.html"><span class="nav-icon">&#128506;</span>Venue Map</a>
+        <a class="nav-btn" href="bookings.html"><span class="nav-icon">&#128198;</span>All Bookings</a>
+        <a class="nav-btn" href="bookings.html?mine=1"><span class="nav-icon">&#128197;</span>My Bookings</a>
+        <a class="nav-btn" href="contracts.html"><span class="nav-icon">&#128203;</span>Contracts</a>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card blue" style="grid-column:span 2;">
+          <div class="stat-icon">&#128176;</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div class="stat-label">My Commission Earned</div>
+            <div class="period-tabs">
+              <button class="period-tab active" onclick="setCommPeriod('week',this)">Week</button>
+              <button class="period-tab" onclick="setCommPeriod('month',this)">Month</button>
+              <button class="period-tab" onclick="setCommPeriod('year',this)">Year</button>
+            </div>
+          </div>
+          <div class="stat-value loading-shimmer" id="statCommission">$0</div>
+          <div class="stat-sub" id="statCommSub">Loading&#8230;</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">&#127928;</div>
+          <div class="stat-label">Active Bands Booked</div>
+          <div class="stat-value loading-shimmer" id="statBandsBooked">0</div>
+          <div class="stat-sub">unique bands booked</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon">&#127970;</div>
+          <div class="stat-label">Venues Working With</div>
+          <div class="stat-value loading-shimmer" id="statVenuesBooked">0</div>
+          <div class="stat-sub">unique venues booked</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">&#128276;</div>
+          <div class="stat-label">Venues Need Contact</div>
+          <div class="stat-value loading-shimmer" id="statContactAlert">0</div>
+          <div class="stat-sub">silent 30+ days</div>
+        </div>
+      </div>
+
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128197; Upcoming Bookings <span class="panel-badge" id="upcomingCount">&#8211;</span></div>
+            <div class="period-tabs">
+              <button class="period-tab active" onclick="setUpcomingPeriod(30,this)">30d</button>
+              <button class="period-tab" onclick="setUpcomingPeriod(60,this)">60d</button>
+              <button class="period-tab" onclick="setUpcomingPeriod(90,this)">90d</button>
+            </div>
+          </div>
+          <div id="upcomingBookings"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128276; Venues to Contact <span class="panel-badge" id="contactCount">&#8211;</span></div>
+            <button class="refresh-btn" onclick="refreshDashboard()">&#8635; Refresh</button>
+          </div>
+          <div id="contactAlerts"></div>
+        </div>
+      </div>
+
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128198; Open Weekends at Your Venues <span class="panel-badge" id="openDatesCount">&#8211;</span></div>
+          </div>
+          <div id="openDatesPanel"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128181; Earnings Breakdown</div>
+            <div class="period-tabs">
+              <button class="period-tab active" onclick="setEarningsPeriod('month',this)">Month</button>
+              <button class="period-tab" onclick="setEarningsPeriod('year',this)">Year</button>
+              <button class="period-tab" onclick="setEarningsPeriod('all',this)">All</button>
+            </div>
+          </div>
+          <div id="earningsBreakdown"></div>
+        </div>
+      </div>
+
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#127925; Open Venue Slots &amp; Band Matches <span class="panel-badge">&#8211;</span></div>
+        </div>
+        <div class="empty-state">
+          <div class="empty-icon">&#128679;</div>
+          <p>Coming soon — this panel needs the Venue Schedule (weekly availability) and Band Availability features to be built first, so there's real data to match against.</p>
+        </div>
+      </div>
+
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#128336; Recent Bookings <span class="panel-badge" id="recentCount">&#8211;</span></div>
+        </div>
+        <div id="recentBookings"></div>
+      </div>
     </div>
   </div>
 
+  <div class="bottom-nav">
+    <a class="bnav-btn primary" href="create-booking.html"><span class="bnav-icon">&#128197;</span><span class="bnav-label">Book</span></a>
+    <a class="bnav-btn" href="venue-map.html"><span class="bnav-icon">&#128506;</span><span class="bnav-label">Map</span></a>
+    <a class="bnav-btn" href="bookings.html?mine=1"><span class="bnav-icon">&#128197;</span><span class="bnav-label">My Bookings</span></a>
+    <a class="bnav-btn" href="bookings.html"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Calendar</span></a>
+    <a class="bnav-btn" href="bands.html"><span class="bnav-icon">&#127928;</span><span class="bnav-label">Bands</span></a>
+    <a class="bnav-btn" href="venues.html"><span class="bnav-icon">&#127963;</span><span class="bnav-label">Venues</span></a>
+  </div>
+
+  <div class="toast" id="toastMsg"></div>
+
   <script src="config.js"></script>
   <script>
-    (async function() {
+    var currentBusinessId = null;
+    var currentProfileId  = null;
+    var allBookings = [];   // every booking in the business (RLS-scoped)
+    var allVenues   = [];
+    var allBands    = [];
+    var commPeriod  = 'week';
+    var upcomingDays = 30;
+    var earningsPeriod = 'month';
+
+    (async function init() {
       var { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('name, business_id, businesses(name)')
+        .select('id, name, business_id, businesses(name)')
         .single();
 
-      if (error || !profile) {
-        window.location.href = 'complete-signup.html';
-        return;
-      }
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
-      document.getElementById('ownerName').textContent   = profile.name;
-      document.getElementById('businessName').textContent = profile.businesses.name;
+      currentProfileId  = profile.id;
+      currentBusinessId = profile.business_id;
+      document.getElementById('bizName').textContent = profile.businesses.name;
+
+      var now = new Date();
+      document.getElementById('dateText').textContent = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+      var firstName = (profile.name || '').split(' ')[0] || 'there';
+      document.getElementById('welcomeText').textContent = 'Welcome back, ' + firstName + ' \u{1F44B}';
+
+      // Toast if arriving from Add Band / Add Venue
+      var toastParam = new URLSearchParams(window.location.search).get('toast');
+      if (toastParam === 'band_added')  showToast('Band added successfully!');
+      if (toastParam === 'venue_added') showToast('Venue added successfully!');
+
+      await loadDashboardData();
       document.getElementById('loadingState').style.display = 'none';
-      document.getElementById('dashCard').style.display = 'block';
+      document.getElementById('dashBody').style.display = 'block';
     })();
 
-    function logout() {
-      sb.auth.signOut().then(function() {
-        window.location.href = 'login.html';
+    async function loadDashboardData() {
+      var [bookingsRes, venuesRes, bandsRes] = await Promise.all([
+        sb.from('bookings').select('*, venues(name,city,state), bands(name,commission_pct)').order('booking_date', { ascending: false }),
+        sb.from('venues').select('*'),
+        sb.from('bands').select('id, name, commission_pct')
+      ]);
+      allBookings = bookingsRes.data || [];
+      allVenues   = venuesRes.data   || [];
+      allBands    = bandsRes.data    || [];
+      renderAllPanels();
+    }
+
+    function refreshDashboard() { loadDashboardData(); }
+
+    function myBookings() {
+      return allBookings.filter(function(b) { return b.created_by === currentProfileId; });
+    }
+
+    function agencyEarnings(b) {
+      var pay = parseFloat(b.pay_amount) || 0;
+      var pct = (b.commission_pct != null && b.commission_pct !== '')
+        ? parseFloat(b.commission_pct)
+        : (b.bands && b.bands.commission_pct != null ? parseFloat(b.bands.commission_pct) : 0);
+      return Math.round(pay * (pct || 0)) / 100;
+    }
+
+    function fmtMoney(n) { return '$' + Math.round(n||0).toLocaleString('en-US'); }
+    function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function renderAllPanels() {
+      var mb = myBookings().filter(function(b) { return (b.status||'').toLowerCase() !== 'cancelled'; });
+      renderStats(mb);
+      renderUpcoming(mb);
+      renderContactAlerts();
+      renderOpenDates(mb);
+      renderEarnings(mb);
+      renderRecent(mb);
+    }
+
+    // ── STATS ──────────────────────────────────────────────────────────────────
+    function setCommPeriod(period, btn) {
+      commPeriod = period;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderStats(myBookings().filter(function(b){ return (b.status||'').toLowerCase() !== 'cancelled'; }));
+    }
+
+    function renderStats(mb) {
+      var now = new Date();
+      var weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); weekStart.setHours(0,0,0,0);
+      var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      var yearStart  = new Date(now.getFullYear(), 0, 1);
+
+      var buckets = { week: {c:0,n:0}, month: {c:0,n:0}, year: {c:0,n:0} };
+      var bSet = {}, vSet = {};
+      mb.forEach(function(b) {
+        bSet[b.band_id] = true; vSet[b.venue_id] = true;
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var e = agencyEarnings(b);
+        if (d >= yearStart)  { buckets.year.c  += e; buckets.year.n++;  }
+        if (d >= monthStart) { buckets.month.c += e; buckets.month.n++; }
+        if (d >= weekStart)  { buckets.week.c  += e; buckets.week.n++;  }
       });
+
+      var el = document.getElementById('statCommission');
+      var sub = document.getElementById('statCommSub');
+      el.classList.remove('loading-shimmer');
+      var b = buckets[commPeriod];
+      el.textContent = fmtMoney(b.c);
+      sub.textContent = b.n + ' booking' + (b.n !== 1 ? 's' : '') + ' this ' + commPeriod;
+
+      ['statBandsBooked','statVenuesBooked','statContactAlert'].forEach(function(id){
+        document.getElementById(id).classList.remove('loading-shimmer');
+      });
+      document.getElementById('statBandsBooked').textContent  = Object.keys(bSet).length;
+      document.getElementById('statVenuesBooked').textContent = Object.keys(vSet).length;
+      document.getElementById('statContactAlert').textContent = computeVenueAlerts().length;
+    }
+
+    // ── UPCOMING BOOKINGS ────────────────────────────────────────────────────────
+    function setUpcomingPeriod(days, btn) {
+      upcomingDays = days;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderUpcoming(myBookings().filter(function(b){ return (b.status||'').toLowerCase() !== 'cancelled'; }));
+    }
+
+    function renderUpcoming(mb) {
+      var now = new Date(); now.setHours(0,0,0,0);
+      var cut = new Date(now.getTime() + upcomingDays * 86400000);
+      var up = mb.filter(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        return d >= now && d <= cut;
+      }).sort(function(a,b){ return new Date(a.booking_date+'T12:00:00') - new Date(b.booking_date+'T12:00:00'); });
+
+      document.getElementById('upcomingCount').textContent = up.length;
+      var el = document.getElementById('upcomingBookings');
+      if (!up.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127881;</div><p>No upcoming bookings in the next ' + upcomingDays + ' days.</p></div>'; return; }
+
+      var h = '';
+      up.forEach(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var ds = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var dow = d.toLocaleDateString('en-US', {weekday:'short'});
+        var pay = parseFloat(b.pay_amount) || 0;
+        var sc = 'status-' + (b.status||'pending').toLowerCase().replace(/\s+/g,'-');
+        var earn = agencyEarnings(b);
+        var venueName = b.venues ? b.venues.name : '(deleted venue)';
+        var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
+        h += '<div class="booking-item"><div><div class="booking-names">' + esc(venueName) + ' <span style="color:var(--muted);font-weight:400;">with</span> ' + esc(bandName) + '</div>';
+        h += '<div class="booking-meta"><span class="status-badge ' + sc + '">' + esc(b.status||'Pending') + '</span>';
+        if (b.start_time) h += '<span>' + esc(cleanTime(b.start_time)) + (b.end_time ? ' - ' + esc(cleanTime(b.end_time)) : '') + '</span>';
+        h += '</div></div><div style="text-align:right;"><div class="booking-date">' + dow + ' ' + ds + '</div>';
+        if (pay > 0) { h += '<div style="font-size:0.74rem;color:var(--muted);">Band: $' + pay.toLocaleString() + '</div>'; if (earn > 0) h += '<div class="booking-pay">Agency: $' + earn.toLocaleString() + '</div>'; }
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    function cleanTime(t) {
+      if (!t) return '';
+      var m = String(t).match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return String(t);
+      var h = parseInt(m[1]), mn = m[2], ap = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return h + ':' + mn + ' ' + ap;
+    }
+
+    // ── VENUES TO CONTACT ────────────────────────────────────────────────────────
+    function computeVenueAlerts() {
+      var now = new Date();
+      var lastBooked = {};
+      allBookings.forEach(function(b) {
+        if ((b.status||'').toLowerCase() === 'cancelled') return;
+        var d = new Date(b.booking_date + 'T12:00:00');
+        if (!lastBooked[b.venue_id] || d > lastBooked[b.venue_id]) lastBooked[b.venue_id] = d;
+      });
+
+      var alerts = [];
+      allVenues.forEach(function(v) {
+        var lastContact = v.last_contact_date ? new Date(v.last_contact_date) : null;
+        var lastBk = lastBooked[v.id] || null;
+        var lastFlyer = v.last_flyer_sent_date ? new Date(v.last_flyer_sent_date) : null;
+
+        var daysSinceContact = lastContact ? Math.floor((now - lastContact) / 86400000) : null;
+        var daysSinceBooked  = lastBk      ? Math.floor((now - lastBk)      / 86400000) : null;
+        var daysSinceFlyer   = lastFlyer   ? Math.floor((now - lastFlyer)   / 86400000) : null;
+
+        if (daysSinceContact === null || daysSinceContact > 30) {
+          alerts.push({
+            venueName: v.name, city: v.city,
+            daysSinceContact: daysSinceContact, daysSinceBooked: daysSinceBooked, daysSinceFlyer: daysSinceFlyer
+          });
+        }
+      });
+      alerts.sort(function(a,b){
+        var aD = a.daysSinceContact === null ? 9999 : a.daysSinceContact;
+        var bD = b.daysSinceContact === null ? 9999 : b.daysSinceContact;
+        return bD - aD;
+      });
+      return alerts;
+    }
+
+    function renderContactAlerts() {
+      var alerts = computeVenueAlerts();
+      document.getElementById('contactCount').textContent = alerts.length;
+      var el = document.getElementById('contactAlerts');
+      if (!alerts.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9989;</div><p>All venues recently contacted.</p></div>'; return; }
+
+      function daysBadge(days, label, greenOk) {
+        if (days === null || days === undefined) return '<span class="contact-badge orange">Never ' + label + '</span>';
+        if (days > 60) return '<span class="contact-badge red">' + days + 'd since ' + label + '</span>';
+        if (days > 30) return '<span class="contact-badge orange">' + days + 'd since ' + label + '</span>';
+        return greenOk ? '<span class="contact-badge green">' + days + 'd since ' + label + '</span>' : '<span class="contact-badge blue">' + days + 'd since ' + label + '</span>';
+      }
+
+      var h = '';
+      alerts.slice(0, 10).forEach(function(a) {
+        h += '<div class="contact-alert-item">';
+        h += '<div class="contact-alert-name">' + esc(a.venueName) + (a.city ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">&mdash; ' + esc(a.city) + '</span>' : '') + '</div>';
+        h += '<div class="contact-alert-badges">';
+        h += daysBadge(a.daysSinceContact, 'contact', false);
+        h += daysBadge(a.daysSinceBooked, 'booked', true);
+        h += a.daysSinceFlyer != null ? daysBadge(a.daysSinceFlyer, 'flyer', false) : '<span class="contact-badge orange">No flyer sent</span>';
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    // ── OPEN WEEKENDS AT YOUR VENUES ─────────────────────────────────────────────
+    function renderOpenDates(mb) {
+      var now = new Date(); now.setHours(0,0,0,0);
+      var end = new Date(now.getTime() + 90 * 86400000);
+      var bm = {}, mvi = {};
+      mb.forEach(function(b) { bm[b.venue_id + '|' + b.booking_date] = true; mvi[b.venue_id] = b.venues ? b.venues.name : '(deleted venue)'; });
+
+      var res = [];
+      Object.keys(mvi).forEach(function(vid) {
+        var od = [];
+        var d = new Date(now.getTime() + 7 * 86400000);
+        while (d <= end) {
+          var dow = d.getDay();
+          if (dow === 5 || dow === 6) {
+            var ds = d.toISOString().split('T')[0];
+            if (!bm[vid + '|' + ds]) od.push(d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' (' + 'Su,Mo,Tu,We,Th,Fr,Sa'.split(',')[dow] + ')');
+          }
+          d = new Date(d.getTime() + 86400000);
+        }
+        if (od.length > 0) {
+          var vd = allVenues.find(function(v){ return v.id === vid; });
+          res.push({ name: mvi[vid], openDates: od.slice(0, 6), venue: vd });
+        }
+      });
+
+      document.getElementById('openDatesCount').textContent = res.length;
+      var el = document.getElementById('openDatesPanel');
+      if (!res.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128397;</div><p>No booked venues yet, or all weekends are filled!</p></div>'; return; }
+
+      var h = '';
+      res.slice(0, 8).forEach(function(r) {
+        var city = r.venue ? (r.venue.city || '') + (r.venue.state ? ', ' + r.venue.state : '') : '';
+        h += '<div class="open-venue-item"><div><div style="font-size:0.88rem;font-weight:600;">' + esc(r.name) + '</div>';
+        if (city) h += '<div class="venue-city">' + esc(city) + '</div>';
+        h += '<div class="open-dates-list">';
+        r.openDates.forEach(function(dt) { h += '<span class="open-date-chip">' + dt + '</span>'; });
+        h += '</div></div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    // ── EARNINGS BREAKDOWN ───────────────────────────────────────────────────────
+    function setEarningsPeriod(p, btn) {
+      earningsPeriod = p;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderEarnings(myBookings().filter(function(b){ return (b.status||'').toLowerCase() !== 'cancelled'; }));
+    }
+
+    function renderEarnings(mb) {
+      var now = new Date(), ps;
+      if (earningsPeriod === 'month') ps = new Date(now.getFullYear(), now.getMonth(), 1);
+      else if (earningsPeriod === 'year') ps = new Date(now.getFullYear(), 0, 1);
+      else ps = new Date(2000, 0, 1);
+
+      var fl = mb.filter(function(b) { return new Date(b.booking_date + 'T12:00:00') >= ps; });
+      var el = document.getElementById('earningsBreakdown');
+      if (!fl.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128202;</div><p>No earnings in this period.</p></div>'; return; }
+
+      var bv = {};
+      fl.forEach(function(b) {
+        var e = agencyEarnings(b);
+        var name = b.venues ? b.venues.name : '(deleted venue)';
+        if (!bv[name]) bv[name] = { count: 0, total: 0, bandPay: 0 };
+        bv[name].count++; bv[name].total += e; bv[name].bandPay += parseFloat(b.pay_amount) || 0;
+      });
+      var sorted = Object.keys(bv).map(function(k){ return { name: k, count: bv[k].count, total: bv[k].total, bandPay: bv[k].bandPay }; }).sort(function(a,b){ return b.total - a.total; });
+      var gT = sorted.reduce(function(s,x){ return s + x.total; }, 0);
+      var gB = sorted.reduce(function(s,x){ return s + x.bandPay; }, 0);
+
+      var h = '<div class="earnings-row" style="background:#f8fafc;font-weight:700;font-size:0.8rem;color:var(--muted);"><span>VENUE</span><span style="text-align:right;">SHOWS</span><span style="text-align:right;">BAND PAY</span><span style="text-align:right;">AGENCY EARNS</span></div>';
+      sorted.forEach(function(x) {
+        h += '<div class="earnings-row"><span style="font-size:0.86rem;">' + esc(x.name) + '</span><span class="earnings-count">' + x.count + '</span><span class="earnings-count" style="color:var(--muted);">$' + Math.round(x.bandPay).toLocaleString() + '</span><span class="earnings-amount">$' + Math.round(x.total).toLocaleString() + '</span></div>';
+      });
+      h += '<div class="earnings-row" style="border-top:2px solid var(--border);font-weight:700;"><span>TOTAL</span><span class="earnings-count">' + fl.length + '</span><span class="earnings-count" style="color:var(--muted);">$' + Math.round(gB).toLocaleString() + '</span><span class="earnings-amount" style="color:var(--green-dark);">$' + Math.round(gT).toLocaleString() + '</span></div>';
+
+      var missingComm = fl.filter(function(b){ return !(b.commission_pct > 0) && !(b.bands && b.bands.commission_pct > 0); }).length;
+      if (missingComm > 0) h += '<div style="padding:10px 20px;font-size:0.78rem;color:#b45309;background:#fffbeb;border-top:1px solid #fde68a;">&#9888; ' + missingComm + ' booking' + (missingComm > 1 ? 's have' : ' has') + ' no commission rate set.</div>';
+      document.getElementById('earningsBreakdown').innerHTML = h;
+    }
+
+    // ── RECENT BOOKINGS ──────────────────────────────────────────────────────────
+    function renderRecent(mb) {
+      var sorted = mb.slice().sort(function(a,b){ return new Date(b.booking_date+'T12:00:00') - new Date(a.booking_date+'T12:00:00'); });
+      var recent = sorted.slice(0, 10);
+      document.getElementById('recentCount').textContent = mb.length + ' total';
+      var el = document.getElementById('recentBookings');
+      if (!recent.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128397;</div><p>No bookings yet. Create your first booking!</p></div>'; return; }
+
+      var h = '';
+      recent.forEach(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var ds = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var pay = parseFloat(b.pay_amount) || 0;
+        var sc = 'status-' + (b.status||'pending').toLowerCase().replace(/\s+/g,'-');
+        var past = d < new Date();
+        var earn = agencyEarnings(b);
+        var venueName = b.venues ? b.venues.name : '(deleted venue)';
+        var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
+        h += '<div class="booking-item"' + (past ? ' style="opacity:0.7;"' : '') + '>' +
+             '<div><div class="booking-names">' + esc(venueName) + ' <span style="color:var(--muted);font-weight:400;">&#183;</span> ' + esc(bandName) + '</div>' +
+             '<div class="booking-meta"><span class="status-badge ' + sc + '">' + esc(b.status||'Pending') + '</span></div></div>' +
+             '<div style="text-align:right;"><div class="booking-date">' + ds + '</div>';
+        if (pay > 0) { h += '<div style="font-size:0.74rem;color:var(--muted);">Band: $' + pay.toLocaleString() + '</div>'; if (earn > 0) h += '<div class="booking-pay">Agency: $' + earn.toLocaleString() + '</div>'; }
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    function showToast(msg) {
+      var t = document.getElementById('toastMsg');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function(){ t.classList.remove('show'); }, 4000);
+    }
+
+    function logout() {
+      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
     }
   </script>
 </body>
