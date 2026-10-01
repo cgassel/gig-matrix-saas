@@ -492,6 +492,11 @@
       if (new URLSearchParams(window.location.search).get('add') === '1') {
         openAddModal();
       }
+      // Arriving from the Venue Map's "Edit Venue" button
+      var editId = new URLSearchParams(window.location.search).get('edit');
+      if (editId) {
+        openEditModal(editId);
+      }
     })();
 
     // ── Category-aware relabeling ─────────────────────────────────────────────
