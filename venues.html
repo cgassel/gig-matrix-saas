@@ -485,6 +485,11 @@
         .forEach(function(el) { el.addEventListener('change', updatePrefSummary); });
 
       await loadVenues();
+
+      // Arriving from the dashboard's "Add Venue" quick-nav button
+      if (new URLSearchParams(window.location.search).get('add') === '1') {
+        openAddModal();
+      }
     })();
 
     // ── Category-aware relabeling ─────────────────────────────────────────────
