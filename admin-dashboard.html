@@ -94,7 +94,6 @@
   .role-pill { font-size: 0.68rem; font-weight: 700; padding: 2px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
   .role-pill.admin { background: #fdf1dc; color: var(--bronze3); }
   .role-pill.agent { background: #e3f2fd; color: #1565c0; }
-  .role-pill.contract_agent { background: #e8f5e9; color: #2e7d32; }
   .add-team-btn { background: var(--bronze2); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
 
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
@@ -267,7 +266,6 @@
       <label>Role *</label>
       <select id="tmRole">
         <option value="agent">Booking Agent</option>
-        <option value="contract_agent">Contract Agent</option>
         <option value="admin">Administrator</option>
       </select>
       <div class="modal-actions">
@@ -639,7 +637,7 @@
     }
 
     // ── TEAM LOGINS ──────────────────────────────────────────────────────────────
-    function roleLabel(r) { return r === 'admin' ? 'Administrator' : r === 'contract_agent' ? 'Contract Agent' : 'Booking Agent'; }
+    function roleLabel(r) { return (r === 'admin' || r === 'owner') ? 'Administrator' : 'Booking Agent'; }
 
     function renderTeam() {
       var el = document.getElementById('teamPanel');
