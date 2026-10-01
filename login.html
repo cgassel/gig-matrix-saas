@@ -104,7 +104,9 @@
         }
 
         var role = profileResult.data.role;
-        if (role === 'admin') {
+        if (role === 'admin' || role === 'owner') {
+          // 'owner' is the role the very first signup account gets — it's
+          // the same administrator access as 'admin', just an older label.
           window.location.href = 'admin-dashboard.html';
         } else {
           // agent and contract_agent share the same dashboard, same as the
