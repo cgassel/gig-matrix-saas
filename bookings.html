@@ -93,6 +93,11 @@
       <input type="text" id="searchBox" placeholder="Search venue, band..." oninput="renderTable()">
     </div>
 
+    <div id="mineBanner" style="display:none;background:#fdf1dc;border:1px solid #e8dcc8;color:#7A5210;padding:9px 14px;border-radius:8px;font-size:0.82rem;font-weight:600;margin-bottom:14px;align-items:center;justify-content:space-between;gap:10px;">
+      <span>&#128100; Showing only bookings you created</span>
+      <a href="bookings.html" style="color:#A07018;">Show all bookings &rarr;</a>
+    </div>
+
     <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
 
     <table id="bookingsTable" style="display:none;">
@@ -197,6 +202,8 @@
   <script src="config.js"></script>
   <script>
     var currentBusinessId = null;
+    var currentProfileId = null;
+    var mineOnly = false;
     var allBookings = [];
     var allVenues = [];
     var allBands = [];
@@ -209,13 +216,17 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('business_id, businesses(name)')
+        .select('id, business_id, businesses(name)')
         .single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
+      currentProfileId = profile.id;
       document.getElementById('bizName').textContent = profile.businesses.name;
+
+      mineOnly = new URLSearchParams(window.location.search).get('mine') === '1';
+      if (mineOnly) document.getElementById('mineBanner').style.display = 'flex';
 
       await Promise.all([loadVenuesAndBands(), loadBookings()]);
     })();
@@ -263,6 +274,7 @@
       var search = document.getElementById('searchBox').value.toLowerCase();
 
       var filtered = allBookings.filter(function(b) {
+        if (mineOnly && b.created_by !== currentProfileId) return false;
         if (status && b.status !== status) return false;
         if (search) {
           var haystack = [(b.venues && b.venues.name), (b.bands && b.bands.name)].join(' ').toLowerCase();
