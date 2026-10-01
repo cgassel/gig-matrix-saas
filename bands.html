@@ -318,6 +318,7 @@
   <script src="config.js"></script>
   <script>
     var currentBusinessId = null;
+    var currentRole = null;
     var allBands = [];
     var editingBandId = null;
     var pendingDeleteId = null;
@@ -330,12 +331,13 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('business_id, businesses(name)')
+        .select('business_id, role, businesses(name)')
         .single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
+      currentRole = profile.role;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
       // Wire up the pill selectors
@@ -463,7 +465,8 @@
       editingBandId = id;
       document.getElementById('modalTitle').textContent = 'Edit Band';
       document.getElementById('saveBtn').textContent = 'Save Changes';
-      document.getElementById('bandPortalLoginSection').style.display = 'block';
+      var canSetLogin = currentRole === 'admin' || currentRole === 'owner';
+      document.getElementById('bandPortalLoginSection').style.display = canSetLogin ? 'block' : 'none';
       document.getElementById('bPortalUsername').value = '';
       document.getElementById('bPortalPassword').value = '';
       document.getElementById('bandPortalLoginStatus').textContent = '';
