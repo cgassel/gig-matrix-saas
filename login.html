@@ -81,7 +81,7 @@
       el.style.display = 'block';
     }
 
-    // ── Team login (agent / admin / contract_agent) ─────────────────────────
+    // ── Team login (agent / admin) ───────────────────────────────────────────
     document.getElementById('teamForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
@@ -115,9 +115,6 @@
           // the same administrator access as 'admin', just an older label.
           window.location.href = 'admin-dashboard.html';
         } else {
-          // agent and contract_agent share the same dashboard, same as the
-          // original app — contract-review panels show conditionally inside
-          // it based on role.
           window.location.href = 'dashboard.html';
         }
 
