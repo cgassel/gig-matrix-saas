@@ -1,61 +1,712 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard — Gig Matrix</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; }
-    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; }
-    .topbar h1 { font-size: 1.05rem; margin: 0; }
-    .topbar button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
-    .content { max-width: 700px; margin: 60px auto; padding: 0 20px; text-align: center; }
-    .badge { display: inline-block; background: #C8960C; color: #1a1408; font-size: 0.72rem; font-weight: 800; padding: 4px 14px; border-radius: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; }
-    h2 { color: #A07018; font-size: 1.4rem; margin: 0 0 10px; }
-    p { color: #6b5e48; line-height: 1.6; }
-    .note { margin-top: 24px; padding: 16px 18px; background: #fff; border-radius: 10px; font-size: 0.85rem; color: #6b5e48; text-align: left; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Admin Dashboard — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
+    --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+    --text:#1a1408; --muted:#6b5e48;
+    --green:#2e7d5c; --green-dark:#2e7d32; --red:#8B2000; --amber:#b45309;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+
+  .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-size: 1.05rem; margin: 0; }
+  .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+  .admin-pill { background: var(--bronze1); color: #1a1408; font-size: 0.68rem; font-weight: 800; padding: 3px 10px; border-radius: 12px; letter-spacing: 1px; text-transform: uppercase; margin-left: 8px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+  .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+
+  .page-wrap { max-width: 1380px; margin: 0 auto; padding: 24px 20px 60px; }
+  .page-header { margin-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .page-header h1 { font-size: 1.4rem; font-weight: 700; color: var(--bronze3); margin: 0; }
+  .page-header p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: var(--card); border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04); border-left: 4px solid transparent; position: relative; overflow: hidden; }
+  .stat-card.navy { border-left-color: var(--bronze3); }
+  .stat-card.gold { border-left-color: var(--bronze1); }
+  .stat-card.teal { border-left-color: var(--bronze2); }
+  .stat-card.green { border-left-color: var(--green); }
+  .stat-card.red { border-left-color: var(--red); }
+  .stat-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-bottom: 6px; }
+  .stat-value { font-size: 1.7rem; font-weight: 700; font-family: 'Consolas', monospace; letter-spacing: -1px; line-height: 1; }
+  .stat-value.shimmer { background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; color: transparent; min-width: 80px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .stat-sub { font-size: 0.78rem; color: var(--muted); margin-top: 5px; }
+  .stat-icon { position: absolute; right: 14px; top: 14px; font-size: 1.5rem; opacity: 0.15; }
+
+  .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
+  @media (max-width: 900px) { .panel-row { grid-template-columns: 1fr; } }
+  .panel, .panel-full { background: var(--card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(0,0,0,0.04); overflow: hidden; }
+  .panel-full { margin-bottom: 18px; }
+  .panel-header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .panel-title { font-size: 0.92rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .panel-badge { background: var(--bg); color: var(--muted); font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; font-family: 'Consolas', monospace; }
+  .period-tabs { display: flex; gap: 4px; }
+  .period-tab { padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 600; cursor: pointer; border: none; background: none; color: var(--muted); font-family: inherit; }
+  .period-tab.active { background: var(--bronze2); color: #fff; }
+
+  .booking-item { padding: 13px 20px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; }
+  .booking-item:last-child { border-bottom: none; }
+  .booking-names { font-size: 0.9rem; font-weight: 600; }
+  .booking-meta { font-size: 0.78rem; color: var(--muted); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+  .booking-date { font-family: 'Consolas', monospace; font-size: 0.8rem; font-weight: 500; color: var(--bronze2); white-space: nowrap; text-align: right; }
+  .booking-pay { font-family: 'Consolas', monospace; font-size: 0.82rem; font-weight: 600; color: var(--green-dark); }
+  .status-badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .status-confirmed { background:#e8f5e9;color:#2e7d32; } .status-pending { background:#fff8e1;color:#e65100; }
+  .status-cancelled { background:#ffebee;color:#b71c1c; }
+
+  .agent-row, .band-row { padding: 13px 20px; border-bottom: 1px solid var(--border); display: grid; gap: 16px; align-items: center; font-size: 0.88rem; }
+  .agent-row { grid-template-columns: 1.5fr auto auto auto auto; }
+  .band-row { grid-template-columns: 1.5fr auto auto auto; }
+  .agent-row:last-child, .band-row:last-child { border-bottom: none; }
+  .agent-name { font-weight: 600; }
+  .agent-meta { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+  .mono { font-family: 'Consolas', monospace; font-size: 0.82rem; text-align: right; }
+  .commission-bar-bg { height: 6px; background: #e2e8f0; border-radius: 3px; margin-top: 5px; }
+  .commission-bar-fill { height: 6px; background: var(--green); border-radius: 3px; }
+
+  .alert-item { padding: 13px 20px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0; }
+  .alert-icon.red { background: #ffebee; } .alert-icon.gold { background: #fff8e1; } .alert-icon.blue { background: #e3f2fd; }
+  .alert-name { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .alert-detail { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+  .alert-days { font-family: 'Consolas', monospace; font-size: 0.78rem; font-weight: 600; color: var(--red); white-space: nowrap; }
+  .alert-days.warn { color: var(--bronze1); } .alert-days.ok { color: var(--green); }
+
+  .empty-state { padding: 36px 20px; text-align: center; color: var(--muted); }
+  .empty-state .ei { font-size: 2.3rem; margin-bottom: 10px; opacity: 0.5; }
+  .section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 8px 20px 4px; background: var(--card2); border-bottom: 1px solid var(--border); }
+  .refresh-btn { background: none; border: 1.5px solid var(--border); color: var(--muted); font-size: 0.78rem; font-weight: 600; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+
+  .team-row { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .team-row:last-child { border-bottom: none; }
+  .team-name { font-weight: 600; font-size: 0.88rem; }
+  .team-email { font-size: 0.76rem; color: var(--muted); }
+  .role-pill { font-size: 0.68rem; font-weight: 700; padding: 2px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .role-pill.admin { background: #fdf1dc; color: var(--bronze3); }
+  .role-pill.agent { background: #e3f2fd; color: #1565c0; }
+  .role-pill.contract_agent { background: #e8f5e9; color: #2e7d32; }
+  .add-team-btn { background: var(--bronze2); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
+  .modal-overlay.show { display: flex; }
+  .modal { background: #fff; border-radius: 14px; max-width: 460px; width: 100%; padding: 26px 28px; margin: auto; }
+  .modal h2 { color: var(--bronze2); font-size: 1.1rem; margin: 0 0 18px; }
+  .modal label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--muted); margin: 14px 0 5px; }
+  .modal label:first-of-type { margin-top: 0; }
+  .modal input, .modal select { width: 100%; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.88rem; font-family: inherit; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+  .modal-actions button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.88rem; cursor: pointer; }
+  .btn-save { background: var(--bronze2); color: #fff; }
+  .btn-cancel { background: var(--bg); color: #555; }
+  .field-hint { font-size: 0.72rem; color: #999; margin-top: 4px; font-style: italic; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.error { background: #8B2000; }
+  .loading-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+
+  @media (max-width: 640px) {
+    .agent-row, .band-row { grid-template-columns: 1fr; gap: 4px; text-align: left; }
+    .mono { text-align: left; }
+  }
+</style>
 </head>
 <body>
+
   <div class="topbar">
-    <h1>Gig Matrix</h1>
-    <button onclick="logout()">Sign Out</button>
+    <div>
+      <h1>Gig Matrix <span class="admin-pill">Admin</span></h1>
+      <div class="biz" id="bizName"></div>
+    </div>
+    <div class="topbar-right">
+      <a href="bands.html">Bands</a>
+      <a href="venues.html">Venues</a>
+      <a href="venue-map.html">Map</a>
+      <a href="bookings.html">Bookings</a>
+      <a href="contracts.html">Contracts</a>
+      <button class="refresh-btn" style="color:#fff;border-color:rgba(255,255,255,0.4);" onclick="refreshAll()">&#8635; Refresh</button>
+      <button onclick="logout()">Sign Out</button>
+    </div>
   </div>
-  <div class="content" id="content">
-    <p>Checking your session\u2026</p>
+
+  <div class="page-wrap">
+    <div class="loading-state" id="loadingState"><p>Loading the agency overview&#8230;</p></div>
+
+    <div id="dashBody" style="display:none;">
+      <div class="page-header">
+        <div>
+          <h1>&#128274; Agency Admin Dashboard</h1>
+          <p id="dateText"></p>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card navy">
+          <div class="stat-icon">&#128176;</div>
+          <div class="stat-label">Agency Earnings This Month</div>
+          <div class="stat-value shimmer" id="sMonthEarn">$0</div>
+          <div class="stat-sub" id="sMonthSub">Loading&#8230;</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon">&#128197;</div>
+          <div class="stat-label">Agency Earnings This Year</div>
+          <div class="stat-value shimmer" id="sYearEarn">$0</div>
+          <div class="stat-sub" id="sYearSub">Loading&#8230;</div>
+        </div>
+        <div class="stat-card teal">
+          <div class="stat-icon">&#127928;</div>
+          <div class="stat-label">Total Band Spend This Year</div>
+          <div class="stat-value shimmer" id="sBandSpend">$0</div>
+          <div class="stat-sub">paid to bands this year</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-icon">&#128203;</div>
+          <div class="stat-label">Total Bookings</div>
+          <div class="stat-value shimmer" id="sTotalBookings">0</div>
+          <div class="stat-sub">total bookings on record</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">&#128276;</div>
+          <div class="stat-label">Venues Need Contact</div>
+          <div class="stat-value shimmer" id="sContactAlert">0</div>
+          <div class="stat-sub">silent 30+ days</div>
+        </div>
+      </div>
+
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128197; All Upcoming Bookings <span class="panel-badge" id="upcomingCount">&#8211;</span></div>
+            <div class="period-tabs">
+              <button class="period-tab active" onclick="setUpcoming(30,this)">30d</button>
+              <button class="period-tab" onclick="setUpcoming(60,this)">60d</button>
+              <button class="period-tab" onclick="setUpcoming(90,this)">90d</button>
+            </div>
+          </div>
+          <div id="upcomingPanel"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128276; Venues Needing Contact <span class="panel-badge" id="contactCount">&#8211;</span></div>
+          </div>
+          <div id="contactPanel"></div>
+        </div>
+      </div>
+
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#128181; Commission by Agent</div>
+          <div class="period-tabs">
+            <button class="period-tab active" onclick="setEarnings('month',this)">Month</button>
+            <button class="period-tab" onclick="setEarnings('year',this)">Year</button>
+            <button class="period-tab" onclick="setEarnings('all',this)">All Time</button>
+          </div>
+        </div>
+        <div id="agentEarningsPanel"></div>
+      </div>
+
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#127928; Total Band Spend (Before Commission)</div>
+          <div class="period-tabs">
+            <button class="period-tab active" onclick="setBandPeriod('month',this)">Month</button>
+            <button class="period-tab" onclick="setBandPeriod('year',this)">Year</button>
+            <button class="period-tab" onclick="setBandPeriod('all',this)">All Time</button>
+          </div>
+        </div>
+        <div id="bandSpendPanel"></div>
+      </div>
+
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128198; Open Weekends &#8212; All Booked Venues <span class="panel-badge" id="openCount">&#8211;</span></div>
+          </div>
+          <div id="openDatesPanel"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128336; Recent Bookings (All Agents) <span class="panel-badge" id="recentCount">&#8211;</span></div>
+          </div>
+          <div id="recentPanel"></div>
+        </div>
+      </div>
+
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#128101; Team Logins</div>
+          <button class="add-team-btn" onclick="openTeamModal()">+ Add Team Login</button>
+        </div>
+        <div id="teamPanel"></div>
+      </div>
+    </div>
   </div>
+
+  <!-- Add team login modal -->
+  <div class="modal-overlay" id="teamModal">
+    <div class="modal">
+      <h2>&#128100; Add Team Login</h2>
+      <div id="teamError" style="display:none;background:#fdecea;color:#8B2000;padding:10px 14px;border-radius:8px;font-size:0.84rem;margin-bottom:14px;"></div>
+      <label>Name *</label>
+      <input type="text" id="tmName">
+      <label>Email *</label>
+      <input type="email" id="tmEmail">
+      <label>Temporary Password *</label>
+      <input type="text" id="tmPassword" placeholder="At least 8 characters">
+      <div class="field-hint">They can change this after logging in. No email invite is sent — share this password with them directly.</div>
+      <label>Role *</label>
+      <select id="tmRole">
+        <option value="agent">Booking Agent</option>
+        <option value="contract_agent">Contract Agent</option>
+        <option value="admin">Administrator</option>
+      </select>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeTeamModal()">Cancel</button>
+        <button type="button" class="btn-save" id="tmSaveBtn" onclick="submitTeamLogin()">Create Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
   <script>
+    var currentBusinessId = null;
+    var allBookings = [];
+    var allVenues   = [];
+    var allProfiles = [];   // every team member in the business
+    var agentNameMap = {};  // profile id -> name
+    var upcomingDays = 30;
+    var earningsPeriod = 'month';
+    var bandPeriod = 'month';
+
     (async function init() {
       var { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
 
-      var { data: profile } = await sb.from('profiles').select('role, full_name, business_id, businesses(name)').maybeSingle();
+      var { data: profile, error } = await sb
+        .from('profiles')
+        .select('role, name, business_id, businesses(name)')
+        .single();
 
-      if (!profile) { window.location.href = 'complete-signup.html'; return; }
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
-      if (profile.role !== 'admin') {
-        // Wrong role for this page — send them to the right dashboard instead
-        window.location.href = 'dashboard.html';
+      if (profile.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+
+      currentBusinessId = profile.business_id;
+      document.getElementById('bizName').textContent = profile.businesses.name;
+      document.getElementById('dateText').textContent = 'Agency overview — ' + new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+      await loadAll();
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('dashBody').style.display = 'block';
+    })();
+
+    async function loadAll() {
+      var [bookingsRes, venuesRes, profilesRes] = await Promise.all([
+        sb.from('bookings').select('*, venues(name,city,state), bands(name,commission_pct)').order('booking_date', { ascending: false }),
+        sb.from('venues').select('*'),
+        sb.from('profiles').select('id, name, email, role').order('name')
+      ]);
+      allBookings = bookingsRes.data || [];
+      allVenues   = venuesRes.data   || [];
+      allProfiles = profilesRes.data || [];
+      agentNameMap = {};
+      allProfiles.forEach(function(p) { agentNameMap[p.id] = p.name; });
+      renderAll();
+    }
+
+    function refreshAll() { loadAll(); }
+
+    function agencyEarnings(b) {
+      var pay = parseFloat(b.pay_amount) || 0;
+      var pct = (b.commission_pct != null && b.commission_pct !== '')
+        ? parseFloat(b.commission_pct)
+        : (b.bands && b.bands.commission_pct != null ? parseFloat(b.bands.commission_pct) : 0);
+      return Math.round(pay * (pct || 0)) / 100;
+    }
+
+    function periodStart(period) {
+      var now = new Date();
+      if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
+      if (period === 'year')  return new Date(now.getFullYear(), 0, 1);
+      return new Date(2000, 0, 1);
+    }
+
+    function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function renderAll() {
+      renderStats();
+      renderUpcoming();
+      renderContactAlerts();
+      renderAgentEarnings();
+      renderBandSpend();
+      renderOpenDates();
+      renderRecent();
+      renderTeam();
+    }
+
+    // ── STATS ──────────────────────────────────────────────────────────────────
+    function renderStats() {
+      var now = new Date();
+      var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      var yearStart  = new Date(now.getFullYear(), 0, 1);
+      var monthEarn=0, monthCount=0, yearEarn=0, yearCount=0, yearBandSpend=0;
+
+      allBookings.forEach(function(b) {
+        if ((b.status||'').toLowerCase() === 'cancelled') return;
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var earn = agencyEarnings(b);
+        var pay = parseFloat(b.pay_amount) || 0;
+        if (d >= yearStart)  { yearEarn += earn; yearCount++; yearBandSpend += pay; }
+        if (d >= monthStart) { monthEarn += earn; monthCount++; }
+      });
+
+      var contactAlert = computeVenueAlerts().overdueAndWarn;
+
+      ['sMonthEarn','sYearEarn','sBandSpend','sTotalBookings','sContactAlert'].forEach(function(id){
+        document.getElementById(id).classList.remove('shimmer');
+      });
+      document.getElementById('sMonthEarn').textContent = '$' + Math.round(monthEarn).toLocaleString('en-US');
+      document.getElementById('sMonthSub').textContent  = monthCount + ' booking' + (monthCount!==1?'s':'') + ' this month';
+      document.getElementById('sYearEarn').textContent  = '$' + Math.round(yearEarn).toLocaleString('en-US');
+      document.getElementById('sYearSub').textContent   = yearCount + ' booking' + (yearCount!==1?'s':'') + ' this year';
+      document.getElementById('sBandSpend').textContent = '$' + Math.round(yearBandSpend).toLocaleString('en-US');
+      document.getElementById('sTotalBookings').textContent = allBookings.length;
+      document.getElementById('sContactAlert').textContent = contactAlert;
+    }
+
+    // ── UPCOMING (ALL AGENTS) ────────────────────────────────────────────────────
+    function setUpcoming(days, btn) {
+      upcomingDays = days;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderUpcoming();
+    }
+    function renderUpcoming() {
+      var now = new Date(); now.setHours(0,0,0,0);
+      var cutoff = new Date(now.getTime() + upcomingDays*86400000);
+      var list = allBookings.filter(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        return d >= now && d <= cutoff && (b.status||'').toLowerCase() !== 'cancelled';
+      }).sort(function(a,b){ return new Date(a.booking_date+'T12:00:00') - new Date(b.booking_date+'T12:00:00'); });
+
+      document.getElementById('upcomingCount').textContent = list.length;
+      var el = document.getElementById('upcomingPanel');
+      if (!list.length) { el.innerHTML = '<div class="empty-state"><div class="ei">&#127881;</div><p>No upcoming bookings in the next ' + upcomingDays + ' days.</p></div>'; return; }
+
+      var h = '';
+      list.slice(0, 15).forEach(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var ds = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var dow = d.toLocaleDateString('en-US', {weekday:'short'});
+        var pay = parseFloat(b.pay_amount) || 0;
+        var earn = agencyEarnings(b);
+        var sc = 'status-' + (b.status||'pending').toLowerCase().replace(/\s+/g,'-');
+        var venueName = b.venues ? b.venues.name : '(deleted venue)';
+        var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
+        var agentName = agentNameMap[b.created_by] || 'Unknown';
+        h += '<div class="booking-item"><div>';
+        h += '<div class="booking-names">' + esc(venueName) + ' <span style="color:var(--muted);font-weight:400;">with</span> ' + esc(bandName) + '</div>';
+        h += '<div class="booking-meta"><span class="status-badge ' + sc + '">' + esc(b.status||'Pending') + '</span><span style="color:var(--muted);">&#128100; ' + esc(agentName) + '</span></div></div>';
+        h += '<div style="text-align:right;"><div class="booking-date">' + dow + ' ' + ds + '</div>';
+        if (pay > 0) { h += '<div style="font-size:0.74rem;color:var(--muted);">Band: $' + pay.toLocaleString() + '</div>'; if (earn > 0) h += '<div class="booking-pay">Commission: $' + earn.toLocaleString() + '</div>'; }
+        h += '</div></div>';
+      });
+      if (list.length > 15) h += '<div class="section-label">&#8230; and ' + (list.length - 15) + ' more</div>';
+      el.innerHTML = h;
+    }
+
+    // ── VENUES NEEDING CONTACT (AGENCY-WIDE) ────────────────────────────────────
+    function computeVenueAlerts() {
+      var now = new Date();
+      var withDays = allVenues.map(function(v) {
+        var lc = v.last_contact_date ? new Date(v.last_contact_date) : null;
+        return { venue: v, daysSince: lc ? Math.floor((now-lc)/86400000) : 9999 };
+      }).sort(function(a,b){ return b.daysSince - a.daysSince; });
+      var overdueAndWarnList = withDays.filter(function(x){ return x.daysSince >= 30; });
+      return { withDays: withDays, alerts: overdueAndWarnList, overdueAndWarn: overdueAndWarnList.length };
+    }
+
+    function buildAlertRow(x, sev) {
+      var icon = sev==='red' ? '&#128308;' : sev==='warn' ? '&#128993;' : '&#128994;';
+      var ic = sev==='red' ? 'red' : sev==='warn' ? 'gold' : 'blue';
+      var days = x.daysSince >= 9000 ? 'Never contacted' : x.daysSince + ' days ago';
+      var dc = 'alert-days' + (sev==='ok' ? ' ok' : sev==='warn' ? ' warn' : '');
+      var city = x.venue.city ? (x.venue.city + (x.venue.state ? ', ' + x.venue.state : '')) : '';
+      return '<div class="alert-item"><div class="alert-icon ' + ic + '">' + icon + '</div>' +
+        '<div><div class="alert-name">' + esc(x.venue.name) + '</div>' +
+        '<div class="alert-detail">' + esc(city) + (x.venue.phone ? ' &middot; ' + esc(x.venue.phone) : '') + '</div></div>' +
+        '<div class="' + dc + '">' + days + '</div></div>';
+    }
+
+    function renderContactAlerts() {
+      var res = computeVenueAlerts();
+      document.getElementById('contactCount').textContent = res.alerts.length;
+      var el = document.getElementById('contactPanel');
+
+      if (!res.alerts.length) {
+        var h = '<div class="section-label">ALL RECENTLY CONTACTED</div>';
+        res.withDays.slice(0, 5).forEach(function(x) { h += buildAlertRow(x, 'ok'); });
+        el.innerHTML = h;
         return;
       }
+      var overdue = res.alerts.filter(function(x){ return x.daysSince >= 60; });
+      var warn = res.alerts.filter(function(x){ return x.daysSince >= 30 && x.daysSince < 60; });
+      var h = '';
+      if (overdue.length) { h += '<div class="section-label">OVERDUE (60+ DAYS)</div>'; overdue.slice(0,8).forEach(function(x){ h += buildAlertRow(x,'red'); }); }
+      if (warn.length) { h += '<div class="section-label">FOLLOW UP (30&#8211;59 DAYS)</div>'; warn.slice(0,8).forEach(function(x){ h += buildAlertRow(x,'warn'); }); }
+      el.innerHTML = h;
+    }
 
-      document.getElementById('content').innerHTML =
-        '<div class="badge">Administrator</div>' +
-        '<h2>Welcome, ' + esc(profile.full_name || 'Admin') + '</h2>' +
-        '<p>' + esc(profile.businesses ? profile.businesses.name : '') + '</p>' +
-        '<div class="note">This is a placeholder confirming role-based login and routing works correctly \u2014 you logged in and were sent here specifically because your account role is Administrator. The real Admin Dashboard (aggregate stats across all agents, venues, and bands, plus team management) is being built next.</div>';
-    })();
+    // ── COMMISSION BY AGENT ──────────────────────────────────────────────────────
+    function setEarnings(period, btn) {
+      earningsPeriod = period;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderAgentEarnings();
+    }
+    function renderAgentEarnings() {
+      var ps = periodStart(earningsPeriod);
+      var filtered = allBookings.filter(function(b) { return new Date(b.booking_date+'T12:00:00') >= ps && (b.status||'').toLowerCase() !== 'cancelled'; });
+      var el = document.getElementById('agentEarningsPanel');
+      if (!filtered.length) { el.innerHTML = '<div class="empty-state"><div class="ei">&#128202;</div><p>No data for this period.</p></div>'; return; }
+
+      var byAgent = {};
+      filtered.forEach(function(b) {
+        var aid = String(b.created_by);
+        var earn = agencyEarnings(b);
+        var pay = parseFloat(b.pay_amount) || 0;
+        if (!byAgent[aid]) byAgent[aid] = { name: agentNameMap[b.created_by] || 'Unknown', count:0, commission:0, bandPay:0, venues:{}, bands:{} };
+        byAgent[aid].count++; byAgent[aid].commission += earn; byAgent[aid].bandPay += pay;
+        byAgent[aid].venues[b.venue_id] = true; byAgent[aid].bands[b.band_id] = true;
+      });
+
+      var sorted = Object.keys(byAgent).map(function(k){ return Object.assign({id:k}, byAgent[k]); }).sort(function(a,b){ return b.commission - a.commission; });
+      var grandCommission = sorted.reduce(function(s,x){ return s+x.commission; }, 0);
+      var grandBandPay = sorted.reduce(function(s,x){ return s+x.bandPay; }, 0);
+      var grandShows = sorted.reduce(function(s,x){ return s+x.count; }, 0);
+      var maxCommission = sorted.length ? sorted[0].commission : 1;
+
+      var h = '<div class="agent-row" style="background:var(--card2);font-weight:700;font-size:0.78rem;color:var(--muted);"><span>AGENT</span><span style="text-align:right;">SHOWS</span><span style="text-align:right;">BAND PAY</span><span style="text-align:right;">COMMISSION</span><span style="text-align:right;">% OF TOTAL</span></div>';
+      sorted.forEach(function(x) {
+        var pct = grandCommission > 0 ? Math.round(x.commission / grandCommission * 100) : 0;
+        var barWidth = maxCommission > 0 ? Math.round(x.commission / maxCommission * 100) : 0;
+        h += '<div class="agent-row"><div><div class="agent-name">' + esc(x.name) + '</div>' +
+          '<div class="agent-meta">' + Object.keys(x.venues).length + ' venues &middot; ' + Object.keys(x.bands).length + ' bands</div>' +
+          '<div class="commission-bar-bg"><div class="commission-bar-fill" style="width:' + barWidth + '%;"></div></div></div>' +
+          '<div class="mono">' + x.count + '</div>' +
+          '<div class="mono" style="color:var(--muted);">$' + Math.round(x.bandPay).toLocaleString() + '</div>' +
+          '<div class="mono" style="color:var(--green-dark);font-weight:700;">$' + Math.round(x.commission).toLocaleString() + '</div>' +
+          '<div class="mono" style="color:var(--muted);">' + pct + '%</div></div>';
+      });
+      h += '<div class="agent-row" style="border-top:2px solid var(--border);font-weight:700;"><span>TOTAL</span><span class="mono">' + grandShows + '</span>' +
+        '<span class="mono" style="color:var(--muted);">$' + Math.round(grandBandPay).toLocaleString() + '</span>' +
+        '<span class="mono" style="color:var(--green-dark);">$' + Math.round(grandCommission).toLocaleString() + '</span><span class="mono">100%</span></div>';
+
+      var missing = filtered.filter(function(b){ return !(b.commission_pct > 0) && !(b.bands && b.bands.commission_pct > 0); }).length;
+      if (missing > 0) h += '<div style="padding:10px 20px;font-size:0.78rem;color:#b45309;background:#fffbeb;border-top:1px solid #fde68a;">&#9888; ' + missing + ' booking' + (missing>1?'s have':' has') + ' no commission rate set.</div>';
+      el.innerHTML = h;
+    }
+
+    // ── BAND SPEND ────────────────────────────────────────────────────────────────
+    function setBandPeriod(period, btn) {
+      bandPeriod = period;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderBandSpend();
+    }
+    function renderBandSpend() {
+      var ps = periodStart(bandPeriod);
+      var filtered = allBookings.filter(function(b) { return new Date(b.booking_date+'T12:00:00') >= ps && (b.status||'').toLowerCase() !== 'cancelled'; });
+      var el = document.getElementById('bandSpendPanel');
+      if (!filtered.length) { el.innerHTML = '<div class="empty-state"><div class="ei">&#128202;</div><p>No data for this period.</p></div>'; return; }
+
+      var byBand = {};
+      filtered.forEach(function(b) {
+        var bid = String(b.band_id);
+        var pay = parseFloat(b.pay_amount) || 0;
+        var comm = agencyEarnings(b);
+        var bandName = b.bands ? b.bands.name : '(deleted band)';
+        if (!byBand[bid]) byBand[bid] = { name: bandName, shows:0, totalPay:0, totalCommission:0, agents:{} };
+        byBand[bid].shows++; byBand[bid].totalPay += pay; byBand[bid].totalCommission += comm;
+        byBand[bid].agents[b.created_by] = agentNameMap[b.created_by] || 'Unknown';
+      });
+
+      var sorted = Object.keys(byBand).map(function(k){ return Object.assign({id:k}, byBand[k]); }).sort(function(a,b){ return b.totalPay - a.totalPay; });
+      var grandPay = sorted.reduce(function(s,x){ return s+x.totalPay; }, 0);
+      var grandComm = sorted.reduce(function(s,x){ return s+x.totalCommission; }, 0);
+      var maxPay = sorted.length ? sorted[0].totalPay : 1;
+
+      var h = '<div class="band-row" style="background:var(--card2);font-weight:700;font-size:0.78rem;color:var(--muted);"><span>BAND</span><span style="text-align:right;">SHOWS</span><span style="text-align:right;">TOTAL PAID</span><span style="text-align:right;">COMMISSION EARNED</span></div>';
+      sorted.forEach(function(x) {
+        var agentNames = Object.values(x.agents).join(', ');
+        var barWidth = maxPay > 0 ? Math.round(x.totalPay / maxPay * 100) : 0;
+        h += '<div class="band-row"><div><div style="font-weight:600;font-size:0.88rem;">' + esc(x.name) + '</div>' +
+          '<div style="font-size:0.74rem;color:var(--muted);margin-top:2px;">Booked by: ' + esc(agentNames) + '</div>' +
+          '<div class="commission-bar-bg"><div class="commission-bar-fill" style="width:' + barWidth + '%;background:var(--bronze1);"></div></div></div>' +
+          '<div class="mono">' + x.shows + '</div>' +
+          '<div class="mono" style="font-weight:700;">$' + Math.round(x.totalPay).toLocaleString() + '</div>' +
+          '<div class="mono" style="color:var(--green-dark);">$' + Math.round(x.totalCommission).toLocaleString() + '</div></div>';
+      });
+      h += '<div class="band-row" style="border-top:2px solid var(--border);font-weight:700;"><span>TOTAL</span><span class="mono">' + filtered.length + '</span>' +
+        '<span class="mono">$' + Math.round(grandPay).toLocaleString() + '</span><span class="mono" style="color:var(--green-dark);">$' + Math.round(grandComm).toLocaleString() + '</span></div>';
+      el.innerHTML = h;
+    }
+
+    // ── OPEN WEEKENDS (ALL VENUES) ────────────────────────────────────────────────
+    function renderOpenDates() {
+      var now = new Date(); now.setHours(0,0,0,0);
+      var end = new Date(now.getTime() + 90*86400000);
+      var bookedMap = {}, bookedVids = {};
+      allBookings.forEach(function(b) {
+        if ((b.status||'').toLowerCase() !== 'cancelled') {
+          bookedMap[b.venue_id + '|' + b.booking_date] = true;
+          bookedVids[b.venue_id] = b.venues ? b.venues.name : '(deleted venue)';
+        }
+      });
+      var results = [];
+      Object.keys(bookedVids).forEach(function(vid) {
+        var openDates = [];
+        var d = new Date(now.getTime() + 7*86400000);
+        while (d <= end) {
+          var dow = d.getDay();
+          if (dow === 5 || dow === 6) {
+            var ds = d.toISOString().split('T')[0];
+            if (!bookedMap[vid + '|' + ds]) openDates.push(d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' (' + 'Su,Mo,Tu,We,Th,Fr,Sa'.split(',')[dow] + ')');
+          }
+          d = new Date(d.getTime() + 86400000);
+        }
+        if (openDates.length > 0) {
+          var vd = allVenues.find(function(v){ return v.id === vid; });
+          results.push({ name: bookedVids[vid], openDates: openDates.slice(0,5), venue: vd });
+        }
+      });
+      document.getElementById('openCount').textContent = results.length;
+      var el = document.getElementById('openDatesPanel');
+      if (!results.length) { el.innerHTML = '<div class="empty-state"><div class="ei">&#128237;</div><p>All booked venues are filled or no bookings yet.</p></div>'; return; }
+
+      var h = '';
+      results.slice(0, 10).forEach(function(r) {
+        var city = r.venue ? (r.venue.city||'') + (r.venue.state ? ', ' + r.venue.state : '') : '';
+        h += '<div style="padding:12px 20px;border-bottom:1px solid var(--border);">';
+        h += '<div style="font-size:0.88rem;font-weight:600;">' + esc(r.name) + '</div>';
+        if (city) h += '<div style="font-size:0.76rem;color:var(--muted);">' + esc(city) + '</div>';
+        h += '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">';
+        r.openDates.forEach(function(dt) { h += '<span style="background:#e8f5e9;color:#2e7d32;font-size:0.72rem;font-family:Consolas,monospace;padding:2px 8px;border-radius:6px;">' + dt + '</span>'; });
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    // ── RECENT (ALL AGENTS) ──────────────────────────────────────────────────────
+    function renderRecent() {
+      var sorted = allBookings.slice().sort(function(a,b){ return new Date(b.booking_date+'T12:00:00') - new Date(a.booking_date+'T12:00:00'); });
+      var recent = sorted.slice(0, 12);
+      document.getElementById('recentCount').textContent = allBookings.length + ' total';
+      var el = document.getElementById('recentPanel');
+      if (!recent.length) { el.innerHTML = '<div class="empty-state"><div class="ei">&#128237;</div><p>No bookings yet.</p></div>'; return; }
+
+      var h = '<div class="section-label">12 MOST RECENT</div>';
+      recent.forEach(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var ds = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var pay = parseFloat(b.pay_amount) || 0;
+        var earn = agencyEarnings(b);
+        var sc = 'status-' + (b.status||'pending').toLowerCase().replace(/\s+/g,'-');
+        var past = d < new Date();
+        var venueName = b.venues ? b.venues.name : '(deleted venue)';
+        var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
+        var agentName = agentNameMap[b.created_by] || 'Unknown';
+        h += '<div class="booking-item"' + (past ? ' style="opacity:0.7;"' : '') + '>' +
+          '<div><div class="booking-names">' + esc(venueName) + ' <span style="color:var(--muted);font-weight:400;">&middot;</span> ' + esc(bandName) + '</div>' +
+          '<div class="booking-meta"><span class="status-badge ' + sc + '">' + esc(b.status||'Pending') + '</span><span>&#128100; ' + esc(agentName) + '</span></div></div>' +
+          '<div style="text-align:right;"><div class="booking-date">' + ds + '</div>';
+        if (pay > 0) { h += '<div style="font-size:0.74rem;color:var(--muted);">Band: $' + pay.toLocaleString() + '</div>'; if (earn > 0) h += '<div class="booking-pay">Commission: $' + earn.toLocaleString() + '</div>'; }
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    // ── TEAM LOGINS ──────────────────────────────────────────────────────────────
+    function roleLabel(r) { return r === 'admin' ? 'Administrator' : r === 'contract_agent' ? 'Contract Agent' : 'Booking Agent'; }
+
+    function renderTeam() {
+      var el = document.getElementById('teamPanel');
+      if (!allProfiles.length) { el.innerHTML = '<div class="empty-state"><div class="ei">&#128100;</div><p>No team members found.</p></div>'; return; }
+      var h = '';
+      allProfiles.forEach(function(p) {
+        h += '<div class="team-row"><div><div class="team-name">' + esc(p.name) + '</div><div class="team-email">' + esc(p.email||'') + '</div></div>' +
+          '<span class="role-pill ' + esc(p.role) + '">' + esc(roleLabel(p.role)) + '</span></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    function openTeamModal() {
+      document.getElementById('teamError').style.display = 'none';
+      ['tmName','tmEmail','tmPassword'].forEach(function(id){ document.getElementById(id).value = ''; });
+      document.getElementById('tmRole').value = 'agent';
+      document.getElementById('teamModal').classList.add('show');
+    }
+    function closeTeamModal() { document.getElementById('teamModal').classList.remove('show'); }
+
+    async function submitTeamLogin() {
+      var name = document.getElementById('tmName').value.trim();
+      var email = document.getElementById('tmEmail').value.trim();
+      var password = document.getElementById('tmPassword').value;
+      var role = document.getElementById('tmRole').value;
+      var errEl = document.getElementById('teamError');
+      errEl.style.display = 'none';
+
+      if (!name || !email || !password) { errEl.textContent = 'Name, email, and password are all required.'; errEl.style.display = 'block'; return; }
+      if (password.length < 8) { errEl.textContent = 'Password must be at least 8 characters.'; errEl.style.display = 'block'; return; }
+
+      var btn = document.getElementById('tmSaveBtn');
+      btn.disabled = true; btn.textContent = 'Creating…';
+
+      try {
+        var { data, error } = await sb.functions.invoke('admin-create-user', {
+          body: { name: name, email: email, password: password, role: role }
+        });
+        if (error) {
+          // Supabase JS wraps a non-2xx response in a generic error; the real
+          // message is in the response body, which we try to recover here.
+          var detail = null;
+          try { detail = await error.context.json(); } catch (e) {}
+          throw new Error((detail && detail.error) || error.message || 'Could not create the login');
+        }
+        if (data && data.error) throw new Error(data.error);
+
+        closeTeamModal();
+        showToast('Login created for ' + name + '.');
+        await loadAll();
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.textContent = 'Create Login';
+      }
+    }
+
+    function showToast(msg, type) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (type === 'error' ? ' error' : '');
+      setTimeout(function(){ t.classList.remove('show'); }, 4000);
+    }
 
     function logout() {
       sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
-    }
-
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
   </script>
 </body>
