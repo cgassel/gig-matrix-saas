@@ -61,7 +61,7 @@
 
     <div class="error" id="errorMsg"></div>
 
-    <div class="footer-link" id="teamFooter">New here? <a href="signup.html">Create an account</a></div>
+    <div class="footer-link" id="teamFooter">Need a login? Ask your administrator to set one up for you.</div>
   </div>
 
   <script src="config.js"></script>
@@ -99,7 +99,13 @@
         var profileResult = await sb.from('profiles').select('id, role').maybeSingle();
 
         if (!profileResult.data) {
-          window.location.href = 'complete-signup.html';
+          // Authenticated but no profile — this account was never set up by
+          // an administrator. Don't send them to a self-serve setup page;
+          // sign them back out and explain.
+          await sb.auth.signOut();
+          showLoginError('Your login exists, but no account has been set up for you yet. Please contact your administrator.');
+          btn.disabled = false;
+          btn.textContent = 'Log In';
           return;
         }
 
