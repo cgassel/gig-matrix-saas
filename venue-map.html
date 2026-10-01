@@ -8,29 +8,87 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
+    :root {
+      --bg:#f0ebe0; --card:#faf8f4; --card2:#f2ede4; --border:#d4c4a0;
+      --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+      --text:#1a1408; --muted:#6b5e48;
+      --green:#2e7d5c; --red:#8B2000;
+    }
     * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
-    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    .topbar { background: #A07018; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; flex-shrink: 0; z-index: 500; }
     .topbar h1 { font-size: 1.05rem; margin: 0; }
     .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
-    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
     .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
     .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
 
-    #map { position: absolute; top: 57px; left: 0; right: 0; bottom: 0; }
-    .loading-banner { position: absolute; top: 70px; left: 50%; transform: translateX(-50%); background: #fff; padding: 10px 20px; border-radius: 20px; box-shadow: 0 2px 12px rgba(0,0,0,0.15); font-size: 0.85rem; color: #6b5e48; z-index: 1000; }
-    .empty-banner { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); background: #fff; padding: 24px 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); text-align: center; z-index: 1000; max-width: 320px; }
-    .empty-banner p { color: #6b5e48; font-size: 0.9rem; line-height: 1.5; margin: 0; }
+    .legend-bar { background: var(--card); padding: 6px 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; border-bottom: 1.5px solid var(--border); flex-shrink: 0; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; cursor: pointer; padding: 3px 9px; border-radius: 14px; border: 1px solid var(--border); background: var(--card2); color: var(--muted); }
+    .legend-item.inactive { opacity: 0.35; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-spacer { margin-left: auto; }
+    .btn-fit { background: var(--card2); border: 1px solid var(--border); color: var(--bronze2); padding: 4px 12px; border-radius: 6px; font-size: 0.74rem; font-weight: 700; cursor: pointer; }
+    .btn-fit:hover { background: var(--bronze2); color: #fff; }
 
-    .popup-title { font-weight: 700; font-size: 0.92rem; color: #A07018; margin-bottom: 3px; }
-    .popup-detail { font-size: 0.8rem; color: #555; margin-bottom: 2px; }
-    .popup-link { display: inline-block; margin-top: 6px; font-size: 0.78rem; font-weight: 700; color: #A07018; text-decoration: none; }
+    .main { flex: 1; display: flex; overflow: hidden; min-height: 0; position: relative; }
+    #map { flex: 1; min-width: 0; }
+    .loading-overlay { position: absolute; inset: 0; background: var(--card); display: flex; align-items: center; justify-content: center; z-index: 400; color: var(--muted); }
+    .loading-overlay.hidden { display: none; }
+
+    .side-panel { width: 320px; background: var(--card); border-left: 1.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+    .panel-header { padding: 12px 16px; border-bottom: 1.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .panel-title { font-size: 0.82rem; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; }
+    .venue-count { font-size: 0.78rem; color: var(--bronze2); font-weight: 600; }
+    .panel-search { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .panel-search input { width: 100%; padding: 8px 11px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 0.85rem; font-family: inherit; }
+    .venue-list { overflow-y: auto; flex: 1; }
+    .venue-item { padding: 10px 14px; border-bottom: 1px solid #f0ebe0; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+    .venue-item:hover { background: var(--card2); }
+    .venue-item.active { background: #e3f2fd; border-left: 3px solid var(--bronze1); }
+    .venue-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .venue-item-info { flex: 1; min-width: 0; }
+    .venue-item-name { font-size: 0.86rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .venue-item-meta { font-size: 0.73rem; color: var(--muted); margin-top: 1px; }
+    .contact-reminder { font-size: 0.66rem; font-weight: 700; color: #b45309; background: #fff3e0; border: 1px solid #ffcc80; border-radius: 9px; padding: 1px 6px; white-space: nowrap; }
+    .contact-reminder.overdue { color: #b71c1c; background: #ffebee; border-color: #ef9a9a; }
+    .no-venues { padding: 30px 16px; text-align: center; color: var(--muted); font-size: 0.86rem; }
+
+    .venue-detail { display: none; padding: 16px; border-top: 2px solid var(--border); background: var(--card2); max-height: 60vh; overflow-y: auto; }
+    .venue-detail.open { display: block; }
+    .detail-name { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
+    .detail-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; color: #fff; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+    .detail-field { background: var(--card); padding: 8px; border-radius: 7px; border: 1px solid var(--border); }
+    .detail-field-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 2px; font-weight: 700; }
+    .detail-field-value { font-size: 0.84rem; font-weight: 600; }
+    .detail-flyer-section { margin-top: 12px; padding-top: 12px; border-top: 1.5px solid var(--border); }
+    .btn-flyer { width: 100%; padding: 9px 14px; border: none; border-radius: 7px; background: var(--bronze2); color: #fff; font-weight: 700; font-size: 0.84rem; cursor: pointer; margin-bottom: 6px; }
+    .btn-flyer:hover:not(:disabled) { background: #8a6014; }
+    .btn-flyer:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-log-contact { width: 100%; padding: 7px 14px; border: 1.5px solid var(--border); border-radius: 7px; background: var(--card); color: var(--muted); font-weight: 600; font-size: 0.8rem; cursor: pointer; }
+    .btn-log-contact:hover { background: var(--card2); }
+    .flyer-status { font-size: 0.78rem; text-align: center; margin-top: 6px; min-height: 16px; color: var(--green); }
+    .flyer-status.error { color: var(--red); }
+    .last-contact-note { font-size: 0.76rem; color: var(--muted); margin-top: 5px; text-align: center; }
+    .detail-actions { display: flex; gap: 8px; margin-top: 12px; }
+    .detail-actions button, .detail-actions a { flex: 1; padding: 8px; border-radius: 7px; border: 1.5px solid var(--border); background: var(--card); color: var(--bronze2); font-weight: 700; font-size: 0.8rem; cursor: pointer; text-align: center; text-decoration: none; }
+    .detail-actions button:hover, .detail-actions a:hover { background: var(--card2); }
+
+    .stats-footer { padding: 8px 16px; border-top: 1.5px solid var(--border); display: flex; gap: 14px; flex-wrap: wrap; background: var(--card2); flex-shrink: 0; }
+    .stat-item { text-align: center; }
+    .stat-value { font-size: 1.05rem; font-weight: 800; color: var(--bronze2); line-height: 1; }
+    .stat-label { font-size: 0.64rem; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); }
+
+    .popup-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+    .popup-row { font-size: 0.78rem; color: #555; margin-bottom: 2px; }
   </style>
 </head>
 <body>
   <div class="topbar">
     <div>
-      <h1>Gig Matrix</h1>
+      <h1>Gig Matrix — Venue Map</h1>
       <div class="biz" id="bizName"></div>
     </div>
     <div class="topbar-right">
@@ -40,15 +98,78 @@
     </div>
   </div>
 
-  <div id="map"></div>
-  <div class="loading-banner" id="loadingBanner">Loading venues&#8230;</div>
-  <div class="empty-banner" id="emptyBanner" style="display:none;">
-    <p>No venues have coordinates yet. Add a street address, city, and state on a venue to have it show up here automatically.</p>
+  <div class="legend-bar">
+    <div class="legend-item" id="leg-exclusive" onclick="toggleFilter('exclusive')"><span class="legend-dot" style="background:#2E7D32;"></span>Exclusive</div>
+    <div class="legend-item" id="leg-shared" onclick="toggleFilter('shared')"><span class="legend-dot" style="background:#F9A825;"></span>Shared</div>
+    <div class="legend-item" id="leg-competitor" onclick="toggleFilter('competitor')"><span class="legend-dot" style="background:#D32F2F;"></span>Competitor</div>
+    <div class="legend-item" id="leg-noagency" onclick="toggleFilter('noagency')"><span class="legend-dot" style="background:#1565C0;"></span>No Agency</div>
+    <div class="legend-item" id="leg-unknown" onclick="toggleFilter('unknown')"><span class="legend-dot" style="background:#757575;"></span>Unknown</div>
+    <button class="btn-fit legend-spacer" onclick="fitAllMarkers()">&#8853; Fit All</button>
+  </div>
+
+  <div class="main">
+    <div style="position:relative;flex:1;min-width:0;">
+      <div id="map"></div>
+      <div class="loading-overlay" id="loadingOverlay">Loading venues…</div>
+    </div>
+
+    <div class="side-panel">
+      <div class="panel-header">
+        <div class="panel-title">Venues</div>
+        <div class="venue-count" id="venueCount">Loading…</div>
+      </div>
+      <div class="panel-search"><input type="text" id="panelSearch" placeholder="Search venues…" oninput="filterAndRender()"></div>
+      <div class="venue-list" id="venueList"><div class="no-venues">Loading…</div></div>
+
+      <div class="venue-detail" id="venueDetail">
+        <div class="detail-name" id="detailName"></div>
+        <div id="detailBadge"></div>
+        <div class="detail-grid">
+          <div class="detail-field"><div class="detail-field-label">City</div><div class="detail-field-value" id="detailCity"></div></div>
+          <div class="detail-field"><div class="detail-field-label">Capacity</div><div class="detail-field-value" id="detailCapacity"></div></div>
+          <div class="detail-field"><div class="detail-field-label">Budget</div><div class="detail-field-value" id="detailBudget"></div></div>
+          <div class="detail-field"><div class="detail-field-label">Rating</div><div class="detail-field-value" id="detailRating"></div></div>
+          <div class="detail-field"><div class="detail-field-label">Sound</div><div class="detail-field-value" id="detailSound"></div></div>
+          <div class="detail-field"><div class="detail-field-label">Lighting</div><div class="detail-field-value" id="detailLighting"></div></div>
+        </div>
+        <div class="detail-field" style="margin-bottom:8px;"><div class="detail-field-label">Contact</div><div class="detail-field-value" id="detailContact"></div></div>
+        <div class="detail-field"><div class="detail-field-label">Phone</div><div class="detail-field-value" id="detailPhone"></div></div>
+
+        <div class="detail-flyer-section" id="detailFlyerSection" style="display:none;">
+          <button class="btn-flyer" id="btnSendFlyer" onclick="sendFlyer()">&#9993; Send Gig Matrix Flyer</button>
+          <button class="btn-log-contact" onclick="logContactOnly()">&#10003; Mark as Contacted (No Email)</button>
+          <div class="flyer-status" id="flyerStatus"></div>
+          <div class="last-contact-note" id="lastContactNote"></div>
+        </div>
+
+        <div class="detail-actions">
+          <a id="editVenueLink" href="#">&#9998; Edit Venue</a>
+          <button onclick="closeDetail()">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-footer">
+    <div class="stat-item"><div class="stat-value" id="footerTotal">0</div><div class="stat-label">Total</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:#2E7D32;" id="footerExclusive">0</div><div class="stat-label">Exclusive</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:#F9A825;" id="footerShared">0</div><div class="stat-label">Shared</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:#D32F2F;" id="footerCompetitor">0</div><div class="stat-label">Competitor</div></div>
+    <div class="stat-item"><div class="stat-value" style="color:#1565C0;" id="footerNoAgency">0</div><div class="stat-label">No Agency</div></div>
   </div>
 
   <script src="config.js"></script>
   <script>
     var map = null;
+    var allVenues = [];
+    var filteredVenues = [];
+    var markers = {};
+    var activeFilters = { exclusive:true, shared:true, competitor:true, noagency:true, unknown:true };
+    var activeVenueId = null;
+    var currentBusinessName = '';
+
+    var COLORS = { exclusive:'#2E7D32', shared:'#F9A825', competitor:'#D32F2F', noagency:'#1565C0', unknown:'#757575' };
+    var LABELS = { exclusive:'Exclusive', shared:'Shared', competitor:'Competitor', noagency:'No Agency', unknown:'Unknown' };
 
     (async function init() {
       var { data: { session } } = await sb.auth.getSession();
@@ -61,70 +182,284 @@
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
-      document.getElementById('bizName').textContent = profile.businesses.name;
+      currentBusinessName = profile.businesses.name;
+      document.getElementById('bizName').textContent = currentBusinessName;
 
-      map = L.map('map').setView([38.6270, -90.1994], 11); // defaults to St. Louis until venues load
-
+      map = L.map('map').setView([38.6270, -90.1994], 8);
       L.tileLayer('https://{s}-tiles.locationiq.com/v3/streets/r/{z}/{x}/{y}.png?key=' + LOCATIONIQ_KEY, {
         attribution: '&copy; <a href="https://locationiq.com">LocationIQ</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-        maxZoom: 19,
-        subdomains: 'abc'
+        maxZoom: 19, subdomains: 'abc'
       }).addTo(map);
 
       await loadVenues();
     })();
 
     async function loadVenues() {
-      var { data, error } = await sb
-        .from('venues')
-        .select('id, name, company_name, category, address, city, state, phone, latitude, longitude')
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-
-      document.getElementById('loadingBanner').style.display = 'none';
+      var { data, error } = await sb.from('venues').select('*').order('name');
+      document.getElementById('loadingOverlay').classList.add('hidden');
 
       if (error) {
-        document.getElementById('emptyBanner').style.display = 'block';
-        document.querySelector('#emptyBanner p').textContent = 'Error loading venues: ' + error.message;
+        document.getElementById('venueList').innerHTML = '<div class="no-venues">Error: ' + esc(error.message) + '</div>';
         return;
       }
 
-      var venues = data || [];
-      if (venues.length === 0) {
-        document.getElementById('emptyBanner').style.display = 'block';
-        return;
-      }
+      allVenues = data || [];
+      updateStats();
+      filterAndRender();
+    }
+
+    function getVenueCategory(exclusivityStatus) {
+      if (!exclusivityStatus) return 'unknown';
+      var e = exclusivityStatus.toLowerCase();
+      if (e.indexOf('exclusive') !== -1) return 'exclusive';
+      if (e.indexOf('shared') !== -1) return 'shared';
+      if (e.indexOf('competitor') !== -1) return 'competitor';
+      if (e.indexOf('no agency') !== -1) return 'noagency';
+      return 'unknown';
+    }
+
+    function createMarkerIcon(category, size) {
+      size = size || 14;
+      var color = COLORS[category] || COLORS.unknown;
+      return L.divIcon({
+        className: '',
+        html: '<div style="width:' + size + 'px;height:' + size + 'px;background:' + color + ';border-radius:50%;border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 6px ' + color + ';"></div>',
+        iconSize: [size, size], iconAnchor: [size/2, size/2], popupAnchor: [0, -size/2]
+      });
+    }
+
+    function budgetLabel(v) {
+      if (v.pay_rate_budget_low != null && v.pay_rate_budget_high != null) return '$' + v.pay_rate_budget_low + '–$' + v.pay_rate_budget_high;
+      if (v.pay_rate_budget_low != null) return '$' + v.pay_rate_budget_low + '+';
+      if (v.pay_rate_budget) return '$' + v.pay_rate_budget;
+      return '–';
+    }
+
+    function filterAndRender() {
+      var search = document.getElementById('panelSearch').value.toLowerCase();
+      Object.values(markers).forEach(function(m) { map.removeLayer(m); });
+      markers = {};
+
+      filteredVenues = allVenues.filter(function(v) {
+        var cat = getVenueCategory(v.exclusivity_status);
+        if (!activeFilters[cat]) return false;
+        if (search) {
+          var str = (v.name + ' ' + (v.city||'') + ' ' + (v.state||'')).toLowerCase();
+          if (str.indexOf(search) === -1) return false;
+        }
+        return true;
+      });
 
       var bounds = [];
-      venues.forEach(function(v) {
+      filteredVenues.forEach(function(v) {
+        if (v.latitude == null || v.longitude == null) return;
         var lat = parseFloat(v.latitude), lng = parseFloat(v.longitude);
         if (isNaN(lat) || isNaN(lng)) return;
         bounds.push([lat, lng]);
 
-        var displayName = v.name + (v.company_name ? ' (' + esc(v.company_name) + ')' : '');
-        var addr = [v.address, v.city, v.state].filter(Boolean).join(', ');
-
-        var popupHtml =
-          '<div class="popup-title">' + esc(displayName) + '</div>' +
-          (addr ? '<div class="popup-detail">' + esc(addr) + '</div>' : '') +
-          (v.phone ? '<div class="popup-detail">' + esc(v.phone) + '</div>' : '') +
-          '<a class="popup-link" href="venues.html">Edit in Venue List &rarr;</a>';
-
-        L.marker([lat, lng]).addTo(map).bindPopup(popupHtml);
+        var cat = getVenueCategory(v.exclusivity_status);
+        var marker = L.marker([lat, lng], { icon: createMarkerIcon(cat, activeVenueId===v.id?20:14) });
+        marker.bindPopup(
+          '<div class="popup-name">' + esc(v.name) + '</div>' +
+          '<div class="popup-row">' + esc(v.city||'–') + ', ' + esc(v.state||'') + '</div>' +
+          '<div class="popup-row">Capacity: ' + (v.capacity||'–') + '</div>' +
+          '<div class="popup-row">Budget: ' + budgetLabel(v) + '</div>',
+          { maxWidth: 220 }
+        );
+        marker.on('click', function(){ selectVenue(v.id); });
+        marker.addTo(map);
+        markers[v.id] = marker;
       });
 
-      if (bounds.length > 0) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+      renderList();
+      document.getElementById('venueCount').textContent = filteredVenues.length + ' venues';
+    }
+
+    function renderList() {
+      var list = document.getElementById('venueList');
+      if (filteredVenues.length === 0) { list.innerHTML = '<div class="no-venues">No venues match your filters</div>'; return; }
+
+      var html = '';
+      filteredVenues.forEach(function(v) {
+        var cat = getVenueCategory(v.exclusivity_status);
+        var isActive = activeVenueId === v.id;
+        html += '<div class="venue-item' + (isActive?' active':'') + '" onclick="selectVenue(\'' + v.id + '\')" id="item-' + v.id + '">';
+        html += '<div class="venue-dot" style="background:' + COLORS[cat] + ';"></div>';
+        html += '<div class="venue-item-info"><div class="venue-item-name">' + esc(v.name) + '</div>';
+        html += '<div class="venue-item-meta">' + esc(v.city||'–') + ', ' + esc(v.state||'') + ' · Cap: ' + (v.capacity||'–') + '</div></div>';
+
+        var needsContact = (cat === 'competitor' || cat === 'noagency' || cat === 'unknown');
+        if (needsContact) {
+          var days = daysSinceContact(v.last_contact_date);
+          if (days === null || days > 30) {
+            var overdue = days === null || days > 60;
+            html += '<div class="contact-reminder' + (overdue?' overdue':'') + '">' + (days===null?'Never':days+'d ago') + '</div>';
+          }
+        }
+        html += '</div>';
+      });
+      list.innerHTML = html;
+    }
+
+    function selectVenue(id) {
+      activeVenueId = id;
+      var v = allVenues.find(function(x){ return x.id === id; });
+      if (!v) return;
+      renderList();
+
+      var item = document.getElementById('item-'+id);
+      if (item) item.scrollIntoView({ behavior:'smooth', block:'nearest' });
+
+      if (v.latitude != null && v.longitude != null) {
+        var lat=parseFloat(v.latitude), lng=parseFloat(v.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+          map.flyTo([lat,lng], 13, { duration: 0.8 });
+          if (markers[id]) setTimeout(function(){ markers[id].openPopup(); }, 700);
+        }
+      }
+
+      var cat = getVenueCategory(v.exclusivity_status);
+      document.getElementById('detailName').textContent = v.name;
+      document.getElementById('detailBadge').innerHTML = '<span class="detail-badge" style="background:' + COLORS[cat] + ';">' + LABELS[cat] + '</span>';
+      document.getElementById('detailCity').textContent = (v.city||'–') + ', ' + (v.state||'');
+      document.getElementById('detailCapacity').textContent = v.capacity || '–';
+      document.getElementById('detailBudget').textContent = budgetLabel(v);
+      document.getElementById('detailRating').textContent = v.venue_rating || '–';
+      document.getElementById('detailSound').textContent = v.has_sound_status || '–';
+      document.getElementById('detailLighting').textContent = v.has_lighting_status || '–';
+      document.getElementById('detailContact').textContent = v.contact_name || '–';
+      document.getElementById('detailPhone').textContent = v.phone || '–';
+      document.getElementById('editVenueLink').href = 'venues.html?edit=' + id;
+
+      var flyerSection = document.getElementById('detailFlyerSection');
+      var flyerStatus  = document.getElementById('flyerStatus');
+      var flyerBtn     = document.getElementById('btnSendFlyer');
+      var needsContact = (cat === 'competitor' || cat === 'noagency' || cat === 'unknown');
+
+      if (needsContact) {
+        flyerSection.style.display = 'block';
+        flyerStatus.textContent = ''; flyerStatus.className = 'flyer-status';
+        flyerBtn.textContent = v.email ? ('✉ Send Flyer to ' + v.contact_name) : '✉ Send Flyer (no email on file)';
+        flyerBtn.disabled = !v.email;
+        var days = daysSinceContact(v.last_contact_date);
+        document.getElementById('lastContactNote').textContent = days === null ? 'Never contacted' : ('Last contacted ' + days + ' days ago');
+      } else {
+        flyerSection.style.display = 'none';
+      }
+
+      document.getElementById('venueDetail').classList.add('open');
+    }
+
+    function closeDetail() {
+      activeVenueId = null;
+      document.getElementById('venueDetail').classList.remove('open');
+      renderList();
+    }
+
+    function toggleFilter(type) {
+      activeFilters[type] = !activeFilters[type];
+      document.getElementById('leg-'+type).classList.toggle('inactive', !activeFilters[type]);
+      filterAndRender();
+    }
+
+    function fitAllMarkers() {
+      var pts = [];
+      filteredVenues.forEach(function(v){
+        if (v.latitude==null||v.longitude==null) return;
+        var lat=parseFloat(v.latitude), lng=parseFloat(v.longitude);
+        if (!isNaN(lat)&&!isNaN(lng)) pts.push([lat,lng]);
+      });
+      if (pts.length>0) map.fitBounds(pts, { padding:[40,40] });
+    }
+
+    function updateStats() {
+      document.getElementById('footerTotal').textContent = allVenues.length;
+      document.getElementById('footerExclusive').textContent = allVenues.filter(function(v){ return getVenueCategory(v.exclusivity_status)==='exclusive'; }).length;
+      document.getElementById('footerShared').textContent = allVenues.filter(function(v){ return getVenueCategory(v.exclusivity_status)==='shared'; }).length;
+      document.getElementById('footerCompetitor').textContent = allVenues.filter(function(v){ return getVenueCategory(v.exclusivity_status)==='competitor'; }).length;
+      document.getElementById('footerNoAgency').textContent = allVenues.filter(function(v){ return getVenueCategory(v.exclusivity_status)==='noagency'; }).length;
+    }
+
+    function daysSinceContact(dateStr) {
+      if (!dateStr) return null;
+      try {
+        var d = new Date(dateStr);
+        if (isNaN(d.getTime())) return null;
+        return Math.floor((new Date() - d) / (1000*60*60*24));
+      } catch(e) { return null; }
+    }
+
+    // ── CONTACT / FLYER ──────────────────────────────────────────────────────
+    async function sendFlyer() {
+      var v = allVenues.find(function(x){ return x.id === activeVenueId; });
+      if (!v || !v.email) return;
+      var btn = document.getElementById('btnSendFlyer');
+      var status = document.getElementById('flyerStatus');
+      btn.disabled = true; btn.textContent = 'Sending…';
+      status.textContent = ''; status.className = 'flyer-status';
+
+      var html =
+        '<div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;">' +
+        '<h2 style="color:#A07018;">' + esc(currentBusinessName) + '</h2>' +
+        '<p>Hi ' + esc(v.contact_name || 'there') + ',</p>' +
+        '<p>We book live music for venues like yours and would love to work together. ' +
+        'Reach out any time to hear about the bands we represent and how we handle booking, contracts, and scheduling.</p>' +
+        '<p>Looking forward to connecting!</p>' +
+        '<p>&mdash; ' + esc(currentBusinessName) + '</p>' +
+        '</div>';
+
+      try {
+        var { data: { session } } = await sb.auth.getSession();
+        var result = await sb.functions.invoke('send-email', {
+          body: {
+            to: v.email,
+            toName: v.contact_name || v.name,
+            subject: currentBusinessName + ' — Let’s Work Together',
+            html: html
+          },
+          headers: { Authorization: 'Bearer ' + session.access_token }
+        });
+        if (result.error) throw result.error;
+
+        var today = new Date().toISOString().substring(0,10);
+        await sb.from('venues').update({ last_contact_date: today, last_flyer_sent_date: today }).eq('id', v.id);
+        v.last_contact_date = today; v.last_flyer_sent_date = today;
+
+        btn.textContent = '✓ Flyer Sent!';
+        status.textContent = 'Email sent to ' + v.email;
+        document.getElementById('lastContactNote').textContent = 'Last contacted today';
+        renderList();
+        setTimeout(function(){ btn.disabled=false; btn.textContent='✉ Send Flyer to ' + v.contact_name; }, 5000);
+      } catch(err) {
+        btn.disabled = false;
+        btn.textContent = '✉ Send Flyer to ' + v.contact_name;
+        status.textContent = 'Error: ' + (err.message||err);
+        status.className = 'flyer-status error';
       }
     }
 
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    async function logContactOnly() {
+      var v = allVenues.find(function(x){ return x.id === activeVenueId; });
+      if (!v) return;
+      var status = document.getElementById('flyerStatus');
+      status.textContent = 'Logging contact…'; status.className = 'flyer-status';
+
+      try {
+        var today = new Date().toISOString().substring(0,10);
+        var { error } = await sb.from('venues').update({ last_contact_date: today }).eq('id', v.id);
+        if (error) throw error;
+        v.last_contact_date = today;
+        document.getElementById('lastContactNote').textContent = 'Last contacted today';
+        status.textContent = 'Contact logged successfully';
+        renderList();
+      } catch(err) {
+        status.textContent = 'Error: ' + (err.message||err);
+        status.className = 'flyer-status error';
+      }
     }
 
-    function logout() {
-      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
-    }
+    function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function logout() { sb.auth.signOut().then(function(){ window.location.href = 'login.html'; }); }
   </script>
 </body>
 </html>
