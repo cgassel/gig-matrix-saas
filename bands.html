@@ -357,6 +357,11 @@
       });
 
       await loadBands();
+
+      // Arriving from the dashboard's "Add Band" quick-nav button
+      if (new URLSearchParams(window.location.search).get('add') === '1') {
+        openAddModal();
+      }
     })();
 
     async function loadBands() {
