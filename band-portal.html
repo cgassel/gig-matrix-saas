@@ -1,64 +1,495 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Band Portal — Gig Matrix</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-    .card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 36px 32px; max-width: 420px; width: 100%; text-align: center; }
-    h1 { font-size: 1.3rem; color: #A07018; margin: 0 0 8px; }
-    p { color: #6b5e48; font-size: 0.9rem; line-height: 1.5; }
-    .name { font-size: 1.6rem; font-weight: 700; color: #1a1408; margin: 14px 0; }
-    .badge { display: inline-block; background: #f2ede4; color: #A07018; font-size: 0.72rem; font-weight: 700; padding: 3px 12px; border-radius: 10px; margin-bottom: 10px; }
-    button { margin-top: 24px; padding: 11px 22px; background: #A07018; color: #fff; border: none; border-radius: 8px; font-size: 0.88rem; font-weight: 700; cursor: pointer; font-family: inherit; }
-    .note { margin-top: 20px; padding: 12px 14px; background: #fdf8f0; border-radius: 8px; font-size: 0.78rem; color: #6b5e48; text-align: left; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Band Portal — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
+    --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+    --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
+    --green:#2e7d5c; --green-dark:#2e7d32;
+    --red:#8B2000; --amber:#b45309;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 40px; }
+
+  .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-size: 1.05rem; margin: 0; }
+  .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+  .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+  .topbar-right button:hover { background: rgba(0,0,0,0.32); }
+
+  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 24px; }
+
+  .tab-bar { display: flex; gap: 4px; background: var(--card2); border: 1.5px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
+  .tab-btn { flex: 1; padding: 10px 8px; border: none; background: none; border-radius: 7px; font-size: 0.82rem; font-weight: 700; color: var(--muted); cursor: pointer; font-family: inherit; }
+  .tab-btn.active { background: var(--bronze2); color: #fff; }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  .stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat-card { background: var(--card); padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .stat-val { font-family: 'Consolas', monospace; font-size: 1rem; font-weight: 700; color: var(--bronze3); }
+  .stat-lbl { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+
+  .cal-controls { background: var(--card); padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .month-nav { display: flex; align-items: center; gap: 8px; }
+  .month-nav button { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--bronze2); background: var(--card2); color: var(--bronze2); font-size: 0.9rem; cursor: pointer; }
+  .month-nav button:hover { background: var(--bronze2); color: #fff; }
+  .month-lbl { font-size: 0.95rem; font-weight: 700; color: var(--bronze3); min-width: 140px; text-align: center; }
+  .btn-today { background: var(--card2); color: var(--bronze3); border: 1.5px solid var(--bronze2); padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+  .btn-today:hover { background: var(--bronze2); color: #fff; }
+
+  .cal-wrap { background: var(--card); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); overflow-x: auto; padding: 14px; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; min-width: 760px; }
+  .cal-hdr { padding: 10px; text-align: center; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; background: var(--bronze2); color: #fff; }
+  .cal-day { min-height: 92px; padding: 6px; border: 1px solid #eee; background: var(--card); }
+  .cal-day.other { background: #fafafa; color: #ccc; }
+  .cal-day.today { background: #e3f2fd; border: 2px solid #2196f3; }
+  .day-num { font-weight: 700; font-size: 0.92rem; margin-bottom: 3px; }
+  .bk-chip { color: #fff; padding: 2px 5px; margin: 2px 0; border-radius: 4px; font-size: 0.68rem; font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .bk-chip.confirmed { background: var(--green); }
+  .bk-chip.pending { background: var(--bronze1); }
+  .bk-chip.cancelled { background: var(--red); text-decoration: line-through; }
+
+  .panel { background: var(--card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); padding: 32px 24px; text-align: center; }
+  .panel .icon { font-size: 2.2rem; margin-bottom: 10px; }
+  .panel h3 { font-size: 1.1rem; color: var(--bronze2); margin-bottom: 8px; }
+  .panel p { font-size: 0.86rem; color: var(--muted); line-height: 1.55; max-width: 480px; margin: 0 auto; }
+
+  /* Availability tab */
+  .avail-layout { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .avail-layout { grid-template-columns: 1fr; } }
+  .avail-picker { background: var(--card); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); padding: 16px; }
+  .avail-picker-intro { font-size: 0.84rem; color: var(--muted); margin-bottom: 12px; }
+  .avail-month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .avail-month-title { font-weight: 700; color: var(--bronze3); font-size: 1rem; }
+  .avail-nav-btn { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--bronze2); background: var(--card2); color: var(--bronze2); cursor: pointer; }
+  .avail-nav-btn:hover { background: var(--bronze2); color: #fff; }
+  .avail-calendar { display: grid; grid-template-columns: repeat(7,1fr); gap: 4px; }
+  .avail-day-header { text-align: center; font-size: 0.68rem; font-weight: 700; color: var(--muted); text-transform: uppercase; padding: 2px 0 6px; }
+  .avail-day { aspect-ratio: 1; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 0.86rem; font-weight: 600; cursor: pointer; border: 2px solid transparent; }
+  .avail-day.empty { cursor: default; }
+  .avail-day.past { color: #ccc; cursor: not-allowed; }
+  .avail-day.booked { background: #fee2e2; color: #c62828; cursor: not-allowed; border-color: #fca5a5; }
+  .avail-day.selectable:hover { background: #f2ede4; border-color: var(--bronze2); }
+  .avail-day.submitted { background: #e0f7fa; color: #00695c; border-color: #80cbc4; }
+  .avail-day.selected { background: var(--bronze2); color: #fff; border-color: var(--bronze2); }
+  .avail-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 0.72rem; color: var(--muted); }
+  .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 3px; }
+  .avail-sidebar { display: flex; flex-direction: column; gap: 12px; }
+  .avail-sub-panel { background: var(--card); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); padding: 14px 16px; }
+  .avail-sub-title { font-size: 0.78rem; font-weight: 700; color: var(--bronze2); text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .count-badge { background: var(--bronze2); color: #fff; font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 10px; }
+  .date-chip { display: inline-flex; align-items: center; gap: 5px; background: #f2ede4; color: var(--bronze2); border: 1.5px solid var(--border); padding: 4px 9px; border-radius: 16px; font-size: 0.78rem; font-weight: 600; margin: 2px; }
+  .date-chip .remove { cursor: pointer; color: var(--muted); }
+  .date-chip .remove:hover { color: var(--red); }
+  .empty-chips { color: #aaa; font-size: 0.82rem; font-style: italic; }
+  textarea.avail-note { width: 100%; padding: 9px 11px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 0.86rem; font-family: inherit; min-height: 64px; resize: vertical; }
+  .btn-submit-avail { width: 100%; padding: 11px; background: var(--bronze2); color: #fff; border: none; border-radius: 8px; font-size: 0.86rem; font-weight: 700; cursor: pointer; margin-top: 8px; }
+  .btn-submit-avail:hover:not(:disabled) { background: #8a6014; }
+  .btn-submit-avail:disabled { opacity: 0.5; cursor: not-allowed; }
+  .last-updated { font-size: 0.74rem; color: var(--muted); margin-top: 8px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border-radius: 12px; padding: 24px; max-width: 460px; width: 100%; max-height: 85vh; overflow-y: auto; }
+  .modal-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--bronze2); }
+  .modal-hdr h3 { font-size: 1.1rem; color: var(--bronze2); }
+  .close-btn { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #999; }
+  .d-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #f0ebe0; gap: 12px; font-size: 0.86rem; }
+  .d-lbl { font-weight: 600; color: var(--muted); }
+  .d-val { color: var(--text); text-align: right; }
+  .sbadge { display: inline-block; padding: 2px 9px; border-radius: 9px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+  .s-confirmed { background: #e8f5e9; color: #2e7d32; }
+  .s-pending { background: #fff3e0; color: #e65100; }
+  .s-cancelled { background: #ffebee; color: #c62828; }
+
+  .toast { position: fixed; bottom: 20px; right: 20px; padding: 11px 18px; border-radius: 8px; font-size: 0.87rem; font-weight: 600; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .toast.error { background: #ffebee; color: var(--red); border-left: 4px solid #f44336; }
+  .loading-block { text-align: center; padding: 30px; color: #999; }
+</style>
 </head>
 <body>
-  <div class="card" id="card">
-    <p>Checking your session\u2026</p>
+
+<div class="topbar">
+  <div>
+    <h1 id="bandName">Band Portal</h1>
+    <div class="biz">Gig Matrix</div>
+  </div>
+  <div class="topbar-right">
+    <button onclick="doLogout()">Sign Out</button>
+  </div>
+</div>
+
+<div class="page-wrap">
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-gigs" onclick="switchTab('gigs')">&#128197; My Gigs</button>
+    <button class="tab-btn" id="tab-availability" onclick="switchTab('availability')">&#9989; My Availability</button>
+    <button class="tab-btn" id="tab-gcal" onclick="switchTab('gcal')">&#128279; Google Calendar</button>
   </div>
 
-  <script src="config.js"></script>
-  <script>
-    (async function init() {
-      var token = sessionStorage.getItem('gm_portal_token');
-      var type  = sessionStorage.getItem('gm_portal_type');
-      var name  = sessionStorage.getItem('gm_portal_name');
+  <!-- TAB 1: MY GIGS -->
+  <div class="tab-pane active" id="pane-gigs">
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-val" id="stTotal">0</div><div class="stat-lbl">Total Gigs</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)" id="stConfirmed">0</div><div class="stat-lbl">Confirmed</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--bronze1)" id="stPending">0</div><div class="stat-lbl">Pending</div></div>
+      <div class="stat-card"><div class="stat-val" id="stThisMonth">0</div><div class="stat-lbl">This Month</div></div>
+      <div class="stat-card"><div class="stat-val" style="color:var(--green)" id="stEarnings">$0</div><div class="stat-lbl">Total Earnings</div></div>
+    </div>
 
-      if (!token || type !== 'band') {
-        window.location.href = 'login.html';
-        return;
-      }
+    <div class="cal-controls">
+      <div class="month-nav">
+        <button onclick="prevMonth()">&#8249;</button>
+        <div class="month-lbl" id="calMonthLbl">Loading…</div>
+        <button onclick="nextMonth()">&#8250;</button>
+      </div>
+      <button class="btn-today" onclick="gotoToday()">Today</button>
+    </div>
 
-      var result = await sb.rpc('portal_session_check', { p_token: token });
-      var rows = result.data || [];
+    <div class="cal-wrap" id="calWrap">
+      <div class="loading-block">Loading…</div>
+    </div>
+  </div>
 
-      if (result.error || rows.length === 0) {
-        sessionStorage.clear();
-        window.location.href = 'login.html';
-        return;
-      }
+  <!-- TAB 2: MY AVAILABILITY -->
+  <div class="tab-pane" id="pane-availability">
+    <div class="avail-layout">
+      <div class="avail-picker">
+        <div class="avail-picker-intro">Click dates you're free to play. Your booking agent will see this list — it doesn't remove a date, so submitting again just adds more.</div>
+        <div class="avail-month-nav">
+          <button class="avail-nav-btn" onclick="availPrevMonth()">&#8249;</button>
+          <div class="avail-month-title" id="availMonthTitle">Loading…</div>
+          <button class="avail-nav-btn" onclick="availNextMonth()">&#8250;</button>
+        </div>
+        <div class="avail-calendar" id="availCalendar"></div>
+        <div class="avail-legend">
+          <span><span class="legend-dot" style="background:var(--bronze2);"></span>Selected (new)</span>
+          <span><span class="legend-dot" style="background:#e0f7fa;border:1.5px solid #80cbc4;"></span>Already submitted</span>
+          <span><span class="legend-dot" style="background:#fee2e2;border:1.5px solid #fca5a5;"></span>Already booked</span>
+        </div>
+      </div>
 
-      document.getElementById('card').innerHTML =
-        '<div class="badge">Band Portal</div>' +
-        '<div class="name">' + esc(name || 'Your Band') + '</div>' +
-        '<p>You are logged in and your session is valid.</p>' +
-        '<div class="note">This is a placeholder page confirming the login system works end to end. The real Band Portal (bookings calendar, preferences, band suggestions) is being built next.</div>' +
-        '<button onclick="logout()">Sign Out</button>';
-    })();
+      <div class="avail-sidebar">
+        <div class="avail-sub-panel">
+          <div class="avail-sub-title">Dates Selected <span class="count-badge" id="selectedCount">0</span></div>
+          <div id="selectedDatesList"><span class="empty-chips">Click dates on the calendar to add them</span></div>
+        </div>
+        <div class="avail-sub-panel">
+          <div class="avail-sub-title">Note to Agent</div>
+          <textarea class="avail-note" id="availNote" placeholder="Optional — e.g. 'Available most weekends through April'"></textarea>
+        </div>
+        <div class="avail-sub-panel">
+          <button class="btn-submit-avail" id="submitAvailBtn" onclick="submitAvailability()" disabled>Submit Availability</button>
+          <div class="last-updated" id="lastUpdatedRow" style="display:none;">&#128337; Last sent to agent: <strong id="lastUpdatedTime">—</strong></div>
+        </div>
+        <div class="avail-sub-panel">
+          <div class="avail-sub-title">Currently On File <span class="count-badge" id="onFileCount">0</span></div>
+          <div id="onFileList" style="font-size:0.82rem;color:#888;">Loading…</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    function logout() {
-      sessionStorage.clear();
-      window.location.href = 'login.html';
+  <!-- TAB 3: GOOGLE CALENDAR (coming soon) -->
+  <div class="tab-pane" id="pane-gcal">
+    <div class="panel">
+      <div class="icon">&#128279;</div>
+      <h3>Google Calendar — Coming Soon</h3>
+      <p>Automatically adding your gigs to your own Google Calendar when an agent books you isn't built yet. We'll let you know as soon as it's ready — your gigs calendar above is already live and up to date.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- GIG DETAIL MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <h3>Gig Details</h3>
+      <button class="close-btn" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+var today = new Date(); today.setHours(0,0,0,0);
+var gigYear = today.getFullYear();
+var gigMonth = today.getMonth();
+var availYear = today.getFullYear();
+var availMonth = today.getMonth();
+var portalToken = null;
+var bandObj = null;
+var allBookings = [];
+var selectedDates = new Set();
+var submittedDates = new Set();
+var submittedNote = '';
+var bookedDateSet = new Set();
+
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+function pad(n){ return n<10?'0'+n:String(n); }
+function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function toast(msg,type){
+  var t=document.getElementById('toast'); t.textContent=msg; t.className='toast '+(type||'success');
+  void t.offsetWidth; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },3500);
+}
+
+(async function init(){
+  portalToken = sessionStorage.getItem('gm_portal_token');
+  var ownerType = sessionStorage.getItem('gm_portal_type');
+  if (!portalToken || ownerType !== 'band') {
+    window.location.href = 'login.html';
+    return;
+  }
+
+  try {
+    var bandResult = await sb.rpc('get_portal_band', { p_token: portalToken });
+    if (bandResult.error) throw bandResult.error;
+    var rows = bandResult.data || [];
+    if (rows.length === 0) throw new Error('Band not found');
+    bandObj = rows[0];
+    document.getElementById('bandName').textContent = bandObj.name;
+
+    var bookingsResult = await sb.rpc('get_portal_band_bookings', { p_token: portalToken });
+    if (bookingsResult.error) throw bookingsResult.error;
+    allBookings = bookingsResult.data || [];
+
+    bookedDateSet.clear();
+    allBookings.forEach(function(b){
+      if (b.status && b.status.toLowerCase() !== 'cancelled') bookedDateSet.add(b.booking_date);
+    });
+
+    updateStats();
+    renderGigCal();
+
+    await loadAvailability();
+  } catch (err) {
+    sessionStorage.removeItem('gm_portal_token');
+    sessionStorage.removeItem('gm_portal_type');
+    sessionStorage.removeItem('gm_portal_id');
+    sessionStorage.removeItem('gm_portal_name');
+    window.location.href = 'login.html';
+  }
+})();
+
+function switchTab(t){
+  ['gigs','availability','gcal'].forEach(function(x){
+    document.getElementById('tab-'+x).classList.toggle('active', x===t);
+    document.getElementById('pane-'+x).classList.toggle('active', x===t);
+  });
+}
+
+// ── MY GIGS ──────────────────────────────────────────────────────────────
+function updateStats(){
+  document.getElementById('stTotal').textContent = allBookings.length;
+  document.getElementById('stConfirmed').textContent = allBookings.filter(function(b){ return b.status==='Confirmed'; }).length;
+  document.getElementById('stPending').textContent = allBookings.filter(function(b){ return b.status==='Pending'; }).length;
+  document.getElementById('stThisMonth').textContent = allBookings.filter(function(b){
+    var d=new Date(b.booking_date+'T12:00:00');
+    return d.getMonth()===today.getMonth() && d.getFullYear()===today.getFullYear();
+  }).length;
+  var earnings = allBookings.reduce(function(s,b){ return s+(parseFloat(b.pay_amount)||0); },0);
+  document.getElementById('stEarnings').textContent = '$'+earnings.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function renderGigCal(){
+  var first=new Date(gigYear,gigMonth,1);
+  var dim=new Date(gigYear,gigMonth+1,0).getDate();
+  var sdow=first.getDay();
+  document.getElementById('calMonthLbl').textContent = MONTHS[gigMonth]+' '+gigYear;
+
+  var h='<div class="cal-grid">';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){ h+='<div class="cal-hdr">'+d+'</div>'; });
+  var prevDim=new Date(gigYear,gigMonth,0).getDate();
+  for(var i=sdow-1;i>=0;i--) h+='<div class="cal-day other"><div class="day-num">'+(prevDim-i)+'</div></div>';
+
+  for(var day=1;day<=dim;day++){
+    var ds=gigYear+'-'+pad(gigMonth+1)+'-'+pad(day);
+    var isTd=day===today.getDate()&&gigMonth===today.getMonth()&&gigYear===today.getFullYear();
+    h+='<div class="cal-day'+(isTd?' today':'')+'"><div class="day-num">'+day+'</div>';
+    allBookings.filter(function(b){ return b.booking_date===ds; }).forEach(function(b){
+      h+='<div class="bk-chip '+b.status.toLowerCase()+'" onclick="showBooking(\''+b.id+'\')">'+esc((b.venue_name||'TBD').substring(0,16))+'</div>';
+    });
+    h+='</div>';
+  }
+  var rem=42-(sdow+dim);
+  for(var j=1;j<=rem;j++) h+='<div class="cal-day other"><div class="day-num">'+j+'</div></div>';
+  h+='</div>';
+  document.getElementById('calWrap').innerHTML=h;
+}
+function prevMonth(){ if(--gigMonth<0){gigMonth=11;gigYear--;} renderGigCal(); }
+function nextMonth(){ if(++gigMonth>11){gigMonth=0;gigYear++;} renderGigCal(); }
+function gotoToday(){ gigYear=today.getFullYear(); gigMonth=today.getMonth(); renderGigCal(); }
+
+function cleanTime(t){
+  if(!t) return '';
+  var m=String(t).match(/^(\d{1,2}):(\d{2})/);
+  if(!m) return String(t);
+  var h=parseInt(m[1]), mn=m[2], ap=h>=12?'PM':'AM'; h=h%12||12;
+  return h+':'+mn+' '+ap;
+}
+function dRow(l,v){ return '<div class="d-row"><span class="d-lbl">'+l+'</span><span class="d-val">'+v+'</span></div>'; }
+
+function showBooking(id){
+  var b=allBookings.find(function(x){ return x.id===id; }); if(!b) return;
+  var sc='s-'+b.status.toLowerCase();
+  var startFmt=cleanTime(b.start_time), endFmt=cleanTime(b.end_time);
+  var timeStr=(startFmt&&endFmt)?startFmt+' - '+endFmt:(startFmt||endFmt||'N/A');
+  var h=dRow('Venue','<strong>'+esc(b.venue_name||'TBD')+'</strong>')+
+        dRow('Date',new Date(b.booking_date+'T12:00:00').toLocaleDateString())+
+        dRow('Time',timeStr)+
+        dRow('Status','<span class="sbadge '+sc+'">'+esc(b.status)+'</span>');
+  if(b.pay_amount) h+=dRow('Pay','$'+parseFloat(b.pay_amount).toFixed(2));
+  h+=dRow('Sound/Lights',esc(b.sound_lights||'–'));
+  if(b.notes) h+=dRow('Notes',esc(b.notes));
+  document.getElementById('modalBody').innerHTML=h;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal(e){ if(!e||e.target.id==='modalOverlay'||e.currentTarget) document.getElementById('modalOverlay').classList.remove('open'); }
+
+// ── MY AVAILABILITY ──────────────────────────────────────────────────────
+async function loadAvailability(){
+  try {
+    var result = await sb.rpc('get_portal_band_availability', { p_token: portalToken });
+    if (result.error) throw result.error;
+    var rows = result.data || [];
+    submittedDates.clear();
+    var lastUpdated = null;
+    rows.forEach(function(r){
+      submittedDates.add(r.available_date);
+      submittedNote = r.note || submittedNote;
+      if (r.last_updated) lastUpdated = r.last_updated;
+    });
+    if (lastUpdated) {
+      document.getElementById('lastUpdatedRow').style.display='block';
+      document.getElementById('lastUpdatedTime').textContent = new Date(lastUpdated).toLocaleString();
     }
+  } catch(e) { /* non-fatal — show empty state */ }
+  renderOnFileList();
+  renderAvailCal();
+}
 
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function renderAvailCal(){
+  var first=new Date(availYear,availMonth,1);
+  var dim=new Date(availYear,availMonth+1,0).getDate();
+  var sdow=first.getDay();
+  document.getElementById('availMonthTitle').textContent = MONTHS[availMonth]+' '+availYear;
+
+  var h='';
+  ['S','M','T','W','T','F','S'].forEach(function(d){ h+='<div class="avail-day-header">'+d+'</div>'; });
+  for(var i=0;i<sdow;i++) h+='<div class="avail-day empty"></div>';
+
+  for(var day=1;day<=dim;day++){
+    var ds=availYear+'-'+pad(availMonth+1)+'-'+pad(day);
+    var d=new Date(availYear,availMonth,day); d.setHours(0,0,0,0);
+    var isPast=d<today, isBooked=bookedDateSet.has(ds), isSub=submittedDates.has(ds), isSel=selectedDates.has(ds);
+    var classes=['avail-day'];
+    var onclick='', title='';
+    if(isPast){ classes.push('past'); title=' title="Past date"'; }
+    else if(isBooked){ classes.push('booked'); title=' title="Already booked"'; }
+    else {
+      classes.push('selectable');
+      if(isSub) classes.push('submitted');
+      if(isSel) classes.push('selected');
+      onclick=' onclick="toggleDate(\''+ds+'\')"';
     }
-  </script>
+    h+='<div class="'+classes.join(' ')+'"'+onclick+title+'>'+day+'</div>';
+  }
+  document.getElementById('availCalendar').innerHTML=h;
+}
+function availPrevMonth(){ if(--availMonth<0){availMonth=11;availYear--;} renderAvailCal(); }
+function availNextMonth(){ if(++availMonth>11){availMonth=0;availYear++;} renderAvailCal(); }
+
+function toggleDate(ds){
+  if(selectedDates.has(ds)) selectedDates.delete(ds); else selectedDates.add(ds);
+  renderAvailCal();
+  renderSelectedChips();
+}
+function renderSelectedChips(){
+  var count=selectedDates.size;
+  document.getElementById('selectedCount').textContent=count;
+  document.getElementById('submitAvailBtn').disabled = count===0;
+  var sorted=Array.from(selectedDates).sort();
+  var el=document.getElementById('selectedDatesList');
+  if(sorted.length===0){ el.innerHTML='<span class="empty-chips">Click dates on the calendar to add them</span>'; return; }
+  el.innerHTML=sorted.map(function(ds){
+    var d=new Date(ds+'T00:00:00');
+    var lbl=d.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
+    return '<span class="date-chip">'+lbl+'<span class="remove" onclick="toggleDate(\''+ds+'\')">&#x2715;</span></span>';
+  }).join('');
+}
+function renderOnFileList(){
+  var count=submittedDates.size;
+  document.getElementById('onFileCount').textContent=count;
+  var el=document.getElementById('onFileList');
+  if(count===0){ el.innerHTML='<span style="font-style:italic;">None on file yet</span>'; return; }
+  var sorted=Array.from(submittedDates).sort();
+  var future=sorted.filter(function(ds){ return new Date(ds+'T00:00:00')>=today; });
+  var past=sorted.length-future.length;
+  if(future.length===0){ el.innerHTML='<span style="font-style:italic;">All submitted dates have passed</span>'; return; }
+  var h='<div style="display:flex;flex-wrap:wrap;gap:5px;">';
+  future.forEach(function(ds){
+    var d=new Date(ds+'T00:00:00');
+    var lbl=d.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
+    var cls=bookedDateSet.has(ds)?'color:#c62828;':'color:#00695c;';
+    h+='<span style="font-size:0.76rem;font-weight:600;padding:2px 8px;border-radius:9px;background:#f0f9ff;'+cls+'">'+lbl+'</span>';
+  });
+  h+='</div>';
+  if(past>0) h+='<p style="font-size:0.72rem;color:#aaa;margin-top:6px;">+ '+past+' past date'+(past>1?'s':'')+' not shown</p>';
+  el.innerHTML=h;
+}
+
+async function submitAvailability(){
+  if(selectedDates.size===0) return;
+  var btn=document.getElementById('submitAvailBtn');
+  btn.disabled=true; btn.textContent='Sending…';
+
+  var dates=Array.from(selectedDates).sort();
+  var note=document.getElementById('availNote').value.trim();
+
+  try {
+    var result = await sb.rpc('set_portal_band_availability', { p_token: portalToken, p_dates: dates, p_note: note });
+    if (result.error) throw result.error;
+
+    dates.forEach(function(d){ submittedDates.add(d); });
+    selectedDates.clear();
+    submittedNote = note;
+
+    document.getElementById('lastUpdatedRow').style.display='block';
+    document.getElementById('lastUpdatedTime').textContent = new Date().toLocaleString();
+
+    renderAvailCal();
+    renderSelectedChips();
+    renderOnFileList();
+
+    btn.textContent='Submit Availability';
+    toast('✓ Availability sent to your booking agent!','success');
+  } catch(err){
+    btn.disabled=false;
+    btn.textContent='Submit Availability';
+    toast('Error saving availability: '+(err.message||err),'error');
+  }
+}
+
+async function doLogout(){
+  try { await sb.rpc('portal_logout', { p_token: portalToken }); } catch(e) {}
+  sessionStorage.removeItem('gm_portal_token');
+  sessionStorage.removeItem('gm_portal_type');
+  sessionStorage.removeItem('gm_portal_id');
+  sessionStorage.removeItem('gm_portal_name');
+  window.location.href = 'login.html';
+}
+</script>
 </body>
 </html>
