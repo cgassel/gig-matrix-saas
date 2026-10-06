@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Band Stats — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
+    --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+    --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
+    --green:#2e7d5c; --green-dark:#2e7d32; --red:#8B2000; --amber:#b45309;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+  .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-size: 1.05rem; margin: 0; }
+  .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+  .topbar button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+  .page-header h1 { font-size: 1.4rem; font-weight: 700; color: var(--bronze2); margin: 0; }
+  .page-header p { color: var(--muted); font-size: 0.88rem; margin: 3px 0 18px; }
+  .summary-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+  .sum-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-bottom: 3px solid var(--bronze1); }
+  .sum-card.green { border-bottom-color: var(--green); } .sum-card.amber { border-bottom-color: var(--amber); }
+  .sum-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+  .sum-value { font-family: 'Consolas', monospace; font-size: 1.7rem; }
+  .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .controls input, .controls select { padding: 10px 13px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-family: inherit; background: #fff; }
+  .controls input { flex: 1; min-width: 180px; } .controls select { min-width: 190px; }
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: #A07018; }
+  thead th { color: #f5ead0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; padding: 12px 16px; text-align: left; }
+  thead th.num, td.num { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); } tbody tr:last-child { border-bottom: none; } tbody tr:hover { background: var(--card2); }
+  td { padding: 12px 16px; font-size: 0.86rem; } td.num { font-family: 'Consolas', monospace; }
+  .band-name { font-weight: 600; } .sub { font-size: 0.73rem; color: var(--muted); margin-top: 2px; }
+  .rank-badge { display: inline-block; width: 24px; height: 24px; border-radius: 50%; background: var(--bg2); text-align: center; line-height: 24px; font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+  .rank-badge.g { background: rgba(200,150,12,0.14); color: var(--bronze1); } .rank-badge.s { background: rgba(120,120,120,0.12); color: #707070; } .rank-badge.b { background: rgba(160,112,24,0.12); color: var(--bronze2); }
+  .empty-state { padding: 40px; text-align: center; color: var(--muted); font-size: 0.88rem; }
+  @media (max-width: 640px) { .summary-row { grid-template-columns: 1fr 1fr; } .summary-row .sum-card:last-child { grid-column: span 2; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div><h1>Gig Matrix</h1><div class="biz" id="bizName">Band Stats</div></div>
+  <button onclick="window.location.href='dashboard.html'">&#8592; Dashboard</button>
+</div>
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>&#127928; My Band Performance</h1>
+    <p>Bookings and commission earned per band for your bookings</p>
+  </div>
+  <div class="summary-row">
+    <div class="sum-card"><div class="sum-label">Total Bands Booked</div><div class="sum-value" id="sumBands">&mdash;</div></div>
+    <div class="sum-card green"><div class="sum-label">Total Band Pay</div><div class="sum-value" id="sumPay">&mdash;</div></div>
+    <div class="sum-card amber"><div class="sum-label">My Total Commission</div><div class="sum-value" id="sumComm">&mdash;</div></div>
+  </div>
+  <div class="controls">
+    <input type="text" id="searchBox" placeholder="Search bands…" oninput="applyFilter()">
+    <select id="sortSelect" onchange="applyFilter()">
+      <option value="bookings">Sort: Most Booked</option>
+      <option value="pay">Sort: Highest Pay</option>
+      <option value="commission">Sort: Highest Commission</option>
+      <option value="name">Sort: Name A–Z</option>
+    </select>
+  </div>
+  <div class="table-wrap" id="tableWrap"><div class="empty-state">Loading…</div></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+var allStats = [], filtered = [];
+function fmt(n){ return '$' + Math.round(n||0).toLocaleString('en-US'); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+(async function init(){
+  var s = await sb.auth.getSession();
+  if (!s.data.session) { window.location.href = 'login.html'; return; }
+  var p = await sb.from('profiles').select('id, business_id, businesses(name)').single();
+  if (p.error || !p.data) { window.location.href = 'login.html'; return; }
+  document.getElementById('bizName').textContent = p.data.businesses.name + ' — Band Stats';
+
+  // This agent's own, non-cancelled bookings (same scope as the original)
+  var r = await sb.from('bookings')
+    .select('band_id, booking_date, pay_amount, commission_pct, status, bands(name, commission_pct)')
+    .eq('created_by', p.data.id).neq('status', 'Cancelled');
+  if (r.error) { document.getElementById('tableWrap').innerHTML = '<div class="empty-state">Error loading stats: ' + esc(r.error.message) + '</div>'; return; }
+
+  var bands = {};
+  (r.data || []).forEach(function(b){
+    var pay = parseFloat(b.pay_amount) || 0;
+    var pct = parseFloat(b.commission_pct) || 0;                       // per-booking rate first…
+    if (!pct && b.bands) pct = parseFloat(b.bands.commission_pct) || 0; // …else the band's default
+    var o = bands[b.band_id] || (bands[b.band_id] = { bandName: b.bands ? b.bands.name : '(deleted band)', bookingCount: 0, totalPay: 0, totalCommission: 0, commPct: pct, lastBooked: null });
+    o.bookingCount++; o.totalPay += pay; o.totalCommission += pay * pct / 100;
+    if (!o.lastBooked || b.booking_date > o.lastBooked) o.lastBooked = b.booking_date;
+  });
+  allStats = Object.keys(bands).map(function(k){ return bands[k]; });
+  renderSummary();
+  applyFilter();
+})();
+
+function renderSummary(){
+  var pay = 0, comm = 0;
+  allStats.forEach(function(b){ pay += b.totalPay; comm += b.totalCommission; });
+  document.getElementById('sumBands').textContent = allStats.length;
+  document.getElementById('sumPay').textContent = fmt(pay);
+  document.getElementById('sumComm').textContent = fmt(comm);
+}
+
+function applyFilter(){
+  var q = document.getElementById('searchBox').value.toLowerCase(), by = document.getElementById('sortSelect').value;
+  filtered = allStats.filter(function(b){ return !q || b.bandName.toLowerCase().indexOf(q) !== -1; });
+  filtered.sort(function(a, b){
+    if (by === 'bookings') return b.bookingCount - a.bookingCount;
+    if (by === 'pay') return b.totalPay - a.totalPay;
+    if (by === 'commission') return b.totalCommission - a.totalCommission;
+    return a.bandName.localeCompare(b.bandName);
+  });
+  renderTable();
+}
+
+function renderTable(){
+  var wrap = document.getElementById('tableWrap');
+  if (!filtered.length) { wrap.innerHTML = '<div class="empty-state">No band booking data found.</div>'; return; }
+  var h = '<table><thead><tr><th style="width:36px;">#</th><th>Band</th><th class="num">Bookings</th><th class="num">Band Pay</th><th class="num">My Commission</th></tr></thead><tbody>';
+  filtered.forEach(function(b, i){
+    var rc = i===0?'g':i===1?'s':i===2?'b':'';
+    h += '<tr><td><span class="rank-badge '+rc+'">'+(i+1)+'</span></td><td><div class="band-name">'+esc(b.bandName)+'</div>' +
+      (b.lastBooked ? '<div class="sub">Last booked: '+esc(b.lastBooked)+'</div>' : '') +
+      (b.commPct ? '<div class="sub">'+b.commPct+'% commission rate</div>' : '') + '</td>' +
+      '<td class="num">'+b.bookingCount+'</td><td class="num">'+fmt(b.totalPay)+'</td>' +
+      '<td class="num" style="color:var(--green-dark);font-weight:700;">'+fmt(b.totalCommission)+'</td></tr>';
+  });
+  wrap.innerHTML = h + '</tbody></table>';
+}
+</script>
+</body>
+</html>
