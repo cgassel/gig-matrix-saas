@@ -55,6 +55,18 @@
   .bk-chip.pending { background: var(--bronze1); }
   .bk-chip.cancelled { background: var(--red); text-decoration: line-through; }
 
+  .gcal-card { background: var(--card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); overflow: hidden; max-width: 640px; margin: 0 auto; }
+  .gcal-hdr { background: var(--bronze2); color: #fff; padding: 16px 20px; } .gcal-hdr h3 { margin: 0 0 4px; font-size: 1.05rem; } .gcal-hdr p { margin: 0; font-size: 0.84rem; opacity: 0.92; }
+  .gcal-body { padding: 18px 20px; }
+  .gcal-status { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; }
+  .gcal-status.ok { background: #e8f5e9; border: 1.5px solid #a5d6a7; } .gcal-status.off { background: #fff8e1; border: 1.5px solid #ffe082; }
+  .gcal-icon { font-size: 1.4rem; } .gcal-text { flex: 1; } .gcal-text strong { display: block; font-size: 0.92rem; } .gcal-text span { font-size: 0.8rem; color: var(--muted); }
+  .btn-gcal-connect { display: block; width: 100%; padding: 12px; border: 1.5px solid var(--border); border-radius: 8px; background: #fff; font-size: 0.92rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .btn-gcal-connect:hover { border-color: var(--bronze2); }
+  .btn-gcal-disconnect { background: none; border: 1.5px solid var(--red); color: var(--red); border-radius: 7px; padding: 6px 12px; font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+  .gcal-note { font-size: 0.8rem; color: var(--muted); margin: 12px 0 0; }
+  .gcal-evt-chip { background: #7b1fa2; color: #fff; padding: 2px 5px; margin: 2px 0; border-radius: 4px; font-size: 0.66rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .gcal-evt-chip.all-day { background: #4a148c; }
   .panel { background: var(--card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); padding: 32px 24px; text-align: center; }
   .panel .icon { font-size: 2.2rem; margin-bottom: 10px; }
   .panel h3 { font-size: 1.1rem; color: var(--bronze2); margin-bottom: 8px; }
@@ -198,12 +210,24 @@
     </div>
   </div>
 
-  <!-- TAB 3: GOOGLE CALENDAR (coming soon) -->
+  <!-- TAB 3: GOOGLE CALENDAR -->
   <div class="tab-pane" id="pane-gcal">
-    <div class="panel">
-      <div class="icon">&#128279;</div>
-      <h3>Google Calendar — Coming Soon</h3>
-      <p>Automatically adding your gigs to your own Google Calendar when an agent books you isn't built yet. We'll let you know as soon as it's ready — your gigs calendar above is already live and up to date.</p>
+    <div class="gcal-card">
+      <div class="gcal-hdr"><h3>&#128279; Google Calendar</h3><p>Connect your calendar so new gigs are added automatically and your busy times are respected when venues look for bands.</p></div>
+      <div class="gcal-body">
+        <div id="gcalLoading" style="text-align:center;padding:18px;color:#999;">Checking connection…</div>
+        <div class="gcal-status ok" id="gcalConnected" style="display:none;">
+          <div class="gcal-icon">&#9989;</div>
+          <div class="gcal-text"><strong>Google Calendar Connected</strong><span id="gcalEmail">Your bookings will be added automatically.</span></div>
+          <button class="btn-gcal-disconnect" onclick="disconnectGcal()">Disconnect</button>
+        </div>
+        <div class="gcal-status off" id="gcalDisconnected" style="display:none;">
+          <div class="gcal-icon">&#9888;&#65039;</div>
+          <div class="gcal-text"><strong>Not Connected</strong><span>Connect to have your gigs added to your Google Calendar automatically.</span></div>
+        </div>
+        <button class="btn-gcal-connect" id="gcalConnectBtn" style="display:none;" onclick="connectGcal()">Connect with Google</button>
+        <p class="gcal-note" id="gcalRefreshNote" style="display:none;">Your other Google Calendar events show on My Gigs as purple items.</p>
+      </div>
     </div>
   </div>
 
@@ -274,6 +298,16 @@ function toast(msg,type){
     renderGigCal();
 
     await loadAvailability();
+
+    // Back from Google's consent screen
+    var gc = new URLSearchParams(window.location.search).get('gcal');
+    if (gc) {
+      history.replaceState(null, '', window.location.pathname);
+      switchTab('gcal');
+      toast(gc === 'connected' ? '✓ Google Calendar connected!' : 'Google Calendar connection was cancelled.', gc === 'connected' ? 'success' : 'error');
+    }
+    // Quietly learn whether a calendar is connected so events can overlay the grid
+    if (!gcalStatusLoaded) { gcalStatusLoaded = true; loadGcalStatus(); }
   } catch (err) {
     sessionStorage.removeItem('gm_portal_token');
     sessionStorage.removeItem('gm_portal_type');
@@ -283,11 +317,63 @@ function toast(msg,type){
   }
 })();
 
+var gcalStatusLoaded = false, gcalConnected = false, gcalEvents = [];
 function switchTab(t){
   ['gigs','availability','gcal'].forEach(function(x){
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('pane-'+x).classList.toggle('active', x===t);
   });
+  if (t==='gcal' && !gcalStatusLoaded){ gcalStatusLoaded=true; loadGcalStatus(); }
+}
+
+// ── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
+async function gcalCall(action, extra){
+  var body = Object.assign({ action: action, portalToken: portalToken }, extra || {});
+  var r = await sb.functions.invoke('gcal-portal', { body: body });
+  if (r.error) {
+    var msg = r.error.message || 'Google Calendar is unavailable';
+    try { var j = await r.error.context.json(); if (j && j.error) msg = j.error; } catch(e) {}
+    throw new Error(msg);
+  }
+  return r.data;
+}
+function showGcalState(connected, email){
+  gcalConnected = connected;
+  document.getElementById('gcalLoading').style.display = 'none';
+  document.getElementById('gcalConnected').style.display = connected ? 'flex' : 'none';
+  document.getElementById('gcalDisconnected').style.display = connected ? 'none' : 'flex';
+  document.getElementById('gcalConnectBtn').style.display = connected ? 'none' : 'block';
+  document.getElementById('gcalRefreshNote').style.display = connected ? 'block' : 'none';
+  if (connected && email) document.getElementById('gcalEmail').textContent = 'Connected as ' + email + '. Your bookings will be added automatically.';
+}
+async function loadGcalStatus(){
+  try {
+    var st = await gcalCall('status');
+    showGcalState(!!st.connected, st.email);
+    if (st.connected) loadGcalEvents();
+  } catch(e) { showGcalState(false); }
+}
+async function connectGcal(){
+  var btn = document.getElementById('gcalConnectBtn'); btn.disabled = true; btn.textContent = 'Opening Google…';
+  try { window.location.href = (await gcalCall('auth_url')).url; }
+  catch(e){ btn.disabled = false; btn.textContent = 'Connect with Google'; toast('Error: ' + e.message, 'error'); }
+}
+async function disconnectGcal(){
+  if (!confirm('Disconnect Google Calendar?')) return;
+  try {
+    await gcalCall('disconnect');
+    showGcalState(false); gcalEvents = []; renderGigCal();
+    toast('Google Calendar disconnected.', 'success');
+  } catch(e){ toast('Error: ' + e.message, 'error'); }
+}
+async function loadGcalEvents(){
+  if (!gcalConnected) return;
+  var last = new Date(gigYear, gigMonth + 1, 0).getDate();
+  try {
+    var r = await gcalCall('events', { start: gigYear+'-'+pad(gigMonth+1)+'-01', end: gigYear+'-'+pad(gigMonth+1)+'-'+pad(last) });
+    gcalEvents = (r && r.success) ? (r.events || []) : [];
+  } catch(e) { gcalEvents = []; }
+  renderGigCal();
 }
 
 // ── MY GIGS ──────────────────────────────────────────────────────────────
@@ -321,6 +407,9 @@ function renderGigCal(){
     allBookings.filter(function(b){ return b.booking_date===ds; }).forEach(function(b){
       h+='<div class="bk-chip '+b.status.toLowerCase()+'" onclick="showBooking(\''+b.id+'\')">'+esc((b.venue_name||'TBD').substring(0,16))+'</div>';
     });
+    gcalEvents.filter(function(e){ return e.date===ds && !e.isDK; }).forEach(function(e){
+      h+='<div class="gcal-evt-chip'+(e.allDay?' all-day':'')+'" title="'+esc(e.title)+'">'+esc((e.startTime?e.startTime+' ':'')+e.title.substring(0,18))+'</div>';
+    });
     h+='</div>';
   }
   var rem=42-(sdow+dim);
@@ -328,9 +417,9 @@ function renderGigCal(){
   h+='</div>';
   document.getElementById('calWrap').innerHTML=h;
 }
-function prevMonth(){ if(--gigMonth<0){gigMonth=11;gigYear--;} renderGigCal(); }
-function nextMonth(){ if(++gigMonth>11){gigMonth=0;gigYear++;} renderGigCal(); }
-function gotoToday(){ gigYear=today.getFullYear(); gigMonth=today.getMonth(); renderGigCal(); }
+function prevMonth(){ if(--gigMonth<0){gigMonth=11;gigYear--;} gcalEvents=[]; renderGigCal(); loadGcalEvents(); }
+function nextMonth(){ if(++gigMonth>11){gigMonth=0;gigYear++;} gcalEvents=[]; renderGigCal(); loadGcalEvents(); }
+function gotoToday(){ gigYear=today.getFullYear(); gigMonth=today.getMonth(); gcalEvents=[]; renderGigCal(); loadGcalEvents(); }
 
 function cleanTime(t){
   if(!t) return '';
