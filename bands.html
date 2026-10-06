@@ -3,327 +3,204 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bands — Gig Matrix</title>
+  <title>Create Booking — Gig Matrix</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
+      --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+      --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
+      --green:#2e7d5c; --green-bg:rgba(46,125,92,0.1);
+      --red:#8B2000; --amber:#b45309;
+    }
     * { box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; color: #1a1408; }
-    .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; }
-    .topbar h1 { font-size: 1.05rem; margin: 0; }
-    .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
-    .topbar-right { display: flex; align-items: center; gap: 10px; }
-    .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
-    .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
-
-    .content { max-width: 1000px; margin: 28px auto; padding: 0 20px 60px; }
-    .toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
-    .toolbar button.add-btn { background: #A07018; color: #fff; border: none; padding: 10px 18px; border-radius: 8px; font-weight: 700; font-size: 0.85rem; cursor: pointer; }
-    .toolbar input { padding: 9px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.85rem; font-family: inherit; background: #fff; flex: 1; min-width: 180px; }
-
-    table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
-    th { background: #f2ede4; text-align: left; padding: 12px 14px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6b5e48; }
-    td { padding: 12px 14px; font-size: 0.86rem; border-top: 1px solid #eee; }
-    tr:hover td { background: #faf8f4; }
-    .genre-pill { display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 2px 9px; border-radius: 10px; background: #f2ede4; color: #A07018; margin: 1px 2px 1px 0; }
-    .rating-badge { display: inline-block; font-size: 0.72rem; font-weight: 800; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; background: #fdf1dc; color: #A07018; }
-    .row-actions { display: flex; gap: 8px; }
-    .row-actions button { border: none; background: none; cursor: pointer; font-size: 0.8rem; font-weight: 600; padding: 4px 6px; }
-    .edit-btn { color: #A07018; }
-    .delete-btn { color: #8B2000; }
-    .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
-
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; z-index: 500; }
-    .modal-overlay.show { display: flex; }
-    .modal { background: #fff; border-radius: 14px; max-width: 720px; width: 100%; margin: auto; overflow: hidden; }
-    .modal-header { background: linear-gradient(160deg,#3a2608 0%,#6a4a10 10%,#a07020 20%,#d4a030 30%,#f0c050 42%,#e8b838 50%,#c08820 60%,#906010 70%,#6a4810 82%,#4a3008 90%,#2e1e06 100%); padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; }
-    .modal-header h2 { color: #fff; font-size: 1.1rem; margin: 0; }
-    .modal-header .close-x { background: none; border: none; color: #fff; font-size: 1.3rem; cursor: pointer; line-height: 1; }
-    .modal-body { padding: 22px 24px; }
-    .section-label { background: #f2ede4; color: #7A5210; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; padding: 8px 12px; border-left: 4px solid #A07018; border-radius: 4px; margin: 20px 0 14px; }
-    .section-label:first-child { margin-top: 0; }
-    .modal label { display: block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; color: #6b5e48; margin: 12px 0 5px; }
-    .modal label .req { color: #8B2000; }
-    .modal input[type="text"], .modal input[type="email"], .modal input[type="tel"], .modal input[type="number"], .modal input[type="url"], .modal select, .modal textarea {
-      width: 100%; padding: 10px 12px; border: 1.5px solid #d4c4a0; border-radius: 8px; font-size: 0.88rem; font-family: inherit; background: #fff;
-    }
-    .modal input[disabled] { background: #f2ede4; color: #999; }
-    .modal textarea { min-height: 70px; resize: vertical; }
-    .modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    .field-hint { font-size: 0.72rem; color: #999; margin-top: 4px; font-style: italic; }
-    .pct-wrap { position: relative; }
-    .pct-wrap span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #999; font-size: 0.85rem; }
-
-    .pill-selector { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px; background: #fdf8f0; border: 1px solid #e8dcc8; border-radius: 10px; }
-    .pill-btn { padding: 8px 16px; border: 1.5px solid #d4c4a0; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.82rem; font-weight: 700; color: #6b5e48; white-space: nowrap; }
-    .pill-btn:hover { border-color: #A07018; }
-    .pill-btn.selected { background: #A07018; color: #fff; border-color: #A07018; }
-
-    .modal-footer { display: flex; gap: 10px; padding: 18px 24px 22px; }
-    .modal-footer button { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: 700; font-size: 0.9rem; cursor: pointer; }
-    .btn-save { background: #A07018; color: #fff; }
-    .btn-cancel { background: #f0ebe0; color: #555; }
-    .btn-delete-confirm { background: #8B2000; color: #fff; }
-
-    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
-    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-    .toast.error { background: #8B2000; }
-
-    @media (max-width: 640px) {
-      table, thead, tbody, th, td, tr { display: block; }
-      thead { display: none; }
-      tr { background: #fff; border-radius: 10px; margin-bottom: 10px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-      td { border: none; padding: 4px 0; }
-      td:before { content: attr(data-label); font-weight: 700; color: #6b5e48; font-size: 0.68rem; text-transform: uppercase; display: block; }
-      .modal .row2 { grid-template-columns: 1fr; }
-      .modal-footer { flex-direction: column; }
-    }
+    body { font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--text); margin:0; }
+    .topbar { background:linear-gradient(160deg,#3a2608 0%,#6a4a10 10%,#a07020 20%,#d4a030 30%,#f0c050 42%,#e8b838 50%,#c08820 60%,#906010 70%,#6a4810 82%,#4a3008 90%,#2e1e06 100%); padding:0 20px; display:flex; align-items:center; justify-content:space-between; height:48px; box-shadow:0 2px 20px rgba(0,0,0,0.25); }
+    .topbar-brand { color:#f5ead0; font-size:0.9rem; font-weight:600; }
+    .topbar a { color:rgba(245,234,208,0.85); text-decoration:none; font-size:0.8rem; font-weight:600; }
+    .container { background:var(--card); max-width:820px; margin:24px auto 60px; padding:28px 32px; border-radius:16px; border:1px solid var(--border); box-shadow:0 1px 3px rgba(0,0,0,0.07),0 4px 16px rgba(0,0,0,0.06); }
+    .section-title { font-size:1.1rem; color:var(--bronze2); font-weight:700; margin:34px 0 16px; padding-bottom:8px; border-bottom:2px solid var(--bronze2); }
+    .section-title:first-of-type { margin-top:0; }
+    .form-group { margin-bottom:20px; }
+    label { display:block; font-weight:600; color:var(--muted); margin-bottom:6px; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.6px; }
+    label .required { color:#D32F2F; }
+    input, select, textarea { width:100%; padding:11px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:0.92rem; font-family:inherit; background:#fff; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--bronze1); box-shadow:0 0 0 3px rgba(160,112,24,0.12); }
+    textarea { resize:vertical; min-height:70px; }
+    .row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .info-box { background:rgba(160,112,24,0.08); border-left:4px solid var(--bronze2); padding:12px 14px; margin:10px 0 20px; border-radius:6px; font-size:0.85rem; }
+    .info-box strong { color:var(--bronze3); }
+    .calculated-field { background:#f5f5f5; padding:11px 12px; border-radius:8px; border:1.5px solid var(--border); font-weight:700; color:var(--bronze2); }
+    .commission-summary { background:var(--green-bg); border:1.5px solid rgba(46,125,92,0.25); border-radius:8px; padding:14px 16px; margin-top:14px; display:none; }
+    .commission-summary.show { display:block; }
+    .commission-summary-title { font-weight:700; color:var(--green); font-size:0.8rem; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px; }
+    .commission-summary-row { display:flex; justify-content:space-between; font-size:0.88rem; padding:2px 0; }
+    .commission-summary-row.total { font-weight:700; border-top:1px solid #c8e6c9; margin-top:5px; padding-top:6px; }
+    .commission-warn { display:none; margin-top:8px; padding:9px 12px; background:#fff8e1; color:var(--amber); border:1.5px solid rgba(180,83,9,0.3); border-radius:8px; font-size:0.8rem; font-weight:600; }
+    .commission-warn.show { display:block; }
+    .warning-banner { display:none; padding:12px 16px; border-radius:8px; margin-bottom:18px; background:#fff3e0; color:#e65100; border-left:5px solid #ff9800; font-size:0.88rem; }
+    .warning-banner.show { display:block; }
+    .checkbox-group { display:flex; align-items:center; gap:12px; background:#f0f4fa; border:1.5px solid #c5d4f8; border-radius:10px; padding:13px 15px; margin-bottom:20px; cursor:pointer; }
+    .checkbox-group.disabled { opacity:0.45; pointer-events:none; }
+    .checkbox-group input { width:18px; height:18px; accent-color:var(--bronze2); flex-shrink:0; }
+    .checkbox-group label { margin:0; font-weight:600; color:var(--bronze2); cursor:pointer; }
+    .checkbox-group label span { display:block; font-size:0.78rem; font-weight:400; color:var(--muted); margin-top:2px; }
+    .contract-section { border:2px solid rgba(160,112,24,0.3); border-radius:12px; overflow:hidden; margin-top:10px; }
+    .contract-section-header { background:linear-gradient(135deg,rgba(160,112,24,0.12),rgba(200,150,12,0.06)); padding:11px 16px; font-size:0.85rem; font-weight:700; color:var(--bronze2); border-bottom:1px solid rgba(160,112,24,0.15); }
+    .contract-options { display:flex; gap:10px; padding:14px 16px; background:#fdfaf5; border-bottom:1px solid rgba(160,112,24,0.1); flex-wrap:wrap; }
+    .contract-opt { flex:1; min-width:140px; padding:12px 14px; border-radius:10px; border:2px solid var(--border); cursor:pointer; background:#fff; }
+    .contract-opt:hover { border-color:var(--bronze2); }
+    .contract-opt.selected { border-color:var(--bronze2); background:linear-gradient(135deg,rgba(160,112,24,0.09),rgba(200,150,12,0.04)); }
+    .contract-opt-title { font-size:0.85rem; font-weight:700; color:var(--text); margin-bottom:2px; }
+    .contract-opt-desc { font-size:0.72rem; color:var(--muted); line-height:1.35; }
+    .contract-edit-wrap { display:none; }
+    .contract-edit-wrap.show { display:block; }
+    .contract-textarea { width:100%; min-height:320px; padding:16px; border:none; font-family:'Courier New',monospace; font-size:0.76rem; line-height:1.6; color:#333; background:#fafafa; resize:vertical; }
+    .contract-recipients { padding:10px 16px; background:#e8f5e9; border-top:1px solid #a5d6a7; font-size:0.78rem; color:#2e7d32; font-weight:600; }
+    .button-group { display:flex; gap:14px; margin-top:32px; }
+    button { padding:14px 28px; border:none; border-radius:8px; font-size:1rem; font-weight:700; cursor:pointer; }
+    .btn-primary { background:var(--bronze2); color:#fff; flex:1; text-transform:uppercase; letter-spacing:0.6px; font-size:0.85rem; }
+    .btn-primary:hover { background:#8a6014; }
+    .btn-primary:disabled { opacity:0.6; cursor:not-allowed; }
+    .btn-secondary { background:var(--card2); color:var(--muted); border:1.5px solid var(--border); flex:1; }
+    .success-message, .error-message { padding:16px 18px; border-radius:8px; margin-bottom:22px; display:none; font-size:0.95rem; }
+    .success-message { background:#e8f5e9; color:#2e7d32; border-left:5px solid #4caf50; }
+    .error-message { background:#ffebee; color:#c62828; border-left:5px solid #f44336; }
+    .success-message a { color:#2e7d32; font-weight:700; }
+    .email-status { font-size:0.78rem; margin-top:6px; color:var(--muted); }
   </style>
 </head>
 <body>
   <div class="topbar">
-    <div>
-      <h1>Gig Matrix</h1>
-      <div class="biz" id="bizName"></div>
-    </div>
-    <div class="topbar-right">
-      <a href="venues.html">Venues</a>
-      <a href="venue-map.html">Map</a>
-      <a href="bookings.html">Bookings</a>
-      <a href="contracts.html">Contracts</a>
-      <a href="dashboard.html">&larr; Dashboard</a>
-      <button onclick="logout()">Sign Out</button>
-    </div>
+    <span class="topbar-brand">Gig Matrix — Create Booking</span>
+    <a href="bookings.html">&larr; Back to Bookings</a>
   </div>
 
-  <div class="content">
-    <div class="toolbar">
-      <button class="add-btn" onclick="openAddModal()">+ Add Band</button>
-      <input type="text" id="searchBox" placeholder="Search bands, genres, contacts..." oninput="renderTable()">
-    </div>
+  <div class="container">
+    <div class="success-message" id="successMsg"></div>
+    <div class="error-message" id="errorMsg"></div>
+    <div class="warning-banner" id="warningMsg"></div>
 
-    <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
+    <form id="createBookingForm">
 
-    <table id="bandsTable" style="display:none;">
-      <thead>
-        <tr><th>Name</th><th>Genre(s)</th><th>Size</th><th>Rating</th><th>Pay Rate</th><th></th></tr>
-      </thead>
-      <tbody id="bandsBody"></tbody>
-    </table>
-
-    <div class="empty-state" id="emptyState" style="display:none;">
-      <p>No bands yet. Click "+ Add Band" to add your first one.</p>
-    </div>
-  </div>
-
-  <!-- Add / Edit modal -->
-  <div class="modal-overlay" id="bandModal">
-    <div class="modal">
-      <div class="modal-header">
-        <h2 id="modalTitle">&#128640; Add New Band</h2>
-        <button type="button" class="close-x" onclick="closeBandModal()">&times;</button>
+      <div class="section-title">Select Venue</div>
+      <div class="form-group">
+        <label>Venue <span class="required">*</span></label>
+        <select id="venue" required onchange="updateVenueInfo()"><option value="">-- Loading venues... --</option></select>
       </div>
-      <div class="modal-body">
-        <form id="bandForm">
+      <div class="info-box" id="venueInfo" style="display:none;"><strong>Venue Details:</strong> <span id="venueDetails"></span></div>
 
-          <div class="section-label">Basic Information</div>
-          <label>Band Name <span class="req">*</span></label>
-          <input type="text" id="bName" required>
+      <div class="section-title">Select Band</div>
+      <div class="form-group">
+        <label>Band <span class="required">*</span></label>
+        <select id="band" required onchange="updateBandInfo()"><option value="">-- Loading bands... --</option></select>
+      </div>
+      <div class="info-box" id="bandInfo" style="display:none;"><strong>Band Details:</strong> <span id="bandDetails"></span></div>
 
-          <div class="row2">
-            <div>
-              <label>Contact Name <span class="req">*</span></label>
-              <input type="text" id="bContactName" required>
-            </div>
-            <div>
-              <label>Name on W9</label>
-              <input type="text" id="bNameOnW9">
-            </div>
-          </div>
-
-          <label>Email <span class="req">*</span></label>
-          <input type="email" id="bEmail" required>
-
-          <label>Phone <span class="req">*</span></label>
-          <input type="tel" id="bPhone" required placeholder="555-1234">
-
-          <label>W9 Status</label>
-          <select id="bW9Status">
-            <option value="No">No</option>
-            <option value="Yes">Yes</option>
+      <div class="section-title">Date &amp; Time</div>
+      <div class="row">
+        <div class="form-group">
+          <label>Date <span class="required">*</span></label>
+          <input type="date" id="bookingDate" required onchange="checkAvailability()">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="status">
+            <option value="Confirmed">Confirmed</option>
+            <option value="Pending" selected>Pending</option>
+            <option value="Tentative">Tentative</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
-
-          <div class="section-label">Payment Rates &amp; Commission</div>
-          <div class="row2">
-            <div>
-              <label>Pay Rate (No Sound/Lights) <span class="req">*</span></label>
-              <input type="number" id="bPayNoSound" min="0" step="1" required placeholder="500">
-              <div class="field-hint">Venue provides sound</div>
-            </div>
-            <div>
-              <label>Pay Rate (With Sound/Lights) <span class="req">*</span></label>
-              <input type="number" id="bPayWithSound" min="0" step="1" required placeholder="750">
-              <div class="field-hint">Band brings equipment</div>
-            </div>
-          </div>
-          <div class="row2">
-            <div>
-              <label>Private Party Rate</label>
-              <input type="number" id="bPrivatePartyRate" min="0" step="1" placeholder="1000">
-            </div>
-            <div>
-              <label>Agency Commission <span class="req">*</span></label>
-              <div class="pct-wrap">
-                <input type="number" id="bCommission" min="0" max="100" step="0.5" required placeholder="15">
-                <span>%</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="section-label">Performance Details</div>
-          <label>Band Size <span class="req">*</span></label>
-          <div class="pill-selector" id="bandSizeSelector">
-            <button type="button" class="pill-btn" data-value="Solo">&#127925; Solo</button>
-            <button type="button" class="pill-btn" data-value="Duo">&#127932; Duo</button>
-            <button type="button" class="pill-btn" data-value="Trio">&#127931; Trio</button>
-            <button type="button" class="pill-btn" data-value="Full Band">&#127928; Full Band</button>
-          </div>
-
-          <label style="margin-top:16px;">Genre(s) <span class="req">*</span></label>
-          <div class="pill-selector" id="genreSelector">
-            <button type="button" class="pill-btn" data-value="Rock">&#127928; Rock</button>
-            <button type="button" class="pill-btn" data-value="Classic Rock">&#127897;&#65039; Classic Rock</button>
-            <button type="button" class="pill-btn" data-value="Blues">&#127930; Blues</button>
-            <button type="button" class="pill-btn" data-value="Jazz">&#127927; Jazz</button>
-            <button type="button" class="pill-btn" data-value="Country">&#129312; Country</button>
-            <button type="button" class="pill-btn" data-value="R&B/Soul">&#127908; R&amp;B/Soul</button>
-            <button type="button" class="pill-btn" data-value="Folk">&#129685; Folk</button>
-            <button type="button" class="pill-btn" data-value="Alternative">&#9889; Alternative</button>
-            <button type="button" class="pill-btn" data-value="Funk">&#128378; Funk</button>
-            <button type="button" class="pill-btn" data-value="Pop">&#127775; Pop</button>
-            <button type="button" class="pill-btn" data-value="Cover Band">&#127925; Cover Band</button>
-            <button type="button" class="pill-btn" data-value="Tribal Funk">&#129601; Tribal Funk</button>
-            <button type="button" class="pill-btn" data-value="Reggae">&#127796; Reggae</button>
-            <button type="button" class="pill-btn" data-value="Hip-Hop">&#127911; Hip-Hop</button>
-            <button type="button" class="pill-btn" data-value="Metal">&#129304; Metal</button>
-            <button type="button" class="pill-btn" data-value="Other">&#127932; Other</button>
-          </div>
-          <div class="field-hint">Select all genres that apply &mdash; used for venue matching</div>
-
-          <div class="row2">
-            <div>
-              <label>Number of Members <span class="req">*</span></label>
-              <input type="number" id="bNumMembers" min="1" step="1" required placeholder="4">
-            </div>
-            <div>
-              <label>Typical Draw <span class="req">*</span></label>
-              <input type="number" id="bTypicalDraw" min="0" step="1" required placeholder="75" oninput="updateBandRating()">
-              <div class="field-hint">Avg people band brings</div>
-            </div>
-          </div>
-
-          <div class="row2">
-            <div>
-              <label>Band Rating (Auto)</label>
-              <input type="text" id="bRating" disabled>
-              <div class="field-hint">A=150+, B=75+, C=40+, D=25+</div>
-            </div>
-            <div>
-              <label>Hometown</label>
-              <input type="text" id="bHometown" placeholder="St. Louis, MO">
-            </div>
-          </div>
-
-          <div class="section-label">Travel</div>
-          <div class="row2">
-            <div>
-              <label>Can Travel?</label>
-              <select id="bCanTravel">
-                <option value="No">No</option>
-                <option value="Yes">Yes</option>
-              </select>
-            </div>
-            <div>
-              <label>Max Distance (miles)</label>
-              <input type="number" id="bMaxDistance" min="0" step="1" placeholder="50">
-            </div>
-          </div>
-
-          <div class="section-label">Marketing &amp; Links</div>
-          <div class="row2">
-            <div>
-              <label>Promo Video</label>
-              <input type="url" id="bPromoVideo" placeholder="https://youtube.com/...">
-            </div>
-            <div>
-              <label>Facebook</label>
-              <input type="url" id="bFacebook" placeholder="https://facebook.com/...">
-            </div>
-          </div>
-          <div class="row2">
-            <div>
-              <label>Instagram</label>
-              <input type="url" id="bInstagram" placeholder="https://instagram.com/...">
-            </div>
-            <div>
-              <label>Website</label>
-              <input type="url" id="bWebsite" placeholder="https://bandname.com">
-            </div>
-          </div>
-
-          <label>Notes</label>
-          <textarea id="bNotes" placeholder="Additional info..."></textarea>
-
-          <div id="bandPortalLoginSection" style="display:none;margin-top:22px;padding-top:18px;border-top:1.5px solid #eee;">
-            <label style="font-size:0.95rem;color:#A07018;">&#128273; Band Portal Login</label>
-            <p style="font-size:0.82rem;color:#6b5e48;margin:4px 0 12px;">Set a username and password for this band to log in and see their own gigs, calendar, and submit availability. Leave blank to leave an existing login unchanged.</p>
-            <div class="row2">
-              <div>
-                <label>Username</label>
-                <input type="text" id="bPortalUsername" placeholder="e.g. thehighnotes">
-              </div>
-              <div>
-                <label>Password</label>
-                <input type="text" id="bPortalPassword" placeholder="Set a new password">
-              </div>
-            </div>
-            <button type="button" onclick="saveBandPortalLogin()" style="margin-top:10px;padding:9px 16px;background:#A07018;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:0.82rem;cursor:pointer;">Save Portal Login</button>
-            <span id="bandPortalLoginStatus" style="margin-left:10px;font-size:0.8rem;"></span>
-          </div>
-
-        </form>
+        </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-cancel" onclick="closeBandModal()">Cancel</button>
-        <button type="button" class="btn-save" id="saveBtn" onclick="submitBandForm()">&#128640; Add Band</button>
+      <div class="row">
+        <div class="form-group"><label>Start Time <span class="required">*</span></label><input type="time" id="startTime" required value="20:00"></div>
+        <div class="form-group"><label>End Time <span class="required">*</span></label><input type="time" id="endTime" required value="23:30"></div>
       </div>
-    </div>
+
+      <div class="section-title">Payment Details</div>
+      <div class="row">
+        <div class="form-group">
+          <label>Sound/Lights Provided By</label>
+          <select id="soundLights" onchange="updatePayAmount()">
+            <option value="Venue">Venue (Lower Rate)</option>
+            <option value="Band">Band (Higher Rate)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Pay Amount <span class="required">*</span></label>
+          <div class="calculated-field" id="payAmount">Select band first</div>
+          <input type="hidden" id="payAmountValue">
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group">
+          <label>Commission % <span class="required">*</span></label>
+          <input type="number" id="commissionPct" min="0" max="100" step="0.1" placeholder="e.g. 15" required oninput="updateCommissionSummary()">
+          <div class="commission-warn" id="commissionWarn"></div>
+        </div>
+        <div class="form-group">
+          <div class="commission-summary" id="commissionSummary">
+            <div class="commission-summary-title">Commission Summary</div>
+            <div class="commission-summary-row"><span>Band Pay</span><span id="summaryBandPay">$0.00</span></div>
+            <div class="commission-summary-row"><span>Commission Rate</span><span id="summaryRate">0%</span></div>
+            <div class="commission-summary-row total"><span>Agency Earns</span><span id="summaryEarns">$0.00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="notes" placeholder="Special requirements, setup notes, etc."></textarea>
+      </div>
+
+      <div class="checkbox-group" id="sendEmailGroup" onclick="toggleEmailCheckbox()">
+        <input type="checkbox" id="sendConfirmationEmail" checked onclick="event.stopPropagation(); updateEmailHint();">
+        <label for="sendConfirmationEmail">Send confirmation email to band<span id="emailCheckboxHint">A booking confirmation will be emailed to the band's address on file</span></label>
+      </div>
+
+      <div class="section-title">Performance Contract</div>
+      <div class="contract-section">
+        <div class="contract-section-header">&#128221; Choose how to handle the contract</div>
+        <div class="contract-options">
+          <div class="contract-opt selected" id="optStandard" onclick="selectContractOpt('standard')">
+            <div class="contract-opt-title">&#9889; Send As-Is</div>
+            <div class="contract-opt-desc">Auto-filled from booking details. Emailed immediately on save.</div>
+          </div>
+          <div class="contract-opt" id="optEdit" onclick="selectContractOpt('edit')">
+            <div class="contract-opt-title">&#9999;&#65039; Edit Before Sending</div>
+            <div class="contract-opt-desc">Review and customize the contract text before it's emailed.</div>
+          </div>
+          <div class="contract-opt" id="optNone" onclick="selectContractOpt('none')">
+            <div class="contract-opt-title">&#9203; Don't Send Yet</div>
+            <div class="contract-opt-desc">Save the booking without generating a contract right now.</div>
+          </div>
+        </div>
+        <div class="contract-edit-wrap" id="contractEditWrap">
+          <textarea class="contract-textarea" id="contractTextarea" placeholder="Loading contract..."></textarea>
+        </div>
+        <div class="contract-recipients" id="contractRecipients">
+          &#9989; Contract will be emailed to the venue first (they sign first), then the band's link unlocks
+        </div>
+      </div>
+
+      <div class="button-group">
+        <button type="button" class="btn-secondary" onclick="window.location.href='bookings.html'">Cancel</button>
+        <button type="submit" class="btn-primary" id="submitBtn">Create Booking</button>
+      </div>
+    </form>
   </div>
-
-  <!-- Delete confirm modal -->
-  <div class="modal-overlay" id="deleteModal">
-    <div class="modal" style="max-width:400px;">
-      <div class="modal-header"><h2>Delete Band</h2></div>
-      <div class="modal-body">
-        <p id="deleteMsg" style="color:#6b5e48;font-size:0.9rem;line-height:1.5;"></p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
-        <button type="button" class="btn-delete-confirm" id="confirmDeleteBtn" onclick="doDelete()">Delete</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
+  <script src="contract-template.js"></script>
   <script>
-    var currentBusinessId = null;
-    var currentRole = null;
-    var allBands = [];
-    var editingBandId = null;
-    var pendingDeleteId = null;
-    var selectedBandSize = null;
-    var selectedGenres = [];
+    var venues = [], bands = [];
+    var selectedVenue = null, selectedBand = null;
+    var isSubmitting = false;
+    var currentBusinessId = null, currentAgentId = null, currentAgentName = '', currentAgencyName = 'Gig Matrix';
+    var _contractMode = 'standard';
+    var FRONTEND_BASE = window.location.origin + window.location.pathname.replace('create-booking.html', '');
 
     (async function init() {
       var { data: { session } } = await sb.auth.getSession();
@@ -331,325 +208,395 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('business_id, role, businesses(name)')
+        .select('id, name, business_id, businesses(name, contract_template)')
         .single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
-      currentRole = profile.role;
-      document.getElementById('bizName').textContent = profile.businesses.name;
+      currentAgentId    = profile.id;
+      currentAgentName  = profile.name || 'Agent';
+      currentAgencyName = (profile.businesses && profile.businesses.name) || 'Gig Matrix';
+      window._contractTemplateOverride = profile.businesses ? profile.businesses.contract_template : null;
 
-      // Wire up the pill selectors
-      document.getElementById('bandSizeSelector').addEventListener('click', function(e) {
-        var btn = e.target.closest('.pill-btn');
-        if (!btn) return;
-        selectedBandSize = btn.dataset.value;
-        this.querySelectorAll('.pill-btn').forEach(function(b) { b.classList.remove('selected'); });
-        btn.classList.add('selected');
-      });
-
-      document.getElementById('genreSelector').addEventListener('click', function(e) {
-        var btn = e.target.closest('.pill-btn');
-        if (!btn) return;
-        var val = btn.dataset.value;
-        var idx = selectedGenres.indexOf(val);
-        if (idx === -1) { selectedGenres.push(val); btn.classList.add('selected'); }
-        else { selectedGenres.splice(idx, 1); btn.classList.remove('selected'); }
-      });
-
-      await loadBands();
-
-      // Arriving from the dashboard's "Add Band" quick-nav button
-      if (new URLSearchParams(window.location.search).get('add') === '1') {
-        openAddModal();
-      }
+      await Promise.all([loadVenues(), loadBands()]);
+      loadContractTemplate();
+      applyPrefill();
     })();
 
-    async function loadBands() {
-      var { data, error } = await sb.from('bands').select('*').order('name', { ascending: true });
-      document.getElementById('loadingState').style.display = 'none';
-      if (error) { showToast('Error loading bands: ' + error.message, 'error'); return; }
-      allBands = data || [];
-      renderTable();
+    // From the dashboard's Open Slots / notifications: ?venue=<id>&date=YYYY-MM-DD&band=<id>&request=<id>
+    var _prefillRequestId = null;
+    function applyPrefill() {
+      var q = new URLSearchParams(window.location.search);
+      var v = q.get('venue'), d = q.get('date'), b = q.get('band');
+      _prefillRequestId = q.get('request');
+      if (v && venues.some(function(x){ return x.id === v; })) {
+        document.getElementById('venue').value = v;
+        updateVenueInfo();
+      }
+      if (b && bands.some(function(x){ return x.id === b; })) {
+        document.getElementById('band').value = b;
+        updateBandInfo();
+      }
+      if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        document.getElementById('bookingDate').value = d;
+        checkAvailability();
+      }
     }
 
-    function renderTable() {
-      var search = document.getElementById('searchBox').value.toLowerCase();
-      var filtered = allBands.filter(function(b) {
-        if (!search) return true;
-        var haystack = [b.name, (b.genres || []).join(' '), b.contact_name].join(' ').toLowerCase();
-        return haystack.indexOf(search) !== -1;
-      });
+    async function loadVenues() {
+      var { data, error } = await sb.from('venues').select('*').order('name');
+      if (error) { showError('Error loading venues: ' + error.message); return; }
+      venues = data || [];
+      var sel = document.getElementById('venue');
+      sel.innerHTML = '<option value="">-- Select Venue --</option>' + venues.map(function(v) {
+        return '<option value="' + v.id + '">' + esc(v.name) + (v.city ? ' - ' + esc(v.city) + (v.state ? ', ' + esc(v.state) : '') : '') + '</option>';
+      }).join('');
+    }
 
-      var table = document.getElementById('bandsTable');
-      var emptyState = document.getElementById('emptyState');
+    async function loadBands() {
+      var { data, error } = await sb.from('bands').select('*').order('name');
+      if (error) { showError('Error loading bands: ' + error.message); return; }
+      bands = data || [];
+      var sel = document.getElementById('band');
+      sel.innerHTML = '<option value="">-- Select Band --</option>' + bands.map(function(b) {
+        return '<option value="' + b.id + '">' + esc(b.name) + (b.genres && b.genres.length ? ' - ' + esc(b.genres[0]) : '') + (b.band_rating ? ' (' + esc(b.band_rating) + ')' : '') + '</option>';
+      }).join('');
+    }
 
-      if (filtered.length === 0) {
-        table.style.display = 'none';
-        emptyState.style.display = 'block';
-        emptyState.querySelector('p').textContent = allBands.length === 0
-          ? 'No bands yet. Click "+ Add Band" to add your first one.'
-          : 'No bands match your search.';
+    function updateVenueInfo() {
+      var sel = document.getElementById('venue');
+      if (sel.value) {
+        selectedVenue = venues.find(function(v) { return v.id === sel.value; });
+        document.getElementById('venueDetails').textContent =
+          'Capacity: ' + (selectedVenue.capacity || '–') +
+          ' | Budget: $' + (selectedVenue.pay_rate_budget_low || '?') + '-' + (selectedVenue.pay_rate_budget_high || '?') +
+          ' | Sound: ' + (selectedVenue.has_sound_status || '–') +
+          ' | Lights: ' + (selectedVenue.has_lighting_status || '–');
+        document.getElementById('venueInfo').style.display = 'block';
+        var slEl = document.getElementById('soundLights');
+        slEl.value = (selectedVenue.has_sound_status === 'Yes') ? 'Venue' : 'Band';
+        updatePayAmount();
+        refreshContractIfOpen();
+      } else {
+        document.getElementById('venueInfo').style.display = 'none';
+        selectedVenue = null;
+      }
+      checkAvailability();
+    }
+
+    function updateBandInfo() {
+      var sel = document.getElementById('band');
+      if (sel.value) {
+        selectedBand = bands.find(function(b) { return b.id === sel.value; });
+        document.getElementById('bandDetails').textContent =
+          'Genre: ' + ((selectedBand.genres || []).join(', ') || '–') +
+          ' | Members: ' + (selectedBand.num_members || '–') +
+          ' | Typical Draw: ' + (selectedBand.typical_draw || '–') +
+          ' | Rating: ' + (selectedBand.band_rating || '–');
+        document.getElementById('bandInfo').style.display = 'block';
+        updatePayAmount();
+
+        var emailGrp = document.getElementById('sendEmailGroup');
+        var emailCb  = document.getElementById('sendConfirmationEmail');
+        var hint     = document.getElementById('emailCheckboxHint');
+        if (selectedBand.email) {
+          emailGrp.classList.remove('disabled');
+          if (emailCb.checked) hint.textContent = 'Confirmation will be sent to: ' + selectedBand.email;
+        } else {
+          emailGrp.classList.add('disabled');
+          emailCb.checked = false;
+          hint.textContent = 'No email on file for this band';
+        }
+
+        var commEl = document.getElementById('commissionPct');
+        var commWarn = document.getElementById('commissionWarn');
+        if (selectedBand.commission_pct != null && selectedBand.commission_pct !== '') {
+          commEl.value = selectedBand.commission_pct;
+          commWarn.classList.remove('show');
+          commEl.style.borderColor = '';
+        } else {
+          commWarn.classList.add('show');
+          commWarn.innerHTML = '&#9888;&#65039; No commission rate on file for <strong>' + esc(selectedBand.name) + '</strong>. Enter it below, then update the band record in Bands.';
+          commEl.style.borderColor = 'var(--amber)';
+        }
+        updateCommissionSummary();
+        refreshContractIfOpen();
+      } else {
+        document.getElementById('bandInfo').style.display = 'none';
+        selectedBand = null;
+        updateCommissionSummary();
+      }
+    }
+
+    function toggleEmailCheckbox() {
+      var cb = document.getElementById('sendConfirmationEmail');
+      cb.checked = !cb.checked;
+      updateEmailHint();
+    }
+
+    function updateEmailHint() {
+      var cb = document.getElementById('sendConfirmationEmail');
+      var hint = document.getElementById('emailCheckboxHint');
+      hint.textContent = cb.checked
+        ? (selectedBand && selectedBand.email ? 'Confirmation will be sent to: ' + selectedBand.email : 'A booking confirmation will be emailed to the band\'s address on file')
+        : 'No email will be sent to the band';
+    }
+
+    function updatePayAmount() {
+      if (!selectedBand) {
+        document.getElementById('payAmount').textContent = 'Select band first';
+        document.getElementById('payAmountValue').value = '';
+        updateCommissionSummary();
         return;
       }
+      var soundLights = document.getElementById('soundLights').value;
+      var amount = soundLights === 'Venue'
+        ? (parseFloat(selectedBand.pay_rate_no_sound) || 0)
+        : (parseFloat(selectedBand.pay_rate_with_sound) || 0);
+      document.getElementById('payAmount').textContent = '$' + amount.toFixed(2);
+      document.getElementById('payAmountValue').value = amount;
+      updateCommissionSummary();
+    }
 
-      table.style.display = 'table';
-      emptyState.style.display = 'none';
+    function updateCommissionSummary() {
+      var pay = parseFloat(document.getElementById('payAmountValue').value) || 0;
+      var pct = parseFloat(document.getElementById('commissionPct').value) || 0;
+      var summary = document.getElementById('commissionSummary');
+      if (pay > 0 && pct > 0) {
+        var earns = pay * pct / 100;
+        document.getElementById('summaryBandPay').textContent = '$' + pay.toFixed(2);
+        document.getElementById('summaryRate').textContent = pct + '%';
+        document.getElementById('summaryEarns').textContent = '$' + earns.toFixed(2);
+        summary.classList.add('show');
+      } else {
+        summary.classList.remove('show');
+      }
+    }
 
-      var html = '';
-      filtered.forEach(function(b) {
-        var genreHtml = (b.genres || []).map(function(g) { return '<span class="genre-pill">' + esc(g) + '</span>'; }).join('') || '\u2013';
-        var payStr = [
-          b.pay_rate_no_sound   != null ? '$' + b.pay_rate_no_sound + ' (no sound)'   : null,
-          b.pay_rate_with_sound != null ? '$' + b.pay_rate_with_sound + ' (w/ sound)' : null
-        ].filter(Boolean).join(' / ') || '\u2013';
+    async function checkAvailability() {
+      var date = document.getElementById('bookingDate').value;
+      var venueId = document.getElementById('venue').value;
+      var warn = document.getElementById('warningMsg');
+      if (!date || !venueId) { warn.classList.remove('show'); return; }
+      var { data } = await sb.from('bookings').select('id').eq('venue_id', venueId).eq('booking_date', date);
+      if (data && data.length > 0) {
+        warn.textContent = '⚠ Warning: This venue already has a booking on this date!';
+        warn.classList.add('show');
+      } else {
+        warn.classList.remove('show');
+      }
+    }
 
-        html +=
-          '<tr>' +
-            '<td data-label="Name"><strong>' + esc(b.name) + '</strong></td>' +
-            '<td data-label="Genre(s)">' + genreHtml + '</td>' +
-            '<td data-label="Size">' + esc(b.band_size || '\u2013') + '</td>' +
-            '<td data-label="Rating">' + (b.band_rating ? '<span class="rating-badge">' + esc(b.band_rating) + '</span>' : '\u2013') + '</td>' +
-            '<td data-label="Pay Rate">' + esc(payStr) + '</td>' +
-            '<td><div class="row-actions">' +
-              '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
-              '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>' +
-            '</div></td>' +
-          '</tr>';
+    // ── Contract ──────────────────────────────────────────────────────────
+    var _contractTemplateLoaded = false;
+
+    function loadContractTemplate() {
+      _contractTemplateLoaded = true;
+      var ta = document.getElementById('contractTextarea');
+      if (ta) ta.value = buildContractText();
+    }
+
+    function buildContractText() {
+      var tmpl = window._contractTemplateOverride || DEFAULT_CONTRACT_TEMPLATE;
+      return fillContractTemplate(tmpl, {
+        agencyName:    currentAgencyName,
+        bandName:      selectedBand  ? selectedBand.name  : '',
+        venueName:     selectedVenue ? selectedVenue.name : '',
+        venueContact:  selectedVenue ? selectedVenue.contact_name : '',
+        venueEmail:    selectedVenue ? selectedVenue.email : '',
+        venuePhone:    selectedVenue ? selectedVenue.phone : '',
+        bandContact:   selectedBand  ? selectedBand.contact_name : '',
+        bandPhone:     selectedBand  ? selectedBand.phone : '',
+        bandEmail:     selectedBand  ? selectedBand.email : '',
+        date:          document.getElementById('bookingDate').value,
+        startTime:     document.getElementById('startTime').value,
+        endTime:       document.getElementById('endTime').value,
+        payAmount:     document.getElementById('payAmountValue').value,
+        soundLights:   document.getElementById('soundLights').value,
+        notes:         document.getElementById('notes').value,
+        commissionPct: document.getElementById('commissionPct').value,
+        bookingId:     'TBD'
       });
-      document.getElementById('bandsBody').innerHTML = html;
     }
 
-    // ── Band Rating auto-calc (A=150+, B=75+, C=40+, D=25+) ──────────────────
-    function calculateBandRating(draw) {
-      draw = parseInt(draw) || 0;
-      if (draw >= 150) return 'A';
-      if (draw >= 75)  return 'B';
-      if (draw >= 40)  return 'C';
-      if (draw >= 25)  return 'D';
-      return '';
-    }
-    function updateBandRating() {
-      var draw = document.getElementById('bTypicalDraw').value;
-      document.getElementById('bRating').value = calculateBandRating(draw);
+    function refreshContractIfOpen() {
+      if (!_contractTemplateLoaded) return;
+      var ta = document.getElementById('contractTextarea');
+      if (ta && _contractMode === 'edit') ta.value = buildContractText();
     }
 
-    // ── Pill selector helpers ────────────────────────────────────────────────
-    function setPillSelection(containerId, values) {
-      var container = document.getElementById(containerId);
-      container.querySelectorAll('.pill-btn').forEach(function(btn) {
-        btn.classList.toggle('selected', values.indexOf(btn.dataset.value) !== -1);
-      });
+    function selectContractOpt(mode) {
+      _contractMode = mode;
+      document.getElementById('optStandard').classList.toggle('selected', mode === 'standard');
+      document.getElementById('optEdit').classList.toggle('selected', mode === 'edit');
+      document.getElementById('optNone').classList.toggle('selected', mode === 'none');
+
+      var editWrap = document.getElementById('contractEditWrap');
+      if (mode === 'edit') { editWrap.classList.add('show'); refreshContractIfOpen(); document.getElementById('contractTextarea').value = buildContractText(); }
+      else editWrap.classList.remove('show');
+
+      var rec = document.getElementById('contractRecipients');
+      rec.style.display = mode === 'none' ? 'none' : 'block';
     }
 
-    // ── Add / Edit modal ────────────────────────────────────────────────────
+    // ── Submit ────────────────────────────────────────────────────────────
+    document.getElementById('createBookingForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      if (isSubmitting) return;
+      if (!selectedVenue || !selectedBand) {
+        showError('Select a venue and a band first.');
+        return;
+      }
+      var pct = parseFloat(document.getElementById('commissionPct').value);
+      if (isNaN(pct) || pct < 0 || pct > 100) { showError('Commission % must be between 0 and 100.'); return; }
 
-    function openAddModal() {
-      editingBandId = null;
-      document.getElementById('modalTitle').textContent = '\u{1F680} Add New Band';
-      document.getElementById('saveBtn').textContent = '\u{1F680} Add Band';
-      document.getElementById('bandForm').reset();
-      document.getElementById('bRating').value = '';
-      selectedBandSize = null;
-      selectedGenres = [];
-      setPillSelection('bandSizeSelector', []);
-      setPillSelection('genreSelector', []);
-      document.getElementById('bandPortalLoginSection').style.display = 'none';
-      document.getElementById('bandModal').classList.add('show');
-    }
+      isSubmitting = true;
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true;
+      btn.textContent = 'Creating…';
+      hideMessages();
 
-    function openEditModal(id) {
-      var b = allBands.find(function(x) { return x.id === id; });
-      if (!b) return;
-      editingBandId = id;
-      document.getElementById('modalTitle').textContent = 'Edit Band';
-      document.getElementById('saveBtn').textContent = 'Save Changes';
-      var canSetLogin = currentRole === 'admin' || currentRole === 'owner';
-      document.getElementById('bandPortalLoginSection').style.display = canSetLogin ? 'block' : 'none';
-      document.getElementById('bPortalUsername').value = '';
-      document.getElementById('bPortalPassword').value = '';
-      document.getElementById('bandPortalLoginStatus').textContent = '';
-
-      document.getElementById('bName').value              = b.name || '';
-      document.getElementById('bContactName').value        = b.contact_name || '';
-      document.getElementById('bNameOnW9').value            = b.name_on_w9 || '';
-      document.getElementById('bEmail').value                = b.email || '';
-      document.getElementById('bPhone').value                = b.phone || '';
-      document.getElementById('bW9Status').value              = b.w9_status || 'No';
-      document.getElementById('bPayNoSound').value             = b.pay_rate_no_sound   != null ? b.pay_rate_no_sound   : '';
-      document.getElementById('bPayWithSound').value           = b.pay_rate_with_sound != null ? b.pay_rate_with_sound : '';
-      document.getElementById('bPrivatePartyRate').value       = b.private_party_rate  != null ? b.private_party_rate  : '';
-      document.getElementById('bCommission').value             = b.commission_pct      != null ? b.commission_pct      : '';
-      document.getElementById('bNumMembers').value              = b.num_members        != null ? b.num_members        : '';
-      document.getElementById('bTypicalDraw').value              = b.typical_draw       != null ? b.typical_draw       : '';
-      document.getElementById('bRating').value                    = b.band_rating || calculateBandRating(b.typical_draw);
-      document.getElementById('bHometown').value                   = b.hometown || '';
-      document.getElementById('bCanTravel').value                   = b.can_travel || 'No';
-      document.getElementById('bMaxDistance').value                 = b.max_distance_miles != null ? b.max_distance_miles : '';
-      document.getElementById('bPromoVideo').value                   = b.promo_video_url || '';
-      document.getElementById('bFacebook').value                      = b.facebook_url || '';
-      document.getElementById('bInstagram').value                      = b.instagram_url || '';
-      document.getElementById('bWebsite').value                         = b.website_url || '';
-      document.getElementById('bNotes').value                            = b.notes || '';
-
-      selectedBandSize = b.band_size || null;
-      selectedGenres = b.genres ? b.genres.slice() : [];
-      setPillSelection('bandSizeSelector', selectedBandSize ? [selectedBandSize] : []);
-      setPillSelection('genreSelector', selectedGenres);
-
-      document.getElementById('bandModal').classList.add('show');
-    }
-
-    function closeBandModal() {
-      document.getElementById('bandModal').classList.remove('show');
-      editingBandId = null;
-    }
-
-    async function submitBandForm() {
-      var form = document.getElementById('bandForm');
-      if (!form.checkValidity()) { form.reportValidity(); return; }
-
-      if (!selectedBandSize) { showToast('Please select a band size.', 'error'); return; }
-      if (selectedGenres.length === 0) { showToast('Please select at least one genre.', 'error'); return; }
-
-      var typicalDraw = document.getElementById('bTypicalDraw').value ? parseInt(document.getElementById('bTypicalDraw').value) : null;
-
-      var bandData = {
-        name:                document.getElementById('bName').value.trim(),
-        contact_name:        document.getElementById('bContactName').value.trim() || null,
-        name_on_w9:          document.getElementById('bNameOnW9').value.trim() || null,
-        email:               document.getElementById('bEmail').value.trim() || null,
-        phone:               document.getElementById('bPhone').value.trim() || null,
-        w9_status:           document.getElementById('bW9Status').value,
-        pay_rate_no_sound:   document.getElementById('bPayNoSound').value   !== '' ? parseFloat(document.getElementById('bPayNoSound').value)   : null,
-        pay_rate_with_sound: document.getElementById('bPayWithSound').value !== '' ? parseFloat(document.getElementById('bPayWithSound').value) : null,
-        private_party_rate:  document.getElementById('bPrivatePartyRate').value !== '' ? parseFloat(document.getElementById('bPrivatePartyRate').value) : null,
-        commission_pct:      document.getElementById('bCommission').value !== '' ? parseFloat(document.getElementById('bCommission').value) : null,
-        band_size:           selectedBandSize,
-        genres:              selectedGenres,
-        num_members:         document.getElementById('bNumMembers').value !== '' ? parseInt(document.getElementById('bNumMembers').value) : null,
-        typical_draw:        typicalDraw,
-        band_rating:         calculateBandRating(typicalDraw),
-        hometown:            document.getElementById('bHometown').value.trim() || null,
-        can_travel:          document.getElementById('bCanTravel').value,
-        max_distance_miles:  document.getElementById('bMaxDistance').value !== '' ? parseInt(document.getElementById('bMaxDistance').value) : null,
-        promo_video_url:     document.getElementById('bPromoVideo').value.trim() || null,
-        facebook_url:        document.getElementById('bFacebook').value.trim() || null,
-        instagram_url:       document.getElementById('bInstagram').value.trim() || null,
-        website_url:         document.getElementById('bWebsite').value.trim() || null,
-        notes:               document.getElementById('bNotes').value.trim() || null
+      var payAmount = parseFloat(document.getElementById('payAmountValue').value) || null;
+      var bookingRow = {
+        business_id:    currentBusinessId,
+        venue_id:       selectedVenue.id,
+        band_id:        selectedBand.id,
+        booking_date:   document.getElementById('bookingDate').value,
+        start_time:     document.getElementById('startTime').value || null,
+        end_time:       document.getElementById('endTime').value || null,
+        pay_amount:     payAmount,
+        sound_lights:   document.getElementById('soundLights').value,
+        status:         document.getElementById('status').value,
+        commission_pct: pct,
+        notes:          document.getElementById('notes').value.trim() || null,
+        created_by:     currentAgentId
       };
 
-      var btn = document.getElementById('saveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Saving\u2026';
-
       try {
-        if (editingBandId) {
-          var { error } = await sb.from('bands').update(bandData).eq('id', editingBandId);
-          if (error) throw error;
-          showToast('Band updated.');
-        } else {
-          bandData.business_id = currentBusinessId; // required — RLS checks this on insert
-          var { error: insErr } = await sb.from('bands').insert(bandData);
-          if (insErr) throw insErr;
-          showToast('Band added.');
+        var { data: inserted, error: insErr } = await sb.from('bookings').insert(bookingRow).select().single();
+        if (insErr) throw insErr;
+
+        var bookingId = inserted.id;
+
+        // Arrived from a venue's band request? Mark it handled.
+        if (_prefillRequestId) {
+          await sb.from('venue_requests').update({ status: 'Booked', read_at: new Date().toISOString() }).eq('id', _prefillRequestId);
         }
-        closeBandModal();
-        await loadBands();
+
+        var perfDate = '';
+        try { perfDate = new Date(bookingRow.booking_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' }); } catch(e) { perfDate = bookingRow.booking_date; }
+
+        var emailNotes = [];
+
+        // ── Contract ──
+        if (_contractMode !== 'none') {
+          var contractText = _contractMode === 'edit'
+            ? document.getElementById('contractTextarea').value
+            : buildContractText().replace('TBD', String(bookingId));
+
+          var bandToken = randomToken(), venueToken = randomToken();
+          var { data: contractRow, error: contractErr } = await sb.from('contracts').insert({
+            business_id:        currentBusinessId,
+            booking_id:         bookingId,
+            assigned_agent_id:  currentAgentId,
+            created_by:         currentAgentId,
+            band_token:         bandToken,
+            venue_token:        venueToken,
+            status:             'Awaiting Venue',
+            contract_text:      contractText,
+            sent_at:            new Date().toISOString(),
+            band_email:         selectedBand.email || null,
+            venue_email:        selectedVenue.email || null
+          }).select().single();
+
+          if (contractErr) {
+            emailNotes.push('Contract could not be created: ' + contractErr.message);
+          } else {
+            var bandSignUrl  = FRONTEND_BASE + 'sign-contract.html?token=' + bandToken;
+            var venueSignUrl = FRONTEND_BASE + 'sign-contract.html?token=' + venueToken;
+            var sentAny = false;
+
+            if (selectedVenue.email) {
+              var vResult = await sendAppEmail(
+                sb, selectedVenue.email, selectedVenue.contact_name || selectedVenue.name,
+                'Performance Agreement - ' + selectedBand.name + ' at ' + selectedVenue.name + ' on ' + perfDate,
+                'Please review and sign: ' + venueSignUrl,
+                contractSignEmailHtml({ role:'venue', toName: selectedVenue.contact_name || selectedVenue.name, agencyName: currentAgencyName, venueName: selectedVenue.name, bandName: selectedBand.name, date: perfDate, signUrl: venueSignUrl })
+              );
+              if (vResult.success) sentAny = true; else emailNotes.push('Venue email failed: ' + vResult.error);
+            }
+            if (selectedBand.email) {
+              var bResult = await sendAppEmail(
+                sb, selectedBand.email, selectedBand.contact_name || selectedBand.name,
+                'Performance Agreement - ' + selectedBand.name + ' at ' + selectedVenue.name + ' on ' + perfDate,
+                'Please review and sign (this activates once the venue signs first): ' + bandSignUrl,
+                contractSignEmailHtml({ role:'band', toName: selectedBand.contact_name || selectedBand.name, agencyName: currentAgencyName, venueName: selectedVenue.name, bandName: selectedBand.name, date: perfDate, signUrl: bandSignUrl })
+              );
+              if (bResult.success) sentAny = true; else emailNotes.push('Band email failed: ' + bResult.error);
+            }
+            if (sentAny) {
+              await sb.from('contracts').update({ sent_via_email: true }).eq('id', contractRow.id);
+            }
+          }
+        }
+
+        // ── Plain booking-confirmation email (only when no contract was sent) ──
+        if (_contractMode === 'none' && document.getElementById('sendConfirmationEmail').checked && selectedBand.email) {
+          var confResult = await sendAppEmail(
+            sb, selectedBand.email, selectedBand.contact_name || selectedBand.name,
+            'Booking Confirmed: ' + selectedVenue.name + ' on ' + perfDate,
+            'Hi ' + (selectedBand.contact_name || selectedBand.name) + ',\n\nYou are booked at ' + selectedVenue.name + ' on ' + perfDate + ' from ' + document.getElementById('startTime').value + ' to ' + document.getElementById('endTime').value + '.\n\nPay: $' + (payAmount || 0).toFixed(2) + '\n\n' + currentAgencyName,
+            null
+          );
+          if (!confResult.success) emailNotes.push('Confirmation email failed: ' + confResult.error);
+        }
+
+        // ── Google Calendar: put the gig on the venue's and band's calendars ──
+        // Same as the original app. Silent for any venue/band that hasn't
+        // connected a calendar, and never blocks the booking if it fails.
+        try {
+          var gcalRes = await sb.functions.invoke('gcal-create-event', { body: {
+            venueId: bookingRow.venue_id, bandId: bookingRow.band_id,
+            venueName: selectedVenue.name, bandName: selectedBand.name,
+            date: bookingRow.booking_date,
+            startTime: document.getElementById('startTime').value, endTime: document.getElementById('endTime').value,
+            notes: bookingRow.notes || ''
+          }});
+          var gr = gcalRes && gcalRes.data && gcalRes.data.results;
+          if (gr) {
+            var added = [];
+            if (gr.venue && gr.venue.pushed) added.push('venue');
+            if (gr.band && gr.band.pushed) added.push('band');
+            if (added.length) emailNotes.push('Added to the ' + added.join(' and ') + ' Google Calendar.');
+          }
+        } catch (gcErr) { console.warn('Google Calendar push skipped:', gcErr); }
+
+        var msg = '<strong>&#10003; Booking created successfully!</strong>';
+        if (emailNotes.length) msg += '<div class="email-status">' + emailNotes.map(esc).join('<br>') + '</div>';
+        msg += '<br><a href="create-booking.html">Create another booking</a> or <a href="bookings.html">go to bookings</a>';
+        showSuccess(msg);
+        document.getElementById('createBookingForm').reset();
+        selectedVenue = null; selectedBand = null;
+        document.getElementById('venueInfo').style.display = 'none';
+        document.getElementById('bandInfo').style.display = 'none';
+        document.getElementById('commissionSummary').classList.remove('show');
+        document.getElementById('payAmount').textContent = 'Select band first';
+        window.scrollTo(0, 0);
+
       } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+        showError('Error: ' + err.message);
       } finally {
+        isSubmitting = false;
         btn.disabled = false;
-        btn.textContent = editingBandId ? 'Save Changes' : '\u{1F680} Add Band';
+        btn.textContent = 'Create Booking';
       }
-    }
+    });
 
-    // ── Delete ──────────────────────────────────────────────────────────────
-
-    function openDeleteModal(id) {
-      var b = allBands.find(function(x) { return x.id === id; });
-      if (!b) return;
-      pendingDeleteId = id;
-      document.getElementById('deleteMsg').textContent = 'Delete "' + b.name + '"? This cannot be undone.';
-      document.getElementById('deleteModal').classList.add('show');
-    }
-
-    function closeDeleteModal() {
-      document.getElementById('deleteModal').classList.remove('show');
-      pendingDeleteId = null;
-    }
-
-    async function doDelete() {
-      if (!pendingDeleteId) return;
-      var btn = document.getElementById('confirmDeleteBtn');
-      btn.disabled = true;
-      btn.textContent = 'Deleting\u2026';
-      try {
-        var { error } = await sb.from('bands').delete().eq('id', pendingDeleteId);
-        if (error) throw error;
-        showToast('Band deleted.');
-        closeDeleteModal();
-        await loadBands();
-      } catch (err) {
-        showToast('Error: ' + err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Delete';
-      }
-    }
-
-    // ── Helpers ─────────────────────────────────────────────────────────────
-
-    function showToast(msg, type) {
-      var t = document.getElementById('toast');
-      t.textContent = msg;
-      t.className = 'toast' + (type === 'error' ? ' error' : '');
-      void t.offsetWidth;
-      t.classList.add('show');
-      setTimeout(function() { t.classList.remove('show'); }, 3500);
-    }
-
-    function esc(s) {
-      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    }
-
-    async function saveBandPortalLogin() {
-      if (!editingBandId) return;
-      var username = document.getElementById('bPortalUsername').value.trim();
-      var password = document.getElementById('bPortalPassword').value;
-      var statusEl = document.getElementById('bandPortalLoginStatus');
-
-      if (!username || !password) {
-        statusEl.style.color = '#8B2000';
-        statusEl.textContent = 'Enter both a username and password.';
-        return;
-      }
-
-      statusEl.style.color = '#6b5e48';
-      statusEl.textContent = 'Saving\u2026';
-
-      try {
-        var result = await sb.rpc('set_portal_login', {
-          p_business_id: currentBusinessId,
-          p_owner_type: 'band',
-          p_owner_id: editingBandId,
-          p_username: username,
-          p_password: password
-        });
-        if (result.error) throw result.error;
-        statusEl.style.color = '#2e7d32';
-        statusEl.textContent = '\u2713 Login saved. Give this username and password to the band.';
-      } catch (err) {
-        statusEl.style.color = '#8B2000';
-        statusEl.textContent = 'Error: ' + err.message;
-      }
-    }
-
-    function logout() {
-      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
-    }
+    function showSuccess(html) { var el = document.getElementById('successMsg'); el.innerHTML = html; el.style.display = 'block'; }
+    function showError(text) { var el = document.getElementById('errorMsg'); el.textContent = text; el.style.display = 'block'; window.scrollTo(0,0); }
+    function hideMessages() { document.getElementById('successMsg').style.display = 'none'; document.getElementById('errorMsg').style.display = 'none'; }
+    function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   </script>
 </body>
 </html>
