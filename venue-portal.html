@@ -3,311 +3,167 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Venue Portal — Gig Matrix</title>
+<title>Music Schedule — Gig Matrix</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
-    --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
-    --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
-    --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
-    --green:#2e7d5c; --green-dark:#2e7d32;
-    --red:#8B2000; --amber:#b45309; --purple:#7b1fa2;
+    --bg:#f0ebe0; --card:#faf8f4; --card2:#f2ede4; --border:#d4c4a0;
+    --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+    --text:#1a1408; --muted:#6b5e48; --green:#2e7d5c; --red:#8B2000;
   }
   * { box-sizing: border-box; }
-  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 40px; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; min-height: 100vh; padding: 20px; color: var(--text); }
+  .container { max-width: 860px; margin: 0 auto; background: var(--card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); overflow: hidden; }
 
-  .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
-  .topbar h1 { font-size: 1.05rem; margin: 0; }
-  .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
-  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
-  .topbar-right button:hover { background: rgba(0,0,0,0.32); }
+  .header { background: var(--bronze2); padding: 22px 28px; color: #fff; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .header h1 { font-size: 1.3rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 3px; }
+  .header p { font-size: 0.85rem; opacity: 0.9; }
+  .btn-back { background: rgba(255,255,255,0.18); color: #fff; border: 1.5px solid rgba(255,255,255,0.6); padding: 8px 16px; border-radius: 7px; font-size: 0.85rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .btn-back:hover { background: rgba(255,255,255,0.3); }
 
-  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 24px; }
+  .content { padding: 28px 30px; }
+  .venue-name-bar { font-size: 0.95rem; font-weight: 700; color: var(--bronze2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid var(--border); }
+  .section-intro { font-size: 0.88rem; color: var(--muted); line-height: 1.55; margin-bottom: 20px; }
 
-  .tab-bar { display: flex; gap: 4px; background: var(--card2); border: 1.5px solid var(--border); border-radius: 10px; padding: 4px; margin-bottom: 18px; }
-  .tab-btn { flex: 1; padding: 10px 8px; border: none; background: none; border-radius: 7px; font-size: 0.82rem; font-weight: 700; color: var(--muted); cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 6px; }
-  .tab-btn.active { background: var(--bronze2); color: #fff; }
-  .tab-pane { display: none; }
-  .tab-pane.active { display: block; }
+  .msg { padding: 12px 16px; border-radius: 8px; margin-bottom: 18px; font-size: 0.9rem; display: none; }
+  .msg.success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
+  .msg.error { background: #ffebee; color: #c62828; border-left: 4px solid #f44336; }
+  .msg.visible { display: block; }
 
-  .stats-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
-  .stat-card { background: var(--card); padding: 8px 16px; border-radius: 20px; border: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-  .stat-val { font-family: 'Consolas', monospace; font-size: 1rem; font-weight: 700; color: var(--bronze3); }
-  .stat-lbl { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+  .days-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; margin-bottom: 20px; }
+  .day-toggle { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px 4px; border: 2px solid var(--border); border-radius: 10px; cursor: pointer; background: var(--card2); transition: all 0.15s; user-select: none; }
+  .day-toggle:hover { border-color: var(--bronze2); }
+  .day-toggle.active { border-color: var(--bronze2); background: var(--bronze2); color: #fff; }
+  .day-name { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+  .day-full { font-size: 0.64rem; opacity: 0.7; margin-top: 2px; }
+  .day-check { font-size: 0.9rem; margin-top: 3px; opacity: 0; }
+  .day-toggle.active .day-check { opacity: 1; }
 
-  .cal-controls { background: var(--card); padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
-  .month-nav { display: flex; align-items: center; gap: 8px; }
-  .month-nav button { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--bronze2); background: var(--card2); color: var(--bronze2); font-size: 0.9rem; cursor: pointer; }
-  .month-nav button:hover { background: var(--bronze2); color: #fff; }
-  .month-lbl { font-size: 0.95rem; font-weight: 700; color: var(--bronze3); min-width: 140px; text-align: center; }
-  .btn-today { background: var(--card2); color: var(--bronze3); border: 1.5px solid var(--bronze2); padding: 5px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; }
-  .btn-today:hover { background: var(--bronze2); color: #fff; }
-  .cal-legend { margin-left: auto; display: flex; gap: 10px; align-items: center; font-size: 0.72rem; color: var(--muted); flex-wrap: wrap; }
-  .leg-box { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 3px; }
+  .no-days-hint { text-align: center; padding: 24px 16px; color: #aaa; font-size: 0.88rem; border: 2px dashed var(--border); border-radius: 10px; margin-bottom: 20px; }
 
-  .cal-wrap { background: var(--card); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); overflow-x: auto; padding: 14px; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; min-width: 760px; }
-  .cal-hdr { padding: 10px; text-align: center; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; background: var(--bronze2); color: #fff; }
-  .cal-day { min-height: 92px; padding: 6px; border: 1px solid #eee; background: var(--card); }
-  .cal-day.other { background: #fafafa; color: #ccc; }
-  .cal-day.today { background: #e3f2fd; border: 2px solid #2196f3; }
-  .day-num { font-weight: 700; font-size: 0.92rem; margin-bottom: 3px; }
-  .bk-chip { color: #fff; padding: 2px 5px; margin: 2px 0; border-radius: 4px; font-size: 0.68rem; font-weight: 600; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
-  .bk-chip.confirmed { background: var(--green); }
-  .bk-chip.pending { background: var(--bronze1); }
-  .bk-chip.cancelled { background: var(--red); text-decoration: line-through; }
+  .day-panel { display: none; border: 1.5px solid var(--border); border-radius: 10px; background: var(--card2); padding: 16px 18px; margin-bottom: 10px; }
+  .day-panel.open { display: block; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .panel-title { font-size: 0.95rem; font-weight: 700; color: var(--bronze2); text-transform: uppercase; letter-spacing: 0.5px; }
+  .slot-count-wrap { display: flex; align-items: center; gap: 8px; }
+  .slot-count-label { font-size: 0.8rem; font-weight: 600; color: var(--muted); white-space: nowrap; }
+  .slot-count-select { padding: 6px 10px; font-size: 0.86rem; border-radius: 6px; border: 1.5px solid var(--border); background: var(--card); font-family: inherit; cursor: pointer; }
 
-  .panel { background: var(--card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); padding: 32px 24px; text-align: center; }
-  .panel .icon { font-size: 2.2rem; margin-bottom: 10px; }
-  .panel h3 { font-size: 1.1rem; color: var(--bronze2); margin-bottom: 8px; }
-  .panel p { font-size: 0.86rem; color: var(--muted); line-height: 1.55; max-width: 480px; margin: 0 auto; }
+  .slots-container { display: flex; flex-direction: column; gap: 8px; }
+  .slot-row { display: grid; grid-template-columns: 26px 1fr 20px 1fr; align-items: center; gap: 8px; }
+  .slot-num { width: 24px; height: 24px; background: var(--bronze2); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+  .slot-row select { padding: 7px 9px; font-size: 0.84rem; font-family: inherit; border-radius: 6px; border: 1.5px solid var(--border); background: var(--card); width: 100%; }
+  .arrow { text-align: center; font-size: 0.8rem; color: #999; font-weight: 700; }
 
-  .btn { padding: 9px 18px; border: none; border-radius: 7px; font-size: 0.85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
-  .btn-primary { background: var(--bronze2); color: #fff; }
-  .btn-primary:hover { background: #8a6014; }
+  .schedule-summary { display: none; margin-top: 18px; padding: 14px 16px; background: #e8f5e9; border-radius: 9px; border-left: 4px solid #7CB342; }
+  .schedule-summary.visible { display: block; }
+  .summary-title { font-size: 0.86rem; font-weight: 700; color: #2e7d32; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .sum-day { font-size: 0.84rem; color: #2e7d32; margin: 4px 0; line-height: 1.5; }
+  .sum-day b { color: #1a5c24; }
 
-  /* Modal */
-  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: var(--card); border-radius: 12px; padding: 24px; max-width: 460px; width: 100%; max-height: 85vh; overflow-y: auto; }
-  .modal-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 2px solid var(--bronze2); }
-  .modal-hdr h3 { font-size: 1.1rem; color: var(--bronze2); }
-  .close-btn { background: none; border: none; font-size: 1.3rem; cursor: pointer; color: #999; }
-  .d-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid #f0ebe0; gap: 12px; font-size: 0.86rem; }
-  .d-lbl { font-weight: 600; color: var(--muted); }
-  .d-val { color: var(--text); text-align: right; }
-  .sbadge { display: inline-block; padding: 2px 9px; border-radius: 9px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-  .s-confirmed { background: #e8f5e9; color: #2e7d32; }
-  .s-pending { background: #fff3e0; color: #e65100; }
-  .s-cancelled { background: #ffebee; color: #c62828; }
+  .action-bar { display: flex; gap: 12px; margin-top: 24px; padding-top: 20px; border-top: 2px solid var(--border); }
+  .btn-save { flex: 1; background: var(--bronze2); color: #fff; border: none; padding: 13px 24px; border-radius: 9px; font-size: 0.95rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; }
+  .btn-save:hover:not(:disabled) { background: #8a6014; }
+  .btn-save:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-clear { background: var(--card2); color: var(--muted); border: 1.5px solid var(--border); padding: 13px 18px; border-radius: 9px; font-size: 0.88rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; cursor: pointer; }
+  .btn-clear:hover { background: var(--card); }
 
-  /* Edit Preferences modal */
-  .ep-modal { max-width: 640px; }
-  .ep-notice { background: rgba(160,112,24,0.08); border-radius: 8px; padding: 10px 14px; font-size: 0.82rem; color: var(--bronze3); margin-bottom: 16px; }
-  .ep-section { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--bronze2); background: rgba(160,112,24,0.08); padding: 5px 10px; border-radius: 6px; margin: 16px 0 10px; }
-  .ep-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .ep-grp { margin-bottom: 12px; }
-  .ep-grp label { display: block; font-weight: 600; color: var(--muted); margin-bottom: 4px; font-size: 0.82rem; }
-  .ep-grp input, .ep-grp select, .ep-grp textarea { width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 0.88rem; font-family: inherit; }
-  .ep-grp textarea { resize: vertical; min-height: 60px; }
-  .tag-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-  .tag-opt { display: none; }
-  .tag-lbl { display: inline-flex; align-items: center; gap: 4px; padding: 4px 11px; border-radius: 16px; border: 1.5px solid var(--border); background: var(--card2); font-size: 0.76rem; font-weight: 600; color: var(--muted); cursor: pointer; }
-  .tag-opt:checked + .tag-lbl { background: var(--bronze2); border-color: var(--bronze2); color: #fff; }
-  .ep-footer { display: flex; gap: 10px; margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border); }
-  .ep-footer button { flex: 1; padding: 11px; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 700; cursor: pointer; font-family: inherit; }
-  .ep-save { background: var(--bronze2); color: #fff; }
-  .ep-save:hover { background: #8a6014; }
-  .ep-save:disabled { opacity: 0.6; cursor: not-allowed; }
-  .ep-cancel { background: var(--bg); color: var(--muted); border: 1.5px solid var(--border) !important; }
-  .ep-errmsg { background: #ffebee; color: var(--red); border-left: 4px solid var(--red); padding: 8px 12px; border-radius: 6px; font-size: 0.84rem; margin-bottom: 12px; display: none; }
-
-  .toast { position: fixed; bottom: 20px; right: 20px; padding: 11px 18px; border-radius: 8px; font-size: 0.87rem; font-weight: 600; z-index: 9999; opacity: 0; transform: translateY(10px); transition: all 0.3s; pointer-events: none; }
-  .toast.show { opacity: 1; transform: translateY(0); }
-  .toast.success { background: #e8f5e9; color: #2e7d32; border-left: 4px solid #4caf50; }
-  .toast.error { background: #ffebee; color: var(--red); border-left: 4px solid #f44336; }
-  .loading-block { text-align: center; padding: 30px; color: #999; }
+  .page-loading { text-align: center; padding: 50px 20px; color: var(--muted); }
 </style>
 </head>
 <body>
-
-<div class="topbar">
-  <div>
-    <h1 id="venueName">Venue Portal</h1>
-    <div class="biz">Gig Matrix</div>
-  </div>
-  <div class="topbar-right">
-    <button onclick="window.location.href='venue-schedule.html'">&#128197; My Schedule</button>
-    <button onclick="openEditPrefs()">&#9998; My Preferences</button>
-    <button onclick="doLogout()">Sign Out</button>
-  </div>
-</div>
-
-<div class="page-wrap">
-
-  <div class="tab-bar">
-    <button class="tab-btn active" id="tab-calendar" onclick="switchTab('calendar')">&#128197; Bookings Calendar</button>
-    <button class="tab-btn" id="tab-gcal" onclick="switchTab('gcal')">&#128279; Google Calendar</button>
-    <button class="tab-btn" id="tab-suggestions" onclick="switchTab('suggestions')">&#10024; Band Suggestions</button>
+<div class="container">
+  <div class="header">
+    <div>
+      <h1>&#127925; Music Schedule</h1>
+      <p>Set your weekly live music schedule</p>
+    </div>
+    <button class="btn-back" onclick="goToCalendar()">&larr; Back to Portal</button>
   </div>
 
-  <!-- TAB 1: BOOKINGS CALENDAR -->
-  <div class="tab-pane active" id="pane-calendar">
-    <div class="stats-row">
-      <div class="stat-card"><div class="stat-val" id="stTotal">0</div><div class="stat-lbl">Total Bookings</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--green)" id="stConfirmed">0</div><div class="stat-lbl">Confirmed</div></div>
-      <div class="stat-card"><div class="stat-val" style="color:var(--bronze1)" id="stPending">0</div><div class="stat-lbl">Pending</div></div>
-      <div class="stat-card"><div class="stat-val" id="stThisMonth">0</div><div class="stat-lbl">This Month</div></div>
-    </div>
+  <div class="content">
+    <div class="page-loading" id="pageLoading">Loading your schedule…</div>
 
-    <div class="cal-controls">
-      <div class="month-nav">
-        <button onclick="prevMonth()">&#8249;</button>
-        <div class="month-lbl" id="calMonthLbl">Loading…</div>
-        <button onclick="nextMonth()">&#8250;</button>
+    <div id="editor" style="display:none;">
+      <div class="venue-name-bar" id="venueNameBar"></div>
+      <p class="section-intro">Select which days your venue books live music. For each active day, choose how many music slots it has, then set the start and end time for each slot. This helps your booking agent (and eventually bands) understand your typical schedule.</p>
+
+      <div class="msg" id="successMsg">&#10003; Schedule saved successfully!</div>
+      <div class="msg" id="errorMsg"></div>
+
+      <div class="days-grid" id="daysGrid"></div>
+
+      <div class="no-days-hint" id="noDaysHint">Click the days above to start building your schedule</div>
+
+      <div id="dayPanels"></div>
+
+      <div class="schedule-summary" id="scheduleSummary">
+        <div class="summary-title">&#128197; Your Schedule</div>
+        <div id="summaryLines"></div>
       </div>
-      <button class="btn-today" onclick="gotoToday()">Today</button>
-      <div class="cal-legend">
-        <span><span class="leg-box" style="background:var(--green);"></span>Confirmed</span>
-        <span><span class="leg-box" style="background:var(--bronze1);"></span>Pending</span>
+
+      <div class="action-bar">
+        <button class="btn-clear" onclick="clearAll()">Clear All</button>
+        <button class="btn-save" id="saveBtn" onclick="saveSchedule()">Save Schedule</button>
       </div>
-    </div>
-
-    <div class="cal-wrap" id="calWrap">
-      <div class="loading-block">Loading…</div>
-    </div>
-  </div>
-
-  <!-- TAB 2: GOOGLE CALENDAR (coming soon) -->
-  <div class="tab-pane" id="pane-gcal">
-    <div class="panel">
-      <div class="icon">&#128279;</div>
-      <h3>Google Calendar — Coming Soon</h3>
-      <p>Connecting your own Google Calendar so it's cross-checked against your bookings isn't built yet. We'll let you know as soon as it's ready — your bookings calendar above is already live and up to date.</p>
-    </div>
-  </div>
-
-  <!-- TAB 3: BAND SUGGESTIONS (coming soon) -->
-  <div class="tab-pane" id="pane-suggestions">
-    <div class="panel">
-      <div class="icon">&#10024;</div>
-      <h3>Band Suggestions — Coming Soon</h3>
-      <p>Automatic band matching isn't built yet, but the two pieces it needs are ready for you to fill in now: set <strong>My Schedule</strong> above with the days/times you book live music, and make sure your preferences below are up to date. Once matching is built, this tab will suggest bands that are free on your scheduled days and match what you set here.</p>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="window.location.href='venue-schedule.html'">&#128197; Set My Schedule</button>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="openEditPrefs()">&#9998; Set My Preferences Now</button>
-    </div>
-  </div>
-
-</div>
-
-<!-- BOOKING DETAIL MODAL -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-hdr">
-      <h3>Booking Details</h3>
-      <button class="close-btn" onclick="closeModal()">&#x2715;</button>
-    </div>
-    <div id="modalBody"></div>
-  </div>
-</div>
-
-<!-- EDIT PREFERENCES MODAL -->
-<div class="modal-overlay" id="epModal" onclick="closeEditIfBg(event)">
-  <div class="modal ep-modal" onclick="event.stopPropagation()">
-    <div class="modal-hdr">
-      <h3>&#9998; Edit My Preferences</h3>
-      <button class="close-btn" onclick="closeEditPrefs()">&#x2715;</button>
-    </div>
-    <div class="ep-notice">&#128274; Only your contact details and band-matching preferences can be edited here. Venue name, address, and capacity are managed by your booking agent.</div>
-    <div class="ep-errmsg" id="epErr"></div>
-
-    <div class="ep-section">&#128222; Contact</div>
-    <div class="ep-row">
-      <div class="ep-grp"><label>Contact Name</label><input type="text" id="ep_contact"></div>
-      <div class="ep-grp"><label>Email</label><input type="email" id="ep_email"></div>
-    </div>
-    <div class="ep-row">
-      <div class="ep-grp"><label>Phone</label><input type="tel" id="ep_phone"></div>
-      <div class="ep-grp"></div>
-    </div>
-
-    <div class="ep-section">&#128181; Pay Rate Budget / Show</div>
-    <div class="ep-row">
-      <div class="ep-grp"><label>Low ($)</label><input type="number" id="ep_budget_low" min="0" step="25"></div>
-      <div class="ep-grp"><label>High ($)</label><input type="number" id="ep_budget_high" min="0" step="25"></div>
-    </div>
-
-    <div class="ep-section">&#127897; Equipment</div>
-    <div class="ep-row">
-      <div class="ep-grp"><label>Has Sound System?</label>
-        <select id="ep_sound">
-          <option value="">-- Select --</option>
-          <option value="Yes">Yes</option>
-          <option value="No">No — band must bring</option>
-        </select>
-      </div>
-      <div class="ep-grp"><label>Has Stage Lighting?</label>
-        <select id="ep_lighting">
-          <option value="">-- Select --</option>
-          <option value="Yes">Yes</option>
-          <option value="No">No — band must bring</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="ep-section">&#127925; Band Matching Preferences</div>
-    <div class="ep-grp">
-      <label>Preferred Genres</label>
-      <div class="tag-grid" id="genreGrid"></div>
-    </div>
-    <div class="ep-grp">
-      <label>Preferred Band Sizes <span style="font-weight:400;">(blank = any)</span></label>
-      <div class="tag-grid" id="sizeGrid">
-        <input class="tag-opt" type="checkbox" id="psz1" value="1" name="psz"><label class="tag-lbl" for="psz1">Solo</label>
-        <input class="tag-opt" type="checkbox" id="psz2" value="2" name="psz"><label class="tag-lbl" for="psz2">Duo</label>
-        <input class="tag-opt" type="checkbox" id="psz3" value="3" name="psz"><label class="tag-lbl" for="psz3">Trio</label>
-        <input class="tag-opt" type="checkbox" id="psz4" value="4" name="psz"><label class="tag-lbl" for="psz4">4-Piece</label>
-        <input class="tag-opt" type="checkbox" id="psz5" value="5" name="psz"><label class="tag-lbl" for="psz5">5-Piece</label>
-        <input class="tag-opt" type="checkbox" id="psz6" value="6+" name="psz"><label class="tag-lbl" for="psz6">6+ Large</label>
-      </div>
-    </div>
-    <div class="ep-row">
-      <div class="ep-grp">
-        <label>Minimum Band Rating</label>
-        <select id="ep_minRating">
-          <option value="">Any Rating</option>
-          <option value="D">D or above</option>
-          <option value="C">C or above</option>
-          <option value="B">B or above</option>
-          <option value="A">A only</option>
-        </select>
-      </div>
-      <div class="ep-grp">
-        <label>Band Travel Preference</label>
-        <select id="ep_travel">
-          <option value="Any">Any</option>
-          <option value="Local Only">Local Only (&lt;50 miles)</option>
-          <option value="Regional">Regional (&lt;200 miles)</option>
-        </select>
-      </div>
-    </div>
-    <div class="ep-grp">
-      <label>Minimum Band Draw</label>
-      <input type="number" id="ep_minDraw" min="0" step="5" placeholder="0 = any">
-    </div>
-    <div class="ep-grp">
-      <label>Additional Preference Notes</label>
-      <textarea id="ep_prefNotes" placeholder="e.g. No heavy metal. Bands must have their own PA."></textarea>
-    </div>
-
-    <div class="ep-footer">
-      <button class="ep-cancel" onclick="closeEditPrefs()">Cancel</button>
-      <button class="ep-save" id="epSaveBtn" onclick="saveEditPrefs()">&#10003; Save Preferences</button>
     </div>
   </div>
 </div>
-
-<div class="toast" id="toast"></div>
 
 <script src="config.js"></script>
 <script>
-var GENRES = ['Rock','Classic Rock','Blues','Jazz','Country','R&B/Soul','Folk','Alternative','Funk','Pop','Cover Band','Tribal Funk','Reggae','Hip-Hop','Metal','Other'];
+var DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+var DAY_FULL = { Mon:'Monday', Tue:'Tuesday', Wed:'Wednesday', Thu:'Thursday', Fri:'Friday', Sat:'Saturday', Sun:'Sunday' };
 
-var now = new Date();
-var calYear = now.getFullYear();
-var calMonth = now.getMonth();
+var TIME_OPTIONS = (function() {
+  var opts = [];
+  function fmt(h, m) {
+    var suffix = h < 12 ? 'AM' : 'PM';
+    var disp = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return disp + ':' + (m === 0 ? '00' : '30') + ' ' + suffix;
+  }
+  for (var h = 9; h < 12; h++) { opts.push(fmt(h,0)); opts.push(fmt(h,30)); }
+  opts.push(fmt(12,0)); opts.push(fmt(12,30));
+  for (var h = 13; h < 24; h++) { opts.push(fmt(h,0)); opts.push(fmt(h,30)); }
+  opts.push(fmt(0,0)); opts.push(fmt(0,30));
+  for (var h = 1; h <= 2; h++) { opts.push(fmt(h,0)); opts.push(fmt(h,30)); }
+  return opts;
+})();
+
+var SLOT_DEFAULTS = [
+  { start:'6:00 PM', end:'9:00 PM' },
+  { start:'9:00 PM', end:'12:00 AM' },
+  { start:'12:00 AM', end:'2:00 AM' },
+  { start:'3:00 PM', end:'6:00 PM' }
+];
+
+var activeDays = {};
 var portalToken = null;
-var venueObj = null;
-var allBookings = [];
 
-function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toast(msg,type){
-  var t=document.getElementById('toast'); t.textContent=msg; t.className='toast '+(type||'success');
-  void t.offsetWidth; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },3500);
-}
+function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-(async function init(){
+// ── BUILD STATIC DAY GRID / PANELS ─────────────────────────────────────────
+(function buildStaticUI() {
+  var gridEl = document.getElementById('daysGrid');
+  var panelsEl = document.getElementById('dayPanels');
+  DAYS.forEach(function(day) {
+    gridEl.insertAdjacentHTML('beforeend',
+      '<div class="day-toggle" data-day="' + day + '" onclick="toggleDay(\'' + day + '\')">' +
+      '<span class="day-name">' + day + '</span><span class="day-full">' + DAY_FULL[day] + '</span>' +
+      '<span class="day-check">&#10003;</span></div>');
+
+    panelsEl.insertAdjacentHTML('beforeend',
+      '<div class="day-panel" id="panel-' + day + '">' +
+      '<div class="panel-header"><span class="panel-title">' + DAY_FULL[day] + '</span>' +
+      '<div class="slot-count-wrap"><span class="slot-count-label">Music slots:</span>' +
+      '<select class="slot-count-select" id="slots-' + day + '" onchange="updateSlots(\'' + day + '\', this.value)">' +
+      '<option>1</option><option>2</option><option>3</option><option>4</option></select></div></div>' +
+      '<div class="slots-container" id="slotRows-' + day + '"></div></div>');
+  });
+})();
+
+// ── BOOT ────────────────────────────────────────────────────────────────────
+(async function init() {
   portalToken = sessionStorage.getItem('gm_portal_token');
   var ownerType = sessionStorage.getItem('gm_portal_type');
   if (!portalToken || ownerType !== 'venue') {
@@ -315,205 +171,197 @@ function toast(msg,type){
     return;
   }
 
-  document.getElementById('genreGrid').innerHTML = GENRES.map(function(g, i){
-    var id = 'pg_' + i;
-    return '<input class="tag-opt" type="checkbox" id="'+id+'" value="'+esc(g)+'" name="pg"><label class="tag-lbl" for="'+id+'">'+esc(g)+'</label>';
-  }).join('');
-
   try {
-    var venueResult = await sb.rpc('get_portal_venue', { p_token: portalToken });
-    if (venueResult.error) throw venueResult.error;
-    var rows = venueResult.data || [];
+    var result = await sb.rpc('get_portal_venue', { p_token: portalToken });
+    if (result.error) throw result.error;
+    var rows = result.data || [];
     if (rows.length === 0) throw new Error('Venue not found');
-    venueObj = rows[0];
-    document.getElementById('venueName').textContent = venueObj.name;
+    var venue = rows[0];
 
-    var bookingsResult = await sb.rpc('get_portal_venue_bookings', { p_token: portalToken });
-    if (bookingsResult.error) throw bookingsResult.error;
-    allBookings = bookingsResult.data || [];
+    document.getElementById('venueNameBar').textContent = venue.name;
 
-    updateStats();
-    renderCal();
+    if (venue.schedule) {
+      try { loadSchedule(venue.schedule); } catch(e) { /* no saved schedule */ }
+    }
+
+    document.getElementById('pageLoading').style.display = 'none';
+    document.getElementById('editor').style.display = 'block';
+    updateHint();
+    updateSummary();
   } catch (err) {
-    sessionStorage.removeItem('gm_portal_token');
-    sessionStorage.removeItem('gm_portal_type');
-    sessionStorage.removeItem('gm_portal_id');
-    sessionStorage.removeItem('gm_portal_name');
     window.location.href = 'login.html';
   }
 })();
 
-function switchTab(t){
-  ['calendar','gcal','suggestions'].forEach(function(x){
-    document.getElementById('tab-'+x).classList.toggle('active', x===t);
-    document.getElementById('pane-'+x).classList.toggle('active', x===t);
+function loadSchedule(schedule) {
+  DAYS.forEach(function(day) {
+    if (!schedule[day] || !schedule[day].length) return;
+    var slots = schedule[day];
+    activeDays[day] = true;
+
+    document.getElementById('slots-' + day).value = Math.min(slots.length, 4);
+    document.querySelector('.day-toggle[data-day="' + day + '"]').classList.add('active');
+    document.getElementById('panel-' + day).classList.add('open');
+    buildSlotRows(day, slots.length, slots);
   });
 }
 
-function updateStats(){
-  document.getElementById('stTotal').textContent = allBookings.length;
-  document.getElementById('stConfirmed').textContent = allBookings.filter(function(b){ return b.status==='Confirmed'; }).length;
-  document.getElementById('stPending').textContent = allBookings.filter(function(b){ return b.status==='Pending'; }).length;
-  document.getElementById('stThisMonth').textContent = allBookings.filter(function(b){
-    var d = new Date(b.booking_date+'T12:00:00');
-    return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
-  }).length;
-}
+function toggleDay(day) {
+  var toggle = document.querySelector('.day-toggle[data-day="' + day + '"]');
+  var panel = document.getElementById('panel-' + day);
 
-var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
-function pad(n){ return n<10?'0'+n:String(n); }
-
-function renderCal(){
-  var first=new Date(calYear,calMonth,1);
-  var dim=new Date(calYear,calMonth+1,0).getDate();
-  var sdow=first.getDay();
-  document.getElementById('calMonthLbl').textContent = MONTHS[calMonth]+' '+calYear;
-
-  var h='<div class="cal-grid">';
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){ h+='<div class="cal-hdr">'+d+'</div>'; });
-
-  var prevDim=new Date(calYear,calMonth,0).getDate();
-  for(var i=sdow-1;i>=0;i--) h+='<div class="cal-day other"><div class="day-num">'+(prevDim-i)+'</div></div>';
-
-  for(var day=1;day<=dim;day++){
-    var ds=calYear+'-'+pad(calMonth+1)+'-'+pad(day);
-    var isTd=day===now.getDate()&&calMonth===now.getMonth()&&calYear===now.getFullYear();
-    h+='<div class="cal-day'+(isTd?' today':'')+'"><div class="day-num">'+day+'</div>';
-    allBookings.filter(function(b){ return b.booking_date===ds; }).forEach(function(b){
-      h+='<div class="bk-chip '+b.status.toLowerCase()+'" onclick="showBooking(\''+b.id+'\')">'+esc((b.band_name||'Unassigned').substring(0,16))+'</div>';
-    });
-    h+='</div>';
+  if (activeDays[day]) {
+    delete activeDays[day];
+    toggle.classList.remove('active');
+    panel.classList.remove('open');
+  } else {
+    activeDays[day] = true;
+    toggle.classList.add('active');
+    panel.classList.add('open');
+    if (!document.getElementById('slotRows-' + day).children.length) {
+      buildSlotRows(day, 1, null);
+    }
   }
-  var rem=42-(sdow+dim);
-  for(var j=1;j<=rem;j++) h+='<div class="cal-day other"><div class="day-num">'+j+'</div></div>';
-  h+='</div>';
-  document.getElementById('calWrap').innerHTML=h;
-}
-function prevMonth(){ if(--calMonth<0){calMonth=11;calYear--;} renderCal(); }
-function nextMonth(){ if(++calMonth>11){calMonth=0;calYear++;} renderCal(); }
-function gotoToday(){ calYear=now.getFullYear(); calMonth=now.getMonth(); renderCal(); }
-
-function cleanTime(t){
-  if(!t) return '';
-  var m=String(t).match(/^(\d{1,2}):(\d{2})/);
-  if(!m) return String(t);
-  var h=parseInt(m[1]), mn=m[2], ap=h>=12?'PM':'AM'; h=h%12||12;
-  return h+':'+mn+' '+ap;
+  updateHint();
+  updateSummary();
 }
 
-function dRow(l,v){ return '<div class="d-row"><span class="d-lbl">'+l+'</span><span class="d-val">'+v+'</span></div>'; }
+function buildSlotRows(day, count, existingSlots) {
+  count = parseInt(count) || 1;
+  var container = document.getElementById('slotRows-' + day);
+  container.innerHTML = '';
 
-function showBooking(id){
-  var b=allBookings.find(function(x){ return x.id===id; }); if(!b) return;
-  var sc='s-'+b.status.toLowerCase();
-  var startFmt=cleanTime(b.start_time), endFmt=cleanTime(b.end_time);
-  var timeStr=(startFmt&&endFmt)?startFmt+' - '+endFmt:(startFmt||endFmt||'N/A');
-  var h=dRow('Band','<strong>'+esc(b.band_name||'Unassigned')+'</strong>')+
-        dRow('Date',new Date(b.booking_date+'T12:00:00').toLocaleDateString())+
-        dRow('Time',timeStr)+
-        dRow('Status','<span class="sbadge '+sc+'">'+esc(b.status)+'</span>')+
-        dRow('Sound/Lights',esc(b.sound_lights||'–'));
-  if(b.pay_amount) h+=dRow('Pay','$'+parseFloat(b.pay_amount).toFixed(2));
-  if(b.notes) h+=dRow('Notes',esc(b.notes));
-  document.getElementById('modalBody').innerHTML=h;
-  document.getElementById('modalOverlay').classList.add('open');
+  for (var i = 0; i < count; i++) {
+    var def = SLOT_DEFAULTS[i] || SLOT_DEFAULTS[0];
+    var savedStart = existingSlots && existingSlots[i] ? existingSlots[i].start : def.start;
+    var savedEnd = existingSlots && existingSlots[i] ? existingSlots[i].end : def.end;
+
+    var row = document.createElement('div');
+    row.className = 'slot-row';
+    var num = document.createElement('div');
+    num.className = 'slot-num';
+    num.textContent = i + 1;
+    var arrow = document.createElement('div');
+    arrow.className = 'arrow';
+    arrow.textContent = '→';
+
+    row.appendChild(num);
+    row.appendChild(makeTimeSelect('start-' + day + '-' + i, savedStart));
+    row.appendChild(arrow);
+    row.appendChild(makeTimeSelect('end-' + day + '-' + i, savedEnd));
+    container.appendChild(row);
+  }
+  updateSummary();
 }
-function closeModal(e){ if(!e||e.target.id==='modalOverlay'||e.currentTarget) document.getElementById('modalOverlay').classList.remove('open'); }
 
-// ── EDIT PREFERENCES ────────────────────────────────────────────────────────
-function openEditPrefs(){
-  if(!venueObj) return;
-  var v=venueObj;
-  document.getElementById('ep_contact').value = v.contact_name || '';
-  document.getElementById('ep_email').value = v.email || '';
-  document.getElementById('ep_phone').value = v.phone || '';
-  document.getElementById('ep_budget_low').value = v.pay_rate_budget_low != null ? v.pay_rate_budget_low : '';
-  document.getElementById('ep_budget_high').value = v.pay_rate_budget_high != null ? v.pay_rate_budget_high : '';
-  document.getElementById('ep_sound').value = v.has_sound_status || '';
-  document.getElementById('ep_lighting').value = v.has_lighting_status || '';
-  document.getElementById('ep_minRating').value = v.min_band_rating || '';
-  document.getElementById('ep_minDraw').value = v.min_band_draw > 0 ? v.min_band_draw : '';
-  document.getElementById('ep_travel').value = v.travel_preference || 'Any';
-  document.getElementById('ep_prefNotes').value = v.pref_notes || '';
+function updateSlots(day, count) {
+  var existing = getSlotsForDay(day);
+  buildSlotRows(day, parseInt(count), existing);
+}
 
-  document.querySelectorAll('[name="pg"]').forEach(function(cb){ cb.checked=false; });
-  (v.preferred_genres_list||[]).forEach(function(g){
-    var el=document.querySelector('[name="pg"][value="'+CSS.escape(g)+'"]'); if(el) el.checked=true;
+function makeTimeSelect(id, selectedVal) {
+  var sel = document.createElement('select');
+  sel.id = id;
+  TIME_OPTIONS.forEach(function(t) {
+    var opt = document.createElement('option');
+    opt.value = t; opt.textContent = t;
+    if (t === selectedVal) opt.selected = true;
+    sel.appendChild(opt);
   });
-  document.querySelectorAll('[name="psz"]').forEach(function(cb){ cb.checked=false; });
-  (v.preferred_band_sizes||[]).forEach(function(s){
-    var el=document.querySelector('[name="psz"][value="'+CSS.escape(s)+'"]'); if(el) el.checked=true;
-  });
-
-  var err=document.getElementById('epErr'); err.style.display='none'; err.textContent='';
-  var btn=document.getElementById('epSaveBtn'); btn.disabled=false; btn.textContent='✓ Save Preferences';
-  document.getElementById('epModal').classList.add('open');
+  sel.addEventListener('change', updateSummary);
+  return sel;
 }
-function closeEditPrefs(){ document.getElementById('epModal').classList.remove('open'); }
-function closeEditIfBg(e){ if(e.target===document.getElementById('epModal')) closeEditPrefs(); }
-function showEpErr(msg){ var el=document.getElementById('epErr'); el.textContent=msg; el.style.display='block'; }
 
-async function saveEditPrefs(){
-  var genres=[]; document.querySelectorAll('[name="pg"]:checked').forEach(function(cb){ genres.push(cb.value); });
-  if(genres.length===0){ showEpErr('Please select at least one preferred genre.'); return; }
-  if(!document.getElementById('ep_budget_low').value){ showEpErr('Please enter a pay rate budget.'); return; }
+function getSlotsForDay(day) {
+  var count = parseInt(document.getElementById('slots-' + day).value) || 1;
+  var slots = [];
+  for (var i = 0; i < count; i++) {
+    var s = document.getElementById('start-' + day + '-' + i);
+    var e = document.getElementById('end-' + day + '-' + i);
+    if (s && e) slots.push({ start: s.value, end: e.value });
+  }
+  return slots;
+}
 
-  var sizes=[]; document.querySelectorAll('[name="psz"]:checked').forEach(function(cb){ sizes.push(cb.value); });
+function buildScheduleObj() {
+  var obj = {};
+  DAYS.forEach(function(d) { if (activeDays[d]) obj[d] = getSlotsForDay(d); });
+  return obj;
+}
 
-  var btn=document.getElementById('epSaveBtn');
-  btn.disabled=true; btn.textContent='Saving…';
+function updateSummary() {
+  var active = DAYS.filter(function(d){ return activeDays[d]; });
+  var summary = document.getElementById('scheduleSummary');
+  var lines = document.getElementById('summaryLines');
 
-  var payload = {
-    contact_name: document.getElementById('ep_contact').value.trim(),
-    email: document.getElementById('ep_email').value.trim(),
-    phone: document.getElementById('ep_phone').value.trim(),
-    pay_rate_budget_low: document.getElementById('ep_budget_low').value || null,
-    pay_rate_budget_high: document.getElementById('ep_budget_high').value || null,
-    has_sound_status: document.getElementById('ep_sound').value,
-    has_lighting_status: document.getElementById('ep_lighting').value,
-    preferred_genres_list: genres,
-    preferred_band_sizes: sizes,
-    min_band_rating: document.getElementById('ep_minRating').value,
-    min_band_draw: document.getElementById('ep_minDraw').value || 0,
-    travel_preference: document.getElementById('ep_travel').value,
-    pref_notes: document.getElementById('ep_prefNotes').value.trim()
-  };
+  if (!active.length) { summary.classList.remove('visible'); return; }
+  summary.classList.add('visible');
+
+  lines.innerHTML = active.map(function(d) {
+    var slots = getSlotsForDay(d);
+    var slotStr = slots.map(function(s, i) {
+      return '<span style="margin-right:6px">Slot ' + (i+1) + ': ' + esc(s.start) + ' – ' + esc(s.end) + '</span>';
+    }).join('·');
+    return '<div class="sum-day"><b>' + DAY_FULL[d] + ':</b>&nbsp; ' + slotStr + '</div>';
+  }).join('');
+}
+
+function updateHint() {
+  var active = DAYS.filter(function(d){ return activeDays[d]; }).length;
+  document.getElementById('noDaysHint').style.display = active > 0 ? 'none' : 'block';
+}
+
+function clearAll() {
+  if (!confirm('Clear your entire schedule?')) return;
+  DAYS.forEach(function(d) {
+    delete activeDays[d];
+    document.querySelector('.day-toggle[data-day="' + d + '"]').classList.remove('active');
+    document.getElementById('panel-' + d).classList.remove('open');
+    document.getElementById('slotRows-' + d).innerHTML = '';
+    document.getElementById('slots-' + d).value = '1';
+  });
+  updateHint();
+  updateSummary();
+}
+
+async function saveSchedule() {
+  var active = DAYS.filter(function(d){ return activeDays[d]; });
+  if (active.length === 0) {
+    showMsg('error', 'Please select at least one day before saving.');
+    return;
+  }
+
+  var btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  hideMsg();
 
   try {
-    var result = await sb.rpc('update_portal_venue_prefs', { p_token: portalToken, p_data: payload });
+    var result = await sb.rpc('set_portal_venue_schedule', { p_token: portalToken, p_schedule: buildScheduleObj() });
     if (result.error) throw result.error;
-
-    venueObj.contact_name = payload.contact_name;
-    venueObj.email = payload.email;
-    venueObj.phone = payload.phone;
-    venueObj.pay_rate_budget_low = payload.pay_rate_budget_low;
-    venueObj.pay_rate_budget_high = payload.pay_rate_budget_high;
-    venueObj.has_sound_status = payload.has_sound_status;
-    venueObj.has_lighting_status = payload.has_lighting_status;
-    venueObj.preferred_genres_list = genres;
-    venueObj.preferred_band_sizes = sizes;
-    venueObj.min_band_rating = payload.min_band_rating;
-    venueObj.min_band_draw = payload.min_band_draw;
-    venueObj.travel_preference = payload.travel_preference;
-    venueObj.pref_notes = payload.pref_notes;
-
-    btn.disabled=false; btn.textContent='✓ Save Preferences';
-    closeEditPrefs();
-    toast('✓ Preferences saved!','success');
-  } catch(err){
-    btn.disabled=false; btn.textContent='✓ Save Preferences';
-    showEpErr('Save failed: '+(err.message||err));
+    showMsg('success', '✓ Schedule saved! Your booking agent can now see your music availability.');
+  } catch(err) {
+    showMsg('error', 'Error: ' + (err.message || err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Schedule';
   }
 }
 
-async function doLogout(){
-  try { await sb.rpc('portal_logout', { p_token: portalToken }); } catch(e) {}
-  sessionStorage.removeItem('gm_portal_token');
-  sessionStorage.removeItem('gm_portal_type');
-  sessionStorage.removeItem('gm_portal_id');
-  sessionStorage.removeItem('gm_portal_name');
-  window.location.href = 'login.html';
+function showMsg(type, text) {
+  hideMsg();
+  var el = document.getElementById(type === 'success' ? 'successMsg' : 'errorMsg');
+  el.textContent = text;
+  el.classList.add('visible');
+  if (type === 'success') setTimeout(function(){ el.classList.remove('visible'); }, 5000);
+  window.scrollTo(0, 0);
 }
+function hideMsg() {
+  document.getElementById('successMsg').classList.remove('visible');
+  document.getElementById('errorMsg').classList.remove('visible');
+}
+
+function goToCalendar() { window.location.href = 'venue-portal.html'; }
 </script>
 </body>
 </html>
