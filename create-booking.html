@@ -221,7 +221,28 @@
 
       await Promise.all([loadVenues(), loadBands()]);
       loadContractTemplate();
+      applyPrefill();
     })();
+
+    // From the dashboard's Open Slots / notifications: ?venue=<id>&date=YYYY-MM-DD&band=<id>&request=<id>
+    var _prefillRequestId = null;
+    function applyPrefill() {
+      var q = new URLSearchParams(window.location.search);
+      var v = q.get('venue'), d = q.get('date'), b = q.get('band');
+      _prefillRequestId = q.get('request');
+      if (v && venues.some(function(x){ return x.id === v; })) {
+        document.getElementById('venue').value = v;
+        updateVenueInfo();
+      }
+      if (b && bands.some(function(x){ return x.id === b; })) {
+        document.getElementById('band').value = b;
+        updateBandInfo();
+      }
+      if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        document.getElementById('bookingDate').value = d;
+        checkAvailability();
+      }
+    }
 
     async function loadVenues() {
       var { data, error } = await sb.from('venues').select('*').order('name');
@@ -457,6 +478,12 @@
         if (insErr) throw insErr;
 
         var bookingId = inserted.id;
+
+        // Arrived from a venue's band request? Mark it handled.
+        if (_prefillRequestId) {
+          await sb.from('venue_requests').update({ status: 'Booked', read_at: new Date().toISOString() }).eq('id', _prefillRequestId);
+        }
+
         var perfDate = '';
         try { perfDate = new Date(bookingRow.booking_date + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' }); } catch(e) { perfDate = bookingRow.booking_date; }
 
@@ -524,6 +551,26 @@
           );
           if (!confResult.success) emailNotes.push('Confirmation email failed: ' + confResult.error);
         }
+
+        // ── Google Calendar: put the gig on the venue's and band's calendars ──
+        // Same as the original app. Silent for any venue/band that hasn't
+        // connected a calendar, and never blocks the booking if it fails.
+        try {
+          var gcalRes = await sb.functions.invoke('gcal-create-event', { body: {
+            venueId: bookingRow.venue_id, bandId: bookingRow.band_id,
+            venueName: selectedVenue.name, bandName: selectedBand.name,
+            date: bookingRow.booking_date,
+            startTime: document.getElementById('startTime').value, endTime: document.getElementById('endTime').value,
+            notes: bookingRow.notes || ''
+          }});
+          var gr = gcalRes && gcalRes.data && gcalRes.data.results;
+          if (gr) {
+            var added = [];
+            if (gr.venue && gr.venue.pushed) added.push('venue');
+            if (gr.band && gr.band.pushed) added.push('band');
+            if (added.length) emailNotes.push('Added to the ' + added.join(' and ') + ' Google Calendar.');
+          }
+        } catch (gcErr) { console.warn('Google Calendar push skipped:', gcErr); }
 
         var msg = '<strong>&#10003; Booking created successfully!</strong>';
         if (emailNotes.length) msg += '<div class="email-status">' + emailNotes.map(esc).join('<br>') + '</div>';
