@@ -1,177 +1,860 @@
-// gcal-create-event
-// Called by an agent's browser session when a booking is created. Pushes a
-// matching event onto the venue's and/or band's connected Google Calendar,
-// if they have one connected. Silently does nothing for an owner with no
-// connection — not every venue/band will have connected their calendar.
-//
-// Expects a normal authenticated call (Supabase JWT verification stays ON
-// for this function) since only a logged-in agent should be able to
-// trigger this, and only for venues/bands in their own business.
-
-import { createClient } from 'jsr:@supabase/supabase-js@2';
-
-const GOOGLE_CLIENT_ID     = Deno.env.get('GOOGLE_CLIENT_ID')!;
-const GOOGLE_CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET')!;
-const SUPABASE_URL         = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_ROLE_KEY     = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const DEFAULT_TIMEZONE     = 'America/Chicago'; // TODO: make this configurable per business later
-
-async function refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; expiresAt: string } | null> {
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      refresh_token: refreshToken,
-      client_id: GOOGLE_CLIENT_ID,
-      client_secret: GOOGLE_CLIENT_SECRET,
-      grant_type: 'refresh_token'
-    })
-  });
-  const data = await res.json();
-  if (!res.ok || !data.access_token) {
-    console.error('Refresh failed', data);
-    return null;
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Dashboard — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
+    --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+    --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
+    --green:#2e7d5c; --green-dark:#2e7d32;
+    --red:#8B2000; --amber:#b45309;
   }
-  const expiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000).toISOString();
-  return { accessToken: data.access_token, expiresAt };
-}
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 72px; }
 
-async function pushEventForOwner(
-  supabase: any,
-  ownerType: string,
-  ownerId: string,
-  eventPayload: any
-): Promise<{ pushed: boolean; reason?: string }> {
-  const connResult = await supabase
-    .from('calendar_connections')
-    .select('*')
-    .eq('owner_type', ownerType)
-    .eq('owner_id', ownerId)
-    .maybeSingle();
+  .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-size: 1.05rem; margin: 0; }
+  .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .topbar-right a { color: #fff; text-decoration: none; font-size: 0.85rem; font-weight: 600; }
+  .topbar-right button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
 
-  if (connResult.error || !connResult.data) {
-    return { pushed: false, reason: 'not_connected' };
+  .page-wrap { max-width: 1280px; margin: 0 auto; padding: 20px 16px 24px; }
+  .page-header { margin-bottom: 18px; }
+  .page-header h1 { font-size: 1.4rem; font-weight: 700; color: var(--bronze2); letter-spacing: -0.5px; margin: 0; }
+  .page-header p { color: var(--muted); font-size: 0.88rem; margin-top: 3px; }
+
+  .quick-nav { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 16px; }
+  .nav-btn { background: var(--card); border: 1.5px solid var(--border); color: var(--bronze2); padding: 8px 4px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.18s; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: inherit; text-align: center; line-height: 1.2; min-height: 58px; justify-content: center; text-decoration: none; }
+  .nav-btn .nav-icon { font-size: 1.2rem; }
+  .nav-btn:hover { background: var(--bronze2); color: white; border-color: var(--bronze2); }
+  .nav-btn.green { border-color: #c8e6c9; color: #1b5e20; }
+  .nav-btn.green:hover { background: var(--green); color: white; border-color: var(--green); }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--card); border-radius: 10px; padding: 10px 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07); border-left: 3px solid transparent; position:relative; overflow:hidden; }
+  .stat-card.blue { border-left-color: var(--bronze2); }
+  .stat-card.green { border-left-color: var(--green); }
+  .stat-card.gold { border-left-color: var(--bronze1); }
+  .stat-card.red { border-left-color: var(--red); }
+  .stat-label { font-size: 0.65rem; font-weight: 600; text-transform:uppercase; letter-spacing:0.6px; color: var(--muted); margin-bottom: 4px; }
+  .stat-value { font-size: 1.25rem; font-weight: 700; color: var(--text); font-family: 'Consolas', monospace; letter-spacing:-0.5px; line-height: 1; }
+  .stat-value.loading-shimmer { background: linear-gradient(90deg,#e2e8f0 25%,#f1f5f9 50%,#e2e8f0 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 6px; color: transparent; min-width: 60px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .stat-sub { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .stat-icon { position: absolute; right: 14px; top: 14px; font-size: 1.4rem; opacity: 0.15; }
+
+  .panel-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .panel, .panel-full { background: var(--card); border-radius: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.04); overflow: hidden; }
+  .panel-full { margin-bottom: 16px; }
+  .panel-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .panel-title { font-size: 0.88rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .panel-badge { background: var(--bg); color: var(--muted); font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 10px; font-family: 'Consolas', monospace; }
+  .booking-item { padding: 12px 18px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+  .booking-item:last-child { border-bottom: none; }
+  .booking-names { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+  .booking-meta { font-size: 0.75rem; color: var(--muted); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 2px; }
+  .booking-date { font-family: 'Consolas', monospace; font-size: 0.78rem; font-weight: 500; color: var(--bronze2); white-space: nowrap; text-align: right; }
+  .booking-pay { font-family: 'Consolas', monospace; font-size: 0.8rem; font-weight: 600; color: var(--green-dark); }
+  .status-badge { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .status-confirmed { background:#e8f5e9;color:#2e7d32; } .status-pending { background:#fff8e1;color:#e65100; }
+  .status-cancelled { background:#ffebee;color:#b71c1c; } .status-tentative { background:#e3f2fd;color:#1565c0; }
+  .open-venue-item { padding: 11px 18px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: start; }
+  .open-venue-item:last-child { border-bottom: none; }
+  .open-dates-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .open-date-chip { background:#e8f5e9;color:#2e7d32;font-size:0.68rem;font-family:'Consolas',monospace;font-weight:500;padding:2px 7px;border-radius:6px; }
+  .venue-city { font-size: 0.73rem; color: var(--muted); }
+  .earnings-row { padding: 10px 18px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; align-items: center; font-size: 0.84rem; }
+  .earnings-row:last-child { border-bottom: none; }
+  .earnings-count { font-family:'Consolas',monospace;font-size:0.75rem;color:var(--muted);text-align:right; }
+  .earnings-amount { font-family:'Consolas',monospace;font-weight:600;color:var(--text);text-align:right;min-width:70px; }
+  .empty-state { padding: 32px 20px; text-align: center; color: var(--muted); }
+  .empty-state .empty-icon { font-size: 2rem; margin-bottom: 8px; opacity: 0.5; }
+  .empty-state p { font-size: 0.84rem; }
+  .refresh-btn { background:none;border:1.5px solid var(--border);color:var(--muted);font-size:0.75rem;font-family:inherit;font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:4px; }
+  .period-tabs { display:flex;gap:3px; }
+  .period-tab { padding:3px 9px;border-radius:6px;font-size:0.72rem;font-weight:600;cursor:pointer;border:none;background:none;color:var(--muted);font-family:inherit; }
+  .period-tab.active { background:var(--bronze2);color:white; }
+  .contact-alert-item { padding: 12px 18px; border-bottom: 1px solid var(--border); }
+  .contact-alert-item:last-child { border-bottom: none; }
+  .contact-alert-name { font-size: 0.87rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .contact-alert-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+  .contact-badge { font-size: 0.7rem; font-weight: 600; padding: 2px 8px; border-radius: 10px; white-space: nowrap; }
+  .contact-badge.red { background: #ffebee; color: #c62828; }
+  .contact-badge.orange { background: #fff3e0; color: #e65100; }
+  .contact-badge.blue { background: #e3f2fd; color: #1565c0; }
+  .contact-badge.green { background: #e8f5e9; color: #2e7d32; }
+
+  .bottom-nav { display:none;position:fixed;bottom:0;left:0;right:0;height:64px;background:var(--bg2);border-top:1px solid var(--border);z-index:150;padding:0 4px;align-items:center;justify-content:space-around;box-shadow:0 -2px 12px rgba(0,0,0,0.08); }
+  .bnav-btn { display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;cursor:pointer;padding:6px 8px;border-radius:8px;font-family:inherit;color:var(--muted);flex:1;min-width:0;text-decoration:none; }
+  .bnav-btn.primary { color:var(--bronze2); }
+  .bnav-btn .bnav-icon { font-size:1.3rem;line-height:1; }
+  .bnav-btn .bnav-label { font-size:0.6rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%; }
+
+  /* Notification bell + drawer */
+  .notif-bell-btn { position:relative; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.25); color:#fff; width:34px; height:34px; border-radius:6px; font-size:0.95rem; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0 !important; }
+  .notif-count { position:absolute; top:-5px; right:-5px; background:#C8960C; color:#fff; font-size:0.62rem; font-weight:800; min-width:16px; height:16px; border-radius:9px; display:none; align-items:center; justify-content:center; padding:0 3px; border:2px solid #A07018; }
+  .notif-backdrop { display:none; position:fixed; inset:0; z-index:199; }
+  .notif-backdrop.open { display:block; }
+  .notif-drawer { position:fixed; top:62px; right:12px; width:min(380px, calc(100vw - 24px)); max-height:calc(100vh - 80px); background:var(--card); border-radius:14px; box-shadow:0 8px 40px rgba(0,0,0,0.18); border:1px solid var(--border); z-index:200; display:flex; flex-direction:column; transform:translateY(-8px) scale(0.98); opacity:0; pointer-events:none; transition:all 0.18s; }
+  .notif-drawer.open { transform:none; opacity:1; pointer-events:all; }
+  .notif-drawer-header { padding:13px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .notif-drawer-title { font-weight:700; font-size:0.92rem; display:flex; align-items:center; gap:7px; }
+  .notif-unread-badge { background:var(--bronze1); color:#fff; font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:10px; }
+  .notif-mark-all { font-size:0.73rem; color:var(--bronze2); background:none; border:none; cursor:pointer; font-weight:600; padding:4px 7px; }
+  .notif-mark-all:disabled { color:#aaa; cursor:default; }
+  .notif-list { overflow-y:auto; flex:1; }
+  .notif-item { display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid #f0ebe0; cursor:pointer; }
+  .notif-item:hover { background:var(--card2); }
+  .notif-item.unread { background:rgba(160,112,24,0.05); border-left:3px solid var(--bronze1); }
+  .notif-icon { font-size:1.2rem; }
+  .notif-body { flex:1; min-width:0; }
+  .notif-text { font-size:0.84rem; line-height:1.4; margin-bottom:3px; }
+  .notif-text strong { color:var(--bronze2); }
+  .notif-meta { font-size:0.7rem; color:#aaa; }
+  .notif-unread-dot { width:7px; height:7px; border-radius:50%; background:var(--bronze1); margin-top:6px; }
+  .notif-empty { text-align:center; padding:40px 20px; color:#aaa; font-size:0.84rem; }
+
+  /* Open slots */
+  .slot-week-label { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); padding:7px 18px 5px; background:var(--bg); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  .slot-week-dot { width:8px; height:8px; border-radius:50%; }
+  .open-slot-item { padding:11px 18px; border-bottom:1px solid var(--border); display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:start; }
+  .open-slot-item:last-child { border-bottom:none; }
+  .band-match-chip { display:inline-flex; align-items:center; gap:5px; background:#f2ede4; color:var(--bronze2); font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:10px; cursor:pointer; border:1px solid rgba(160,112,24,0.2); }
+  .band-match-chip:hover { background:var(--bronze2); color:#fff; }
+  .band-match-chip.roster { background:rgba(200,150,12,0.14); border-color:#A07018; }
+  .slot-book-btn { background:#A07018; color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:0.72rem; font-weight:700; font-family:inherit; cursor:pointer; margin-top:6px; }
+  .slot-book-btn:hover { background:#8a6014; }
+  .video-panel { display:none; margin-top:10px; border-radius:10px; overflow:hidden; background:#000; }
+  .video-panel.open { display:block; }
+  .video-panel-header { display:flex; justify-content:space-between; align-items:center; background:#1a1408; padding:6px 10px; }
+  .video-panel-title { font-size:0.72rem; font-weight:700; color:#f5ead0; }
+  .video-panel-close { background:none; border:none; color:#f5ead0; font-size:1rem; cursor:pointer; opacity:0.7; }
+  .video-panel iframe { width:100%; height:200px; border:none; display:block; }
+  @media (max-width: 600px) { .open-slot-item { grid-template-columns:1fr; gap:6px; } }
+
+  .toast { position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .loading-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+
+  @media (max-width: 900px) {
+    .quick-nav { grid-template-columns: repeat(4, 1fr); }
   }
-
-  let conn = connResult.data;
-  let accessToken = conn.access_token;
-
-  const expiresAt = new Date(conn.token_expiry).getTime();
-  const needsRefresh = expiresAt < Date.now() + 60 * 1000; // refresh if expired or about to expire
-
-  if (needsRefresh) {
-    const refreshed = await refreshAccessToken(conn.refresh_token);
-    if (!refreshed) return { pushed: false, reason: 'refresh_failed' };
-    accessToken = refreshed.accessToken;
-    await supabase.from('calendar_connections').update({
-      access_token: refreshed.accessToken,
-      token_expiry: refreshed.expiresAt,
-      updated_at: new Date().toISOString()
-    }).eq('owner_type', ownerType).eq('owner_id', ownerId);
+  @media (max-width: 640px) {
+    body { padding-bottom: 80px; }
+    .page-wrap { padding: 14px 12px 20px; }
+    .page-header h1 { font-size: 1.2rem; }
+    .quick-nav { display: none; }
+    .bottom-nav { display: flex; }
+    .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+    .stat-card { padding: 8px 12px; }
+    .stat-value { font-size: 1.1rem; }
+    .panel-row { grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+    .booking-item, .alert-item, .open-venue-item, .contact-alert-item { padding: 11px 14px; }
+    .earnings-row { padding: 9px 14px; gap: 8px; }
+    .topbar-right a { display: none; }
   }
+</style>
+</head>
+<body>
 
-  const createRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: 'Bearer ' + accessToken
-    },
-    body: JSON.stringify(eventPayload)
-  });
+  <div class="topbar">
+    <div>
+      <h1>Gig Matrix</h1>
+      <div class="biz" id="bizName"></div>
+    </div>
+    <div class="topbar-right">
+      <a href="bands.html">Bands</a>
+      <a href="venues.html">Venues</a>
+      <a href="venue-map.html">Map</a>
+      <a href="bookings.html">Bookings</a>
+      <a href="contracts.html">Contracts</a>
+      <button class="notif-bell-btn" id="notifBellBtn" onclick="toggleNotifDrawer()" title="Notifications">&#128276;<span class="notif-count" id="notifCount"></span></button>
+      <button onclick="logout()">Sign Out</button>
+    </div>
+  </div>
 
-  if (!createRes.ok) {
-    const errBody = await createRes.text();
-    console.error('Calendar event creation failed', errBody);
-    return { pushed: false, reason: 'google_api_error' };
-  }
+  <div class="page-wrap">
+    <div class="loading-state" id="loadingState"><p>Loading your dashboard&#8230;</p></div>
 
-  return { pushed: true };
-}
+    <div id="dashBody" style="display:none;">
+      <div class="page-header">
+        <h1 id="welcomeText">Dashboard</h1>
+        <p id="dateText"></p>
+      </div>
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+      <div class="quick-nav">
+        <a class="nav-btn green" href="bands.html?add=1"><span class="nav-icon">&#127928;</span>Add Band</a>
+        <a class="nav-btn green" href="venues.html?add=1"><span class="nav-icon">&#127970;</span>Add Venue</a>
+        <a class="nav-btn green" href="create-booking.html"><span class="nav-icon">&#128197;</span>Create Booking</a>
+        <a class="nav-btn" href="bands.html"><span class="nav-icon">&#128203;</span>Band Directory</a>
+        <a class="nav-btn" href="venues.html"><span class="nav-icon">&#127963;</span>Venue Directory</a>
+        <a class="nav-btn" href="venue-map.html"><span class="nav-icon">&#128506;</span>Venue Map</a>
+        <a class="nav-btn" href="bookings.html"><span class="nav-icon">&#128198;</span>All Bookings</a>
+        <a class="nav-btn" href="bookings.html?mine=1"><span class="nav-icon">&#128197;</span>My Bookings</a>
+        <a class="nav-btn" href="contracts.html"><span class="nav-icon">&#128203;</span>Contracts</a>
+      </div>
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405, headers: cors });
-  }
+      <div class="stats-grid">
+        <div class="stat-card blue" style="grid-column:span 2;">
+          <div class="stat-icon">&#128176;</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div class="stat-label">My Commission Earned</div>
+            <div class="period-tabs">
+              <button class="period-tab active" onclick="setCommPeriod('week',this)">Week</button>
+              <button class="period-tab" onclick="setCommPeriod('month',this)">Month</button>
+              <button class="period-tab" onclick="setCommPeriod('year',this)">Year</button>
+            </div>
+          </div>
+          <div class="stat-value loading-shimmer" id="statCommission">$0</div>
+          <div class="stat-sub" id="statCommSub">Loading&#8230;</div>
+        </div>
+        <div class="stat-card green" style="cursor:pointer;" onclick="window.location.href='band-stats.html'">
+          <div class="stat-icon">&#127928;</div>
+          <div class="stat-label">Active Bands Booked</div>
+          <div class="stat-value loading-shimmer" id="statBandsBooked">0</div>
+          <div class="stat-sub">Tap for band stats &#8594;</div>
+        </div>
+        <div class="stat-card gold">
+          <div class="stat-icon">&#127970;</div>
+          <div class="stat-label">Venues Working With</div>
+          <div class="stat-value loading-shimmer" id="statVenuesBooked">0</div>
+          <div class="stat-sub">unique venues booked</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">&#128276;</div>
+          <div class="stat-label">Venues Need Contact</div>
+          <div class="stat-value loading-shimmer" id="statContactAlert">0</div>
+          <div class="stat-sub">silent 30+ days</div>
+        </div>
+      </div>
 
-  const authHeader = req.headers.get('Authorization') || '';
-  const jwt = authHeader.replace('Bearer ', '');
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128197; Upcoming Bookings <span class="panel-badge" id="upcomingCount">&#8211;</span></div>
+            <div class="period-tabs">
+              <button class="period-tab active" onclick="setUpcomingPeriod(30,this)">30d</button>
+              <button class="period-tab" onclick="setUpcomingPeriod(60,this)">60d</button>
+              <button class="period-tab" onclick="setUpcomingPeriod(90,this)">90d</button>
+            </div>
+          </div>
+          <div id="upcomingBookings"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128276; Venues to Contact <span class="panel-badge" id="contactCount">&#8211;</span></div>
+            <button class="refresh-btn" onclick="refreshDashboard()">&#8635; Refresh</button>
+          </div>
+          <div id="contactAlerts"></div>
+        </div>
+      </div>
 
-  const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, {
-    global: { headers: { Authorization: authHeader } }
-  });
-  const userResult = await userClient.auth.getUser(jwt);
-  if (userResult.error || !userResult.data.user) {
-    return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401, headers: { ...cors, 'Content-Type': 'application/json' } });
-  }
+      <div class="panel-row">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128198; Open Weekends at Your Venues <span class="panel-badge" id="openDatesCount">&#8211;</span></div>
+          </div>
+          <div id="openDatesPanel"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">&#128181; Earnings Breakdown</div>
+            <div class="period-tabs">
+              <button class="period-tab active" onclick="setEarningsPeriod('month',this)">Month</button>
+              <button class="period-tab" onclick="setEarningsPeriod('year',this)">Year</button>
+              <button class="period-tab" onclick="setEarningsPeriod('all',this)">All</button>
+            </div>
+          </div>
+          <div id="earningsBreakdown"></div>
+        </div>
+      </div>
 
-  const body = await req.json();
-  const venueId   = body.venueId   || null;
-  const bandId    = body.bandId    || null;
-  const venueName = body.venueName || '';
-  const bandName  = body.bandName  || '';
-  const date      = body.date;       // 'YYYY-MM-DD'
-  const startTime = body.startTime;  // 'HH:MM'
-  const endTime   = body.endTime;    // 'HH:MM'
-  const notes     = body.notes || '';
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#127925; Open Venue Slots &amp; Band Matches <span class="panel-badge" id="openSlotsCount">&#8211;</span></div>
+          <div class="period-tabs">
+            <button class="period-tab active" id="slotTab1" onclick="setSlotWeek(1)">This Week</button>
+            <button class="period-tab" id="slotTab2" onclick="setSlotWeek(2)">Week 2</button>
+            <button class="period-tab" id="slotTab3" onclick="setSlotWeek(3)">Week 3</button>
+            <button class="period-tab" id="slotTabAll" onclick="setSlotWeek(0)">All</button>
+          </div>
+        </div>
+        <div id="openSlotsPanel"><div class="empty-state"><div class="empty-icon">&#8987;</div><p>Loading open slots&#8230;</p></div></div>
+      </div>
 
-  if (!date || !startTime || !endTime || (!venueId && !bandId)) {
-    return new Response(JSON.stringify({ error: 'Missing required booking fields' }), { status: 400, headers: { ...cors, 'Content-Type': 'application/json' } });
-  }
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#128336; Recent Bookings <span class="panel-badge" id="recentCount">&#8211;</span></div>
+        </div>
+        <div id="recentBookings"></div>
+      </div>
+    </div>
+  </div>
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  <div class="bottom-nav">
+    <a class="bnav-btn primary" href="create-booking.html"><span class="bnav-icon">&#128197;</span><span class="bnav-label">Book</span></a>
+    <a class="bnav-btn" href="venue-map.html"><span class="bnav-icon">&#128506;</span><span class="bnav-label">Map</span></a>
+    <a class="bnav-btn" href="bookings.html?mine=1"><span class="bnav-icon">&#128197;</span><span class="bnav-label">My Bookings</span></a>
+    <a class="bnav-btn" href="bookings.html"><span class="bnav-icon">&#128198;</span><span class="bnav-label">Calendar</span></a>
+    <a class="bnav-btn" href="bands.html"><span class="bnav-icon">&#127928;</span><span class="bnav-label">Bands</span></a>
+    <a class="bnav-btn" href="venues.html"><span class="bnav-icon">&#127963;</span><span class="bnav-label">Venues</span></a>
+  </div>
 
-  // Confirm the calling agent's business actually owns this venue/band before touching any calendar
-  const profileResult = await admin.from('profiles').select('business_id').eq('id', userResult.data.user.id).single();
-  if (profileResult.error || !profileResult.data) {
-    return new Response(JSON.stringify({ error: 'Agent profile not found' }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } });
-  }
-  const callerBusinessId = profileResult.data.business_id;
+  <div class="notif-backdrop" id="notifBackdrop" onclick="closeNotifDrawer()"></div>
+  <div class="notif-drawer" id="notifDrawer">
+    <div class="notif-drawer-header">
+      <div class="notif-drawer-title">&#128276; Notifications <span class="notif-unread-badge" id="drawerUnreadBadge" style="display:none;"></span></div>
+      <button class="notif-mark-all" id="markAllBtn" onclick="markAllRead()" disabled>Mark all read</button>
+    </div>
+    <div class="notif-list" id="notifList"><div class="notif-empty">Loading&#8230;</div></div>
+  </div>
 
-  if (venueId) {
-    const v = await admin.from('venues').select('business_id').eq('id', venueId).single();
-    if (v.error || !v.data || v.data.business_id !== callerBusinessId) {
-      return new Response(JSON.stringify({ error: 'Venue not found in your business' }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } });
+  <div class="toast" id="toastMsg"></div>
+
+  <script src="config.js"></script>
+  <script>
+    var currentBusinessId = null;
+    var currentProfileId  = null;
+    var allBookings = [];   // every booking in the business (RLS-scoped)
+    var allVenues   = [];
+    var allBands    = [];
+    var commPeriod  = 'week';
+    var upcomingDays = 30;
+    var earningsPeriod = 'month';
+
+    (async function init() {
+      var { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+
+      var { data: profile, error } = await sb
+        .from('profiles')
+        .select('id, name, business_id, businesses(name)')
+        .single();
+
+      if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
+
+      currentProfileId  = profile.id;
+      currentBusinessId = profile.business_id;
+      document.getElementById('bizName').textContent = profile.businesses.name;
+
+      var now = new Date();
+      document.getElementById('dateText').textContent = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+      var firstName = (profile.name || '').split(' ')[0] || 'there';
+      document.getElementById('welcomeText').textContent = 'Welcome back, ' + firstName + ' \u{1F44B}';
+
+      // Toast if arriving from Add Band / Add Venue
+      var toastParam = new URLSearchParams(window.location.search).get('toast');
+      if (toastParam === 'band_added')  showToast('Band added successfully!');
+      if (toastParam === 'venue_added') showToast('Venue added successfully!');
+
+      await loadDashboardData();
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('dashBody').style.display = 'block';
+    })();
+
+    async function loadDashboardData() {
+      var [bookingsRes, venuesRes, bandsRes] = await Promise.all([
+        sb.from('bookings').select('*, venues(name,city,state), bands(name,commission_pct)').order('booking_date', { ascending: false }),
+        sb.from('venues').select('*'),
+        sb.from('bands').select('id, name, commission_pct')
+      ]);
+      allBookings = bookingsRes.data || [];
+      allVenues   = venuesRes.data   || [];
+      allBands    = bandsRes.data    || [];
+      renderAllPanels();
+      loadOpenSlots();
+      loadNotifications();
     }
-  }
-  if (bandId) {
-    const b = await admin.from('bands').select('business_id').eq('id', bandId).single();
-    if (b.error || !b.data || b.data.business_id !== callerBusinessId) {
-      return new Response(JSON.stringify({ error: 'Band not found in your business' }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } });
+
+    // ── OPEN VENUE SLOTS & BAND MATCHES ────────────────────────────────────────
+    var allOpenSlots = [];
+    var currentSlotWeek = 1;
+
+    async function loadOpenSlots() {
+      var r = await sb.rpc('get_open_slots_all_venues');
+      renderOpenSlots(r.error ? [] : (r.data || []));
     }
-  }
 
-  const startDateTime = date + 'T' + startTime + ':00';
-  const endDateTime   = date + 'T' + endTime   + ':00';
+    function setSlotWeek(week) {
+      currentSlotWeek = week;
+      ['1','2','3','All'].forEach(function(w) {
+        document.getElementById('slotTab' + w).classList.toggle('active', String(week) === (w === 'All' ? '0' : w));
+      });
+      renderOpenSlots(allOpenSlots);
+    }
 
-  const results: Record<string, any> = {};
+    function renderOpenSlots(slots) {
+      allOpenSlots = slots || [];
+      var el = document.getElementById('openSlotsPanel');
+      document.getElementById('openSlotsCount').textContent = allOpenSlots.length;
 
-  if (venueId) {
-    const eventPayload = {
-      summary: 'Gig: ' + bandName,
-      description: 'Booked via Gig Matrix.' + (notes ? '\n\nNotes: ' + notes : ''),
-      start: { dateTime: startDateTime, timeZone: DEFAULT_TIMEZONE },
-      end:   { dateTime: endDateTime,   timeZone: DEFAULT_TIMEZONE }
-    };
-    results.venue = await pushEventForOwner(admin, 'venue', venueId, eventPayload);
-  }
+      var now = new Date(); now.setHours(0,0,0,0);
+      var w1 = new Date(now.getTime() + 7*86400000), w2 = new Date(now.getTime() + 14*86400000), w3 = new Date(now.getTime() + 21*86400000);
+      var filtered = allOpenSlots.filter(function(s) {
+        var d = new Date(s.date + 'T12:00:00');
+        if (currentSlotWeek === 1) return d >= now && d < w1;
+        if (currentSlotWeek === 2) return d >= w1 && d < w2;
+        if (currentSlotWeek === 3) return d >= w2 && d < w3;
+        return true;
+      });
+      if (!filtered.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9989;</div><p>' +
+          (allOpenSlots.length ? 'No open slots for this period.' : 'No open slots. Venues need a weekly music schedule (set from the venue portal) to appear here.') + '</p></div>';
+        return;
+      }
 
-  if (bandId) {
-    const eventPayload = {
-      summary: 'Gig at ' + venueName,
-      description: 'Booked via Gig Matrix.' + (notes ? '\n\nNotes: ' + notes : ''),
-      start: { dateTime: startDateTime, timeZone: DEFAULT_TIMEZONE },
-      end:   { dateTime: endDateTime,   timeZone: DEFAULT_TIMEZONE }
-    };
-    results.band = await pushEventForOwner(admin, 'band', bandId, eventPayload);
-  }
+      var groups = [{label:'This Week',color:'#7CB342',slots:[]},{label:'Week 2',color:'#F9A825',slots:[]},{label:'Week 3',color:'#EF6C00',slots:[]}];
+      filtered.forEach(function(s) {
+        var d = new Date(s.date + 'T12:00:00');
+        if (d >= now && d < w1) groups[0].slots.push(s);
+        else if (d >= w1 && d < w2) groups[1].slots.push(s);
+        else if (d >= w2 && d < w3) groups[2].slots.push(s);
+      });
 
-  return new Response(JSON.stringify({ success: true, results }), {
-    headers: { ...cors, 'Content-Type': 'application/json' }
-  });
-});
+      var parts = [];
+      groups.forEach(function(g) {
+        if (!g.slots.length) return;
+        parts.push('<div class="slot-week-label"><div class="slot-week-dot" style="background:' + g.color + '"></div>' + g.label + ' &mdash; ' + g.slots.length + ' open slot' + (g.slots.length !== 1 ? 's' : '') + '</div>');
+        g.slots.forEach(function(s, si) {
+          var d = new Date(s.date + 'T12:00:00');
+          var dayAbbr = d.toLocaleDateString('en-US', {weekday:'short'});
+          var vid = s.venueId + '_' + s.date.replace(/-/g,'');
+          var row = '<div class="open-slot-item"><div style="text-align:center;min-width:44px;"><div style="font-size:1.1rem;font-weight:800;color:var(--bronze2);font-family:monospace;line-height:1;">' + d.getDate() + '</div>' +
+            '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--muted);">' + dayAbbr + '</div></div><div style="min-width:0;">' +
+            '<div style="font-size:0.88rem;font-weight:700;">' + esc(s.venueName) + '</div>' +
+            '<div style="font-size:0.74rem;color:var(--muted);margin-top:1px;">' + esc(s.venueCity || '') + (s.timeSlot ? ' &middot; ' + esc(s.timeSlot) : '') + '</div>';
+          if (s.bandMatches && s.bandMatches.length) {
+            row += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">';
+            s.bandMatches.forEach(function(b) {
+              var video = '';
+              if (b.promoVideo && /^https?:\/\//i.test(b.promoVideo)) {
+                var yt = getYouTubeEmbedUrl(b.promoVideo);
+                video = yt
+                  ? '<button data-vp="' + vid + '" data-embed="' + esc(yt) + '" onclick="event.stopPropagation();openVideoPanel(this)" title="Watch promo video" style="margin-left:6px;background:#D32F2F;border:none;color:#fff;border-radius:4px;padding:1px 6px;font-size:0.72rem;cursor:pointer;font-weight:700;">&#9654; YouTube</button>'
+                  : '<a href="' + esc(b.promoVideo) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="margin-left:6px;background:#555;color:#fff;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;text-decoration:none;">&#9654; Video</a>';
+              }
+              row += '<span class="band-match-chip' + (b.onRoster ? ' roster' : '') + '" title="' + esc((b.criteria||[]).join(', ')) + '" onclick="bookSlot(\'' + s.venueId + '\',\'' + s.date + '\',\'' + b.bandId + '\')">' +
+                (b.onRoster ? '&#11088; ' : '&#127928; ') + esc(b.bandName) + '<span style="opacity:0.6;font-size:0.65rem;margin-left:2px;">' + b.score + '&#10003;</span>' + video + '</span>';
+            });
+            row += '</div><div class="video-panel" id="vp_' + vid + '"><div class="video-panel-header"><span class="video-panel-title">&#9654; Promo Video</span><button class="video-panel-close" onclick="closeVideoPanel(this)">&#x2715;</button></div><iframe src="" allowfullscreen allow="autoplay"></iframe></div>';
+          } else {
+            row += '<div style="margin-top:5px;font-size:0.72rem;color:var(--dim);font-style:italic;">No bands have submitted availability for this date</div>';
+          }
+          row += '<button class="slot-book-btn" onclick="bookSlot(\'' + s.venueId + '\',\'' + s.date + '\')">+ Create Booking</button></div></div>';
+          parts.push(row);
+        });
+      });
+      el.innerHTML = parts.join('');
+    }
+
+    function bookSlot(venueId, date, bandId) {
+      var q = 'venue=' + encodeURIComponent(venueId) + '&date=' + encodeURIComponent(date);
+      if (bandId) q += '&band=' + encodeURIComponent(bandId);
+      window.location.href = 'create-booking.html?' + q;
+    }
+
+    function getYouTubeEmbedUrl(url) {
+      var m = url.match(/youtu\.be\/([^?&#]+)/) || url.match(/[?&]v=([^&#]+)/) || url.match(/youtube\.com\/embed\/([^?&#]+)/) || url.match(/youtube\.com\/shorts\/([^?&#]+)/);
+      return m ? 'https://www.youtube.com/embed/' + m[1] + '?autoplay=1&rel=0' : '';
+    }
+    function openVideoPanel(btn) {
+      var panel = document.getElementById('vp_' + btn.getAttribute('data-vp'));
+      if (!panel) return;
+      panel.querySelector('iframe').src = btn.getAttribute('data-embed');
+      panel.classList.add('open');
+    }
+    function closeVideoPanel(btn) {
+      var panel = btn.closest('.video-panel');
+      panel.querySelector('iframe').src = '';
+      panel.classList.remove('open');
+    }
+
+    // ── NOTIFICATIONS (venue band requests routed to me) ───────────────────────
+    var notifData = [];
+
+    async function loadNotifications() {
+      // RLS returns broadcast notifications + ones addressed to me
+      var res = await Promise.all([
+        sb.from('notifications').select('id, type, icon, message, subtext, data, created_at')
+          .order('created_at', { ascending: false }).limit(40),
+        sb.from('notification_reads').select('notification_id').eq('agent_id', currentProfileId)
+      ]);
+      var readSet = {};
+      (res[1].data || []).forEach(function(r){ readSet[r.notification_id] = true; });
+      notifData = (res[0].data || []).map(function(n){ n.isRead = !!readSet[n.id]; return n; });
+      renderNotifBell();
+      renderNotifDrawer();
+    }
+
+    function unreadIds() { return notifData.filter(function(n){ return !n.isRead; }).map(function(n){ return n.id; }); }
+
+    function renderNotifBell() {
+      var u = unreadIds().length, badge = document.getElementById('notifCount');
+      if (u > 0) { badge.textContent = u > 9 ? '9+' : String(u); badge.style.display = 'flex'; }
+      else badge.style.display = 'none';
+    }
+
+    function timeAgo(date) {
+      var diff = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+      var days = Math.floor(diff/86400);
+      if (days === 1) return 'yesterday';
+      if (days < 7) return days + 'd ago';
+      return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    }
+
+    function renderNotifDrawer() {
+      var u = unreadIds().length, badge = document.getElementById('drawerUnreadBadge'), mb = document.getElementById('markAllBtn');
+      if (u > 0) { badge.textContent = u + ' new'; badge.style.display = 'inline-block'; mb.disabled = false; }
+      else { badge.style.display = 'none'; mb.disabled = true; }
+      var list = document.getElementById('notifList');
+      if (!notifData.length) { list.innerHTML = '<div class="notif-empty"><div style="font-size:2rem;">&#128277;</div>No notifications yet</div>'; return; }
+      list.innerHTML = notifData.map(function(n, i) {
+        var isBR = n.type === 'band_request';
+        // Bold the venue/band names the way the original did
+        var msg = esc(n.message);
+        var d = n.data || {};
+        [d.venueName, d.bandName].forEach(function(nm){ if (nm) msg = msg.split(esc(nm)).join('<strong>' + esc(nm) + '</strong>'); });
+        return '<div class="notif-item' + (n.isRead ? '' : ' unread') + '"' + (isBR ? ' onclick="handleNotifClick(' + i + ')"' : ' style="cursor:default;"') + '>' +
+          '<div class="notif-icon">' + esc(n.icon || '\u{1F514}') + '</div><div class="notif-body"><div class="notif-text">' + msg + '</div>' +
+          (n.subtext && !isBR ? '<div class="notif-text" style="color:var(--muted);font-size:0.78rem;">' + esc(n.subtext) + '</div>' : '') +
+          (isBR ? '<div class="notif-text" style="color:var(--bronze3);font-size:0.78rem;font-weight:600;">&#128073; Tap to create booking</div>' : '') +
+          '<div class="notif-meta">' + timeAgo(new Date(n.created_at)) + '</div></div>' + (n.isRead ? '' : '<div class="notif-unread-dot"></div>') + '</div>';
+      }).join('');
+    }
+
+    async function markRead(ids) {
+      if (!ids.length) return;
+      var r = await sb.rpc('mark_notifications_read', { p_ids: ids });
+      if (r.error) return;
+      notifData.forEach(function(n) { if (ids.indexOf(n.id) !== -1) n.isRead = true; });
+      renderNotifBell(); renderNotifDrawer();
+    }
+    function markAllRead() { markRead(unreadIds()); }
+
+    function toggleNotifDrawer() {
+      var d = document.getElementById('notifDrawer'), b = document.getElementById('notifBackdrop');
+      if (d.classList.contains('open')) { closeNotifDrawer(); return; }
+      d.classList.add('open'); b.classList.add('open');
+      // Same as the original: mark read shortly after opening
+      setTimeout(function() { if (d.classList.contains('open')) markRead(unreadIds()); }, 1200);
+    }
+    function closeNotifDrawer() {
+      document.getElementById('notifDrawer').classList.remove('open');
+      document.getElementById('notifBackdrop').classList.remove('open');
+    }
+
+    function handleNotifClick(i) {
+      var n = notifData[i]; if (!n || n.type !== 'band_request' || !n.data) return;
+      closeNotifDrawer();
+      window.location.href = 'create-booking.html?venue=' + encodeURIComponent(n.data.venueId) +
+        '&date=' + encodeURIComponent(n.data.date) + '&band=' + encodeURIComponent(n.data.bandId) +
+        '&request=' + encodeURIComponent(n.data.requestId);
+    }
+
+    function refreshDashboard() { loadDashboardData(); }
+
+    function myBookings() {
+      return allBookings.filter(function(b) { return b.created_by === currentProfileId; });
+    }
+
+    function agencyEarnings(b) {
+      var pay = parseFloat(b.pay_amount) || 0;
+      var pct = (b.commission_pct != null && b.commission_pct !== '')
+        ? parseFloat(b.commission_pct)
+        : (b.bands && b.bands.commission_pct != null ? parseFloat(b.bands.commission_pct) : 0);
+      return Math.round(pay * (pct || 0)) / 100;
+    }
+
+    function fmtMoney(n) { return '$' + Math.round(n||0).toLocaleString('en-US'); }
+    function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function renderAllPanels() {
+      var mb = myBookings().filter(function(b) { return (b.status||'').toLowerCase() !== 'cancelled'; });
+      renderStats(mb);
+      renderUpcoming(mb);
+      renderContactAlerts();
+      renderOpenDates(mb);
+      renderEarnings(mb);
+      renderRecent(mb);
+    }
+
+    // ── STATS ──────────────────────────────────────────────────────────────────
+    function setCommPeriod(period, btn) {
+      commPeriod = period;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderStats(myBookings().filter(function(b){ return (b.status||'').toLowerCase() !== 'cancelled'; }));
+    }
+
+    function renderStats(mb) {
+      var now = new Date();
+      var weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay()); weekStart.setHours(0,0,0,0);
+      var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      var yearStart  = new Date(now.getFullYear(), 0, 1);
+
+      var buckets = { week: {c:0,n:0}, month: {c:0,n:0}, year: {c:0,n:0} };
+      var bSet = {}, vSet = {};
+      mb.forEach(function(b) {
+        bSet[b.band_id] = true; vSet[b.venue_id] = true;
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var e = agencyEarnings(b);
+        if (d >= yearStart)  { buckets.year.c  += e; buckets.year.n++;  }
+        if (d >= monthStart) { buckets.month.c += e; buckets.month.n++; }
+        if (d >= weekStart)  { buckets.week.c  += e; buckets.week.n++;  }
+      });
+
+      var el = document.getElementById('statCommission');
+      var sub = document.getElementById('statCommSub');
+      el.classList.remove('loading-shimmer');
+      var b = buckets[commPeriod];
+      el.textContent = fmtMoney(b.c);
+      sub.textContent = b.n + ' booking' + (b.n !== 1 ? 's' : '') + ' this ' + commPeriod;
+
+      ['statBandsBooked','statVenuesBooked','statContactAlert'].forEach(function(id){
+        document.getElementById(id).classList.remove('loading-shimmer');
+      });
+      document.getElementById('statBandsBooked').textContent  = Object.keys(bSet).length;
+      document.getElementById('statVenuesBooked').textContent = Object.keys(vSet).length;
+      document.getElementById('statContactAlert').textContent = computeVenueAlerts().length;
+    }
+
+    // ── UPCOMING BOOKINGS ────────────────────────────────────────────────────────
+    function setUpcomingPeriod(days, btn) {
+      upcomingDays = days;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderUpcoming(myBookings().filter(function(b){ return (b.status||'').toLowerCase() !== 'cancelled'; }));
+    }
+
+    function renderUpcoming(mb) {
+      var now = new Date(); now.setHours(0,0,0,0);
+      var cut = new Date(now.getTime() + upcomingDays * 86400000);
+      var up = mb.filter(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        return d >= now && d <= cut;
+      }).sort(function(a,b){ return new Date(a.booking_date+'T12:00:00') - new Date(b.booking_date+'T12:00:00'); });
+
+      document.getElementById('upcomingCount').textContent = up.length;
+      var el = document.getElementById('upcomingBookings');
+      if (!up.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#127881;</div><p>No upcoming bookings in the next ' + upcomingDays + ' days.</p></div>'; return; }
+
+      var h = '';
+      up.forEach(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var ds = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var dow = d.toLocaleDateString('en-US', {weekday:'short'});
+        var pay = parseFloat(b.pay_amount) || 0;
+        var sc = 'status-' + (b.status||'pending').toLowerCase().replace(/\s+/g,'-');
+        var earn = agencyEarnings(b);
+        var venueName = b.venues ? b.venues.name : '(deleted venue)';
+        var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
+        h += '<div class="booking-item"><div><div class="booking-names">' + esc(venueName) + ' <span style="color:var(--muted);font-weight:400;">with</span> ' + esc(bandName) + '</div>';
+        h += '<div class="booking-meta"><span class="status-badge ' + sc + '">' + esc(b.status||'Pending') + '</span>';
+        if (b.start_time) h += '<span>' + esc(cleanTime(b.start_time)) + (b.end_time ? ' - ' + esc(cleanTime(b.end_time)) : '') + '</span>';
+        h += '</div></div><div style="text-align:right;"><div class="booking-date">' + dow + ' ' + ds + '</div>';
+        if (pay > 0) { h += '<div style="font-size:0.74rem;color:var(--muted);">Band: $' + pay.toLocaleString() + '</div>'; if (earn > 0) h += '<div class="booking-pay">Agency: $' + earn.toLocaleString() + '</div>'; }
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    function cleanTime(t) {
+      if (!t) return '';
+      var m = String(t).match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return String(t);
+      var h = parseInt(m[1]), mn = m[2], ap = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return h + ':' + mn + ' ' + ap;
+    }
+
+    // ── VENUES TO CONTACT ────────────────────────────────────────────────────────
+    function computeVenueAlerts() {
+      var now = new Date();
+      var lastBooked = {};
+      allBookings.forEach(function(b) {
+        if ((b.status||'').toLowerCase() === 'cancelled') return;
+        var d = new Date(b.booking_date + 'T12:00:00');
+        if (!lastBooked[b.venue_id] || d > lastBooked[b.venue_id]) lastBooked[b.venue_id] = d;
+      });
+
+      var alerts = [];
+      allVenues.forEach(function(v) {
+        var lastContact = v.last_contact_date ? new Date(v.last_contact_date) : null;
+        var lastBk = lastBooked[v.id] || null;
+        var lastFlyer = v.last_flyer_sent_date ? new Date(v.last_flyer_sent_date) : null;
+
+        var daysSinceContact = lastContact ? Math.floor((now - lastContact) / 86400000) : null;
+        var daysSinceBooked  = lastBk      ? Math.floor((now - lastBk)      / 86400000) : null;
+        var daysSinceFlyer   = lastFlyer   ? Math.floor((now - lastFlyer)   / 86400000) : null;
+
+        if (daysSinceContact === null || daysSinceContact > 30) {
+          alerts.push({
+            venueName: v.name, city: v.city,
+            daysSinceContact: daysSinceContact, daysSinceBooked: daysSinceBooked, daysSinceFlyer: daysSinceFlyer
+          });
+        }
+      });
+      alerts.sort(function(a,b){
+        var aD = a.daysSinceContact === null ? 9999 : a.daysSinceContact;
+        var bD = b.daysSinceContact === null ? 9999 : b.daysSinceContact;
+        return bD - aD;
+      });
+      return alerts;
+    }
+
+    function renderContactAlerts() {
+      var alerts = computeVenueAlerts();
+      document.getElementById('contactCount').textContent = alerts.length;
+      var el = document.getElementById('contactAlerts');
+      if (!alerts.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9989;</div><p>All venues recently contacted.</p></div>'; return; }
+
+      function daysBadge(days, label, greenOk) {
+        if (days === null || days === undefined) return '<span class="contact-badge orange">Never ' + label + '</span>';
+        if (days > 60) return '<span class="contact-badge red">' + days + 'd since ' + label + '</span>';
+        if (days > 30) return '<span class="contact-badge orange">' + days + 'd since ' + label + '</span>';
+        return greenOk ? '<span class="contact-badge green">' + days + 'd since ' + label + '</span>' : '<span class="contact-badge blue">' + days + 'd since ' + label + '</span>';
+      }
+
+      var h = '';
+      alerts.slice(0, 10).forEach(function(a) {
+        h += '<div class="contact-alert-item">';
+        h += '<div class="contact-alert-name">' + esc(a.venueName) + (a.city ? ' <span style="font-weight:400;color:var(--muted);font-size:0.78rem;">&mdash; ' + esc(a.city) + '</span>' : '') + '</div>';
+        h += '<div class="contact-alert-badges">';
+        h += daysBadge(a.daysSinceContact, 'contact', false);
+        h += daysBadge(a.daysSinceBooked, 'booked', true);
+        h += a.daysSinceFlyer != null ? daysBadge(a.daysSinceFlyer, 'flyer', false) : '<span class="contact-badge orange">No flyer sent</span>';
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    // ── OPEN WEEKENDS AT YOUR VENUES ─────────────────────────────────────────────
+    function renderOpenDates(mb) {
+      var now = new Date(); now.setHours(0,0,0,0);
+      var end = new Date(now.getTime() + 90 * 86400000);
+      var bm = {}, mvi = {};
+      mb.forEach(function(b) { bm[b.venue_id + '|' + b.booking_date] = true; mvi[b.venue_id] = b.venues ? b.venues.name : '(deleted venue)'; });
+
+      var res = [];
+      Object.keys(mvi).forEach(function(vid) {
+        var od = [];
+        var d = new Date(now.getTime() + 7 * 86400000);
+        while (d <= end) {
+          var dow = d.getDay();
+          if (dow === 5 || dow === 6) {
+            var ds = d.toISOString().split('T')[0];
+            if (!bm[vid + '|' + ds]) od.push(d.toLocaleDateString('en-US', {month:'short', day:'numeric'}) + ' (' + 'Su,Mo,Tu,We,Th,Fr,Sa'.split(',')[dow] + ')');
+          }
+          d = new Date(d.getTime() + 86400000);
+        }
+        if (od.length > 0) {
+          var vd = allVenues.find(function(v){ return v.id === vid; });
+          res.push({ name: mvi[vid], openDates: od.slice(0, 6), venue: vd });
+        }
+      });
+
+      document.getElementById('openDatesCount').textContent = res.length;
+      var el = document.getElementById('openDatesPanel');
+      if (!res.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128397;</div><p>No booked venues yet, or all weekends are filled!</p></div>'; return; }
+
+      var h = '';
+      res.slice(0, 8).forEach(function(r) {
+        var city = r.venue ? (r.venue.city || '') + (r.venue.state ? ', ' + r.venue.state : '') : '';
+        h += '<div class="open-venue-item"><div><div style="font-size:0.88rem;font-weight:600;">' + esc(r.name) + '</div>';
+        if (city) h += '<div class="venue-city">' + esc(city) + '</div>';
+        h += '<div class="open-dates-list">';
+        r.openDates.forEach(function(dt) { h += '<span class="open-date-chip">' + dt + '</span>'; });
+        h += '</div></div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    // ── EARNINGS BREAKDOWN ───────────────────────────────────────────────────────
+    function setEarningsPeriod(p, btn) {
+      earningsPeriod = p;
+      btn.parentElement.querySelectorAll('.period-tab').forEach(function(t){t.classList.remove('active');});
+      btn.classList.add('active');
+      renderEarnings(myBookings().filter(function(b){ return (b.status||'').toLowerCase() !== 'cancelled'; }));
+    }
+
+    function renderEarnings(mb) {
+      var now = new Date(), ps;
+      if (earningsPeriod === 'month') ps = new Date(now.getFullYear(), now.getMonth(), 1);
+      else if (earningsPeriod === 'year') ps = new Date(now.getFullYear(), 0, 1);
+      else ps = new Date(2000, 0, 1);
+
+      var fl = mb.filter(function(b) { return new Date(b.booking_date + 'T12:00:00') >= ps; });
+      var el = document.getElementById('earningsBreakdown');
+      if (!fl.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128202;</div><p>No earnings in this period.</p></div>'; return; }
+
+      var bv = {};
+      fl.forEach(function(b) {
+        var e = agencyEarnings(b);
+        var name = b.venues ? b.venues.name : '(deleted venue)';
+        if (!bv[name]) bv[name] = { count: 0, total: 0, bandPay: 0 };
+        bv[name].count++; bv[name].total += e; bv[name].bandPay += parseFloat(b.pay_amount) || 0;
+      });
+      var sorted = Object.keys(bv).map(function(k){ return { name: k, count: bv[k].count, total: bv[k].total, bandPay: bv[k].bandPay }; }).sort(function(a,b){ return b.total - a.total; });
+      var gT = sorted.reduce(function(s,x){ return s + x.total; }, 0);
+      var gB = sorted.reduce(function(s,x){ return s + x.bandPay; }, 0);
+
+      var h = '<div class="earnings-row" style="background:#f8fafc;font-weight:700;font-size:0.8rem;color:var(--muted);"><span>VENUE</span><span style="text-align:right;">SHOWS</span><span style="text-align:right;">BAND PAY</span><span style="text-align:right;">AGENCY EARNS</span></div>';
+      sorted.forEach(function(x) {
+        h += '<div class="earnings-row"><span style="font-size:0.86rem;">' + esc(x.name) + '</span><span class="earnings-count">' + x.count + '</span><span class="earnings-count" style="color:var(--muted);">$' + Math.round(x.bandPay).toLocaleString() + '</span><span class="earnings-amount">$' + Math.round(x.total).toLocaleString() + '</span></div>';
+      });
+      h += '<div class="earnings-row" style="border-top:2px solid var(--border);font-weight:700;"><span>TOTAL</span><span class="earnings-count">' + fl.length + '</span><span class="earnings-count" style="color:var(--muted);">$' + Math.round(gB).toLocaleString() + '</span><span class="earnings-amount" style="color:var(--green-dark);">$' + Math.round(gT).toLocaleString() + '</span></div>';
+
+      var missingComm = fl.filter(function(b){ return !(b.commission_pct > 0) && !(b.bands && b.bands.commission_pct > 0); }).length;
+      if (missingComm > 0) h += '<div style="padding:10px 20px;font-size:0.78rem;color:#b45309;background:#fffbeb;border-top:1px solid #fde68a;">&#9888; ' + missingComm + ' booking' + (missingComm > 1 ? 's have' : ' has') + ' no commission rate set.</div>';
+      document.getElementById('earningsBreakdown').innerHTML = h;
+    }
+
+    // ── RECENT BOOKINGS ──────────────────────────────────────────────────────────
+    function renderRecent(mb) {
+      var sorted = mb.slice().sort(function(a,b){ return new Date(b.booking_date+'T12:00:00') - new Date(a.booking_date+'T12:00:00'); });
+      var recent = sorted.slice(0, 10);
+      document.getElementById('recentCount').textContent = mb.length + ' total';
+      var el = document.getElementById('recentBookings');
+      if (!recent.length) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#128397;</div><p>No bookings yet. Create your first booking!</p></div>'; return; }
+
+      var h = '';
+      recent.forEach(function(b) {
+        var d = new Date(b.booking_date + 'T12:00:00');
+        var ds = d.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var pay = parseFloat(b.pay_amount) || 0;
+        var sc = 'status-' + (b.status||'pending').toLowerCase().replace(/\s+/g,'-');
+        var past = d < new Date();
+        var earn = agencyEarnings(b);
+        var venueName = b.venues ? b.venues.name : '(deleted venue)';
+        var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
+        h += '<div class="booking-item"' + (past ? ' style="opacity:0.7;"' : '') + '>' +
+             '<div><div class="booking-names">' + esc(venueName) + ' <span style="color:var(--muted);font-weight:400;">&#183;</span> ' + esc(bandName) + '</div>' +
+             '<div class="booking-meta"><span class="status-badge ' + sc + '">' + esc(b.status||'Pending') + '</span></div></div>' +
+             '<div style="text-align:right;"><div class="booking-date">' + ds + '</div>';
+        if (pay > 0) { h += '<div style="font-size:0.74rem;color:var(--muted);">Band: $' + pay.toLocaleString() + '</div>'; if (earn > 0) h += '<div class="booking-pay">Agency: $' + earn.toLocaleString() + '</div>'; }
+        h += '</div></div>';
+      });
+      el.innerHTML = h;
+    }
+
+    function showToast(msg) {
+      var t = document.getElementById('toastMsg');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(function(){ t.classList.remove('show'); }, 4000);
+    }
+
+    function logout() {
+      sb.auth.signOut().then(function() { window.location.href = 'login.html'; });
+    }
+  </script>
+</body>
+</html>
