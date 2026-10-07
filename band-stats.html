@@ -79,7 +79,7 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 (async function init(){
   var s = await sb.auth.getSession();
   if (!s.data.session) { window.location.href = 'login.html'; return; }
-  var p = await sb.from('profiles').select('id, business_id, businesses(name)').single();
+  var p = await sb.from('profiles').select('id, business_id, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
   if (p.error || !p.data) { window.location.href = 'login.html'; return; }
   document.getElementById('bizName').textContent = p.data.businesses.name + ' — Band Stats';
 

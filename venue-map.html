@@ -177,8 +177,7 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('business_id, businesses(name)')
-        .single();
+        .select('business_id, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 

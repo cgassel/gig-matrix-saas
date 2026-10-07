@@ -1,1 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Venue Stats — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
+    --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
+    --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
+    --green:#2e7d5c; --red:#8B2000; --amber:#b45309;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+  .topbar { background: #A07018; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; color: #fff; flex-wrap: wrap; gap: 10px; position: sticky; top: 0; z-index: 100; }
+  .topbar h1 { font-size: 1.05rem; margin: 0; } .topbar .biz { font-size: 0.78rem; opacity: 0.85; }
+  .topbar button { background: rgba(0,0,0,0.2); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.82rem; font-family: inherit; }
+  .page-wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; }
+  .page-header h1 { font-size: 1.4rem; font-weight: 700; color: var(--bronze2); margin: 0; }
+  .page-header p { color: var(--muted); font-size: 0.88rem; margin: 3px 0 18px; }
+  .summary-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+  .sum-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-bottom: 3px solid var(--bronze1); }
+  .sum-card.green { border-bottom-color: var(--green); } .sum-card.amber { border-bottom-color: var(--amber); } .sum-card.blue { border-bottom-color: var(--bronze2); }
+  .sum-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; }
+  .sum-value { font-family: 'Consolas', monospace; font-size: 1.6rem; }
+  .controls { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .controls input, .controls select { padding: 10px 13px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 0.9rem; font-family: inherit; background: #fff; }
+  .controls input { flex: 1; min-width: 180px; } .controls select { min-width: 200px; }
+  .venue-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 10px; overflow: hidden; }
+  .venue-card-header { display: grid; grid-template-columns: auto 1fr auto auto auto auto; gap: 14px; align-items: center; padding: 13px 16px; cursor: pointer; }
+  .venue-card-header:hover, .venue-card-header.open { background: var(--card2); }
+  .venue-name { font-weight: 700; } .venue-meta { font-size: 0.73rem; color: var(--muted); margin-top: 2px; }
+  .stat-pill { text-align: center; min-width: 70px; } .stat-pill .val { font-family: 'Consolas', monospace; font-weight: 700; } .stat-pill .lbl { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
+  .expand-icon { color: var(--muted); font-size: 0.7rem; transition: transform 0.2s; } .expand-icon.open { transform: rotate(180deg); }
+  .venue-card-body { border-top: 1px solid var(--border); padding: 12px 18px 14px; background: var(--card2); }
+  .agent-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .agent-row:last-child { border-bottom: none; } .agent-name { font-size: 0.88rem; font-weight: 600; }
+  .agent-stats { display: flex; gap: 22px; } .agent-stat { text-align: right; } .agent-stat .av { font-family: 'Consolas', monospace; font-weight: 700; } .agent-stat .al { font-size: 0.62rem; text-transform: uppercase; color: var(--muted); }
+  .rank-badge { display: inline-block; width: 24px; height: 24px; border-radius: 50%; background: var(--bg2); text-align: center; line-height: 24px; font-size: 0.72rem; font-weight: 700; color: var(--muted); }
+  .rank-badge.g { background: rgba(200,150,12,0.14); color: var(--bronze1); } .rank-badge.s { background: rgba(120,120,120,0.12); color: #707070; } .rank-badge.b { background: rgba(160,112,24,0.12); color: var(--bronze2); }
+  .empty-state { padding: 40px; text-align: center; color: var(--muted); font-size: 0.88rem; }
+  @media (max-width: 640px) { .summary-row { grid-template-columns: 1fr 1fr; } .venue-card-header { grid-template-columns: auto 1fr auto auto; } .venue-card-header .stat-pill:nth-child(4) { display: none; } }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div><h1>Gig Matrix</h1><div class="biz" id="bizName">Venue Stats</div></div>
+  <button id="backBtn" onclick="window.location.href='dashboard.html'">&#8592; Dashboard</button>
+</div>
+<div class="page-wrap">
+  <div class="page-header">
+    <h1>&#127963; Venue Performance</h1>
+    <p>All venues, all agents — bookings, band pay, and agency commission</p>
+  </div>
+  <div class="summary-row">
+    <div class="sum-card"><div class="sum-label">Total Venues</div><div class="sum-value" id="sumVenues">&mdash;</div></div>
+    <div class="sum-card green"><div class="sum-label">Total Bookings</div><div class="sum-value" id="sumBookings">&mdash;</div></div>
+    <div class="sum-card blue"><div class="sum-label">Total Band Pay</div><div class="sum-value" id="sumPay">&mdash;</div></div>
+    <div class="sum-card amber"><div class="sum-label">Total Agency Commission</div><div class="sum-value" id="sumComm">&mdash;</div></div>
+  </div>
+  <div class="controls">
+    <input type="text" id="searchBox" placeholder="Search venues…" oninput="applyFilter()">
+    <select id="sortSelect" onchange="applyFilter()">
+      <option value="bookings">Sort: Most Booked</option>
+      <option value="pay">Sort: Highest Band Pay</option>
+      <option value="commission">Sort: Highest Commission</option>
+      <option value="name">Sort: Name A–Z</option>
+    </select>
+  </div>
+  <div id="cardsWrap"><div class="empty-state">Loading…</div></div>
+</div>
 
+<script src="config.js"></script>
+<script>
+var allStats = [], filtered = [];
+function fmt(n){ return '$' + Math.round(n||0).toLocaleString('en-US'); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+(async function init(){
+  var s = await sb.auth.getSession();
+  if (!s.data.session) { window.location.href = 'login.html'; return; }
+  var p = await sb.from('profiles').select('id, role, business_id, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
+  if (p.error || !p.data) { window.location.href = 'login.html'; return; }
+  document.getElementById('bizName').textContent = p.data.businesses.name + ' — Venue Stats';
+  // The original linked back to the Admin Dashboard
+  if (p.data.role === 'admin' || p.data.role === 'owner') {
+    document.getElementById('backBtn').onclick = function(){ window.location.href = 'admin-dashboard.html'; };
+  }
+
+  var r = await sb.from('bookings')
+    .select('venue_id, booking_date, pay_amount, commission_pct, status, created_by, venues(name), bands(commission_pct), profiles:created_by(name)')
+    .neq('status', 'Cancelled');
+  if (r.error) { document.getElementById('cardsWrap').innerHTML = '<div class="empty-state">Error: ' + esc(r.error.message) + '</div>'; return; }
+
+  var venues = {};
+  (r.data || []).forEach(function(b){
+    var pay = parseFloat(b.pay_amount) || 0;
+    var pct = parseFloat(b.commission_pct) || 0;
+    if (!pct && b.bands) pct = parseFloat(b.bands.commission_pct) || 0;
+    var comm = pay * pct / 100;
+    var v = venues[b.venue_id] || (venues[b.venue_id] = { venueName: b.venues ? b.venues.name : '(deleted venue)', bookingCount: 0, totalBandPay: 0, totalCommission: 0, agents: {}, lastBooked: null });
+    v.bookingCount++; v.totalBandPay += pay; v.totalCommission += comm;
+    var aid = b.created_by || 'unknown';
+    var a = v.agents[aid] || (v.agents[aid] = { agentName: b.profiles ? b.profiles.name : 'Unknown agent', bookings: 0, commission: 0 });
+    a.bookings++; a.commission += comm;
+    if (!v.lastBooked || b.booking_date > v.lastBooked) v.lastBooked = b.booking_date;
+  });
+  allStats = Object.keys(venues).map(function(k){
+    var v = venues[k];
+    v.agentBreakdown = Object.keys(v.agents).map(function(x){ return v.agents[x]; }).sort(function(a, b){ return b.commission - a.commission; });
+    return v;
+  });
+  renderSummary();
+  applyFilter();
+})();
+
+function renderSummary(){
+  var b = 0, p = 0, c = 0;
+  allStats.forEach(function(v){ b += v.bookingCount; p += v.totalBandPay; c += v.totalCommission; });
+  document.getElementById('sumVenues').textContent = allStats.length;
+  document.getElementById('sumBookings').textContent = b;
+  document.getElementById('sumPay').textContent = fmt(p);
+  document.getElementById('sumComm').textContent = fmt(c);
+}
+
+function applyFilter(){
+  var q = document.getElementById('searchBox').value.toLowerCase(), by = document.getElementById('sortSelect').value;
+  filtered = allStats.filter(function(v){ return !q || v.venueName.toLowerCase().indexOf(q) !== -1; });
+  filtered.sort(function(a, b){
+    if (by === 'bookings') return b.bookingCount - a.bookingCount;
+    if (by === 'pay') return b.totalBandPay - a.totalBandPay;
+    if (by === 'commission') return b.totalCommission - a.totalCommission;
+    return a.venueName.localeCompare(b.venueName);
+  });
+  renderCards();
+}
+
+function renderCards(){
+  var wrap = document.getElementById('cardsWrap');
+  if (!filtered.length) { wrap.innerHTML = '<div class="empty-state">No venue booking data found.</div>'; return; }
+  wrap.innerHTML = filtered.map(function(v, i){
+    var rc = i===0?'g':i===1?'s':i===2?'b':'';
+    var h = '<div class="venue-card"><div class="venue-card-header" id="vch-'+i+'" onclick="toggleCard('+i+')">' +
+      '<span class="rank-badge '+rc+'">'+(i+1)+'</span><div><div class="venue-name">'+esc(v.venueName)+'</div>' +
+      (v.lastBooked ? '<div class="venue-meta">Last booked: '+esc(v.lastBooked)+'</div>' : '') + '</div>' +
+      '<div class="stat-pill"><div class="val">'+v.bookingCount+'</div><div class="lbl">bookings</div></div>' +
+      '<div class="stat-pill"><div class="val" style="color:var(--bronze2);">'+fmt(v.totalBandPay)+'</div><div class="lbl">band pay</div></div>' +
+      '<div class="stat-pill"><div class="val" style="color:var(--green);">'+fmt(v.totalCommission)+'</div><div class="lbl">commission</div></div>' +
+      '<span class="expand-icon" id="ei-'+i+'">&#9660;</span></div>' +
+      '<div class="venue-card-body" id="vcb-'+i+'" style="display:none;"><div style="font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);margin-bottom:6px;">Agent Breakdown</div>';
+    h += v.agentBreakdown.map(function(a){
+      return '<div class="agent-row"><div class="agent-name">&#128100; '+esc(a.agentName)+'</div><div class="agent-stats">' +
+        '<div class="agent-stat"><div class="av">'+a.bookings+'</div><div class="al">bookings</div></div>' +
+        '<div class="agent-stat"><div class="av" style="color:var(--green);">'+fmt(a.commission)+'</div><div class="al">commission</div></div></div></div>';
+    }).join('');
+    return h + '</div></div>';
+  }).join('');
+}
+
+function toggleCard(i){
+  var body = document.getElementById('vcb-'+i), open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : 'block';
+  document.getElementById('vch-'+i).classList.toggle('open', !open);
+  document.getElementById('ei-'+i).classList.toggle('open', !open);
+}
+</script>
+</body>
+</html>
