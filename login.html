@@ -96,7 +96,15 @@
         var authResult = await sb.auth.signInWithPassword({ email: email, password: password });
         if (authResult.error) throw authResult.error;
 
-        var profileResult = await sb.from('profiles').select('id, role').maybeSingle();
+        var profileResult = await sb.from('profiles').select('id, role').eq('id', authResult.data.user.id).maybeSingle();
+
+        if (profileResult.error) {
+          await sb.auth.signOut();
+          showLoginError('Could not read your account: ' + profileResult.error.message);
+          btn.disabled = false;
+          btn.textContent = 'Log In';
+          return;
+        }
 
         if (!profileResult.data) {
           // Authenticated but no profile — this account was never set up by
