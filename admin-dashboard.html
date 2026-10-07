@@ -174,6 +174,13 @@
         </div>
       </div>
 
+      <div class="panel-full" id="approvalsPanel" style="display:none;border-left:4px solid #C8960C;">
+        <div class="panel-header">
+          <div class="panel-title">&#128221; Band Approvals <span class="panel-badge" id="approvalsCount">0</span></div>
+        </div>
+        <div id="approvalsList" style="padding:6px 20px 14px;"></div>
+      </div>
+
       <div class="stats-grid">
         <div class="stat-card navy">
           <div class="stat-icon">&#128176;</div>
@@ -341,6 +348,7 @@
       document.getElementById('dateText').textContent = 'Agency overview — ' + new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
       loadNotifications();
+      loadApprovals();
       await loadAll();
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashBody').style.display = 'block';
@@ -404,14 +412,16 @@
       if (!notifData.length) { list.innerHTML = '<div class="notif-empty"><div style="font-size:2rem;">&#128277;</div>No notifications yet</div>'; return; }
       list.innerHTML = notifData.map(function(n, i) {
         var isBR = n.type === 'band_request';
+        var isBA = n.type === 'band_approval';
         // Bold the venue/band names the way the original did
         var msg = esc(n.message);
         var d = n.data || {};
         [d.venueName, d.bandName].forEach(function(nm){ if (nm) msg = msg.split(esc(nm)).join('<strong>' + esc(nm) + '</strong>'); });
-        return '<div class="notif-item' + (n.isRead ? '' : ' unread') + '"' + (isBR ? ' onclick="handleNotifClick(' + i + ')"' : ' style="cursor:default;"') + '>' +
+        return '<div class="notif-item' + (n.isRead ? '' : ' unread') + '"' + ((isBR || isBA) ? ' onclick="handleNotifClick(' + i + ')"' : ' style="cursor:default;"') + '>' +
           '<div class="notif-icon">' + esc(n.icon || '\u{1F514}') + '</div><div class="notif-body"><div class="notif-text">' + msg + '</div>' +
           (n.subtext && !isBR ? '<div class="notif-text" style="color:var(--muted);font-size:0.78rem;">' + esc(n.subtext) + '</div>' : '') +
           (isBR ? '<div class="notif-text" style="color:var(--bronze3);font-size:0.78rem;font-weight:600;">&#128073; Tap to create booking</div>' : '') +
+          (isBA ? '<div class="notif-text" style="color:var(--bronze3);font-size:0.78rem;font-weight:600;">&#128073; Tap to review</div>' : '') +
           '<div class="notif-meta">' + timeAgo(new Date(n.created_at)) + '</div></div>' + (n.isRead ? '' : '<div class="notif-unread-dot"></div>') + '</div>';
       }).join('');
     }
@@ -438,14 +448,48 @@
     }
 
     function handleNotifClick(i) {
-      var n = notifData[i]; if (!n || n.type !== 'band_request' || !n.data) return;
+      var n = notifData[i];
+      if (n && n.type === 'band_approval') { closeNotifDrawer(); var ap = document.getElementById('approvalsPanel'); if (ap) { loadApprovals(); ap.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
+      if (!n || n.type !== 'band_request' || !n.data) return;
       closeNotifDrawer();
       window.location.href = 'create-booking.html?venue=' + encodeURIComponent(n.data.venueId) +
         '&date=' + encodeURIComponent(n.data.date) + '&band=' + encodeURIComponent(n.data.bandId) +
         '&request=' + encodeURIComponent(n.data.requestId);
     }
 
-    function refreshAll() { loadAll(); loadNotifications(); }
+
+    // ── BAND APPROVALS (agent-created bands + portal login requests) ───────────
+    async function loadApprovals() {
+      var r = await sb.rpc('list_band_approvals', { p_status: 'Pending' });
+      var rows = r.data || [];
+      document.getElementById('approvalsPanel').style.display = rows.length ? 'block' : 'none';
+      document.getElementById('approvalsCount').textContent = rows.length;
+      document.getElementById('approvalsList').innerHTML = rows.map(function(x) {
+        var what = x.kind === 'setup'
+          ? '<strong>' + esc(x.requestedByName || 'An agent') + '</strong> added the band <strong>' + esc(x.bandName) + '</strong>' +
+            '<div style="color:var(--muted);font-size:0.82rem;margin-top:3px;">Agents: ' + esc(x.agentNames || '—') +
+            (x.username ? ' &middot; Portal login requested: <strong>' + esc(x.username) + '</strong>' : '') + '</div>'
+          : '<strong>' + esc(x.requestedByName || 'An agent') + '</strong> requested a portal login for <strong>' + esc(x.bandName) + '</strong>' +
+            '<div style="color:var(--muted);font-size:0.82rem;margin-top:3px;">Username: <strong>' + esc(x.username) + '</strong></div>';
+        return '<div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid #f0ebe0;">' +
+          '<div style="font-size:0.88rem;min-width:240px;flex:1;">' + what + '</div>' +
+          '<div style="display:flex;gap:8px;">' +
+            '<button onclick="reviewApproval(\'' + x.id + '\', true)" style="background:#2e7d32;color:#fff;border:none;padding:8px 14px;border-radius:7px;font-weight:700;cursor:pointer;">Approve</button>' +
+            '<button onclick="reviewApproval(\'' + x.id + '\', false)" style="background:#fff;color:#8B2000;border:1.5px solid #8B2000;padding:8px 14px;border-radius:7px;font-weight:700;cursor:pointer;">Reject</button>' +
+          '</div></div>';
+      }).join('');
+    }
+
+    async function reviewApproval(id, approve) {
+      var note = null;
+      if (!approve) { note = window.prompt('Reason for rejecting (optional — the agent will see it):', ''); if (note === null) return; }
+      var r = await sb.rpc('review_band_approval', { p_id: id, p_approve: approve, p_note: note });
+      if (r.error) { showToast(r.error.message, 'error'); return; }
+      showToast(approve ? 'Approved' : 'Rejected');
+      loadApprovals();
+    }
+
+    function refreshAll() { loadAll(); loadNotifications(); loadApprovals(); }
 
     function agencyEarnings(b) {
       var pay = parseFloat(b.pay_amount) || 0;
