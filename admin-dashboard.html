@@ -109,6 +109,29 @@
   .btn-cancel { background: var(--bg); color: #555; }
   .field-hint { font-size: 0.72rem; color: #999; margin-top: 4px; font-style: italic; }
 
+  /* Notification bell + drawer */
+  .notif-bell-btn { position:relative; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.25); color:#fff; width:34px; height:34px; border-radius:6px; font-size:0.95rem; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0 !important; }
+  .notif-count { position:absolute; top:-5px; right:-5px; background:#C8960C; color:#fff; font-size:0.62rem; font-weight:800; min-width:16px; height:16px; border-radius:9px; display:none; align-items:center; justify-content:center; padding:0 3px; border:2px solid #A07018; }
+  .notif-backdrop { display:none; position:fixed; inset:0; z-index:199; }
+  .notif-backdrop.open { display:block; }
+  .notif-drawer { position:fixed; top:62px; right:12px; width:min(380px, calc(100vw - 24px)); max-height:calc(100vh - 80px); background:var(--card); border-radius:14px; box-shadow:0 8px 40px rgba(0,0,0,0.18); border:1px solid var(--border); z-index:200; display:flex; flex-direction:column; transform:translateY(-8px) scale(0.98); opacity:0; pointer-events:none; transition:all 0.18s; }
+  .notif-drawer.open { transform:none; opacity:1; pointer-events:all; }
+  .notif-drawer-header { padding:13px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .notif-drawer-title { font-weight:700; font-size:0.92rem; display:flex; align-items:center; gap:7px; }
+  .notif-unread-badge { background:var(--bronze1); color:#fff; font-size:0.65rem; font-weight:800; padding:2px 6px; border-radius:10px; }
+  .notif-mark-all { font-size:0.73rem; color:var(--bronze2); background:none; border:none; cursor:pointer; font-weight:600; padding:4px 7px; }
+  .notif-mark-all:disabled { color:#aaa; cursor:default; }
+  .notif-list { overflow-y:auto; flex:1; }
+  .notif-item { display:flex; gap:10px; padding:12px 14px; border-bottom:1px solid #f0ebe0; cursor:pointer; }
+  .notif-item:hover { background:var(--card2); }
+  .notif-item.unread { background:rgba(160,112,24,0.05); border-left:3px solid var(--bronze1); }
+  .notif-icon { font-size:1.2rem; }
+  .notif-body { flex:1; min-width:0; }
+  .notif-text { font-size:0.84rem; line-height:1.4; margin-bottom:3px; }
+  .notif-text strong { color:var(--bronze2); }
+  .notif-meta { font-size:0.7rem; color:#aaa; }
+  .notif-unread-dot { width:7px; height:7px; border-radius:50%; background:var(--bronze1); margin-top:6px; }
+  .notif-empty { text-align:center; padding:40px 20px; color:#aaa; font-size:0.84rem; }
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(40px); background: #2e7d32; color: #fff; padding: 11px 22px; border-radius: 24px; font-size: 0.88rem; font-weight: 600; opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap; }
   .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
   .toast.error { background: #8B2000; }
@@ -134,6 +157,7 @@
       <a href="bookings.html">Bookings</a>
       <a href="contracts.html">Contracts</a>
       <a href="venue-stats.html">Venue Stats</a>
+      <button class="notif-bell-btn" id="notifBellBtn" onclick="toggleNotifDrawer()" title="Notifications">&#128276;<span class="notif-count" id="notifCount"></span></button>
       <button class="refresh-btn" style="color:#fff;border-color:rgba(255,255,255,0.4);" onclick="refreshAll()">&#8635; Refresh</button>
       <button onclick="logout()">Sign Out</button>
     </div>
@@ -276,11 +300,21 @@
     </div>
   </div>
 
+  <div class="notif-backdrop" id="notifBackdrop" onclick="closeNotifDrawer()"></div>
+  <div class="notif-drawer" id="notifDrawer">
+    <div class="notif-drawer-header">
+      <div class="notif-drawer-title">&#128276; Notifications <span class="notif-unread-badge" id="drawerUnreadBadge" style="display:none;"></span></div>
+      <button class="notif-mark-all" id="markAllBtn" onclick="markAllRead()" disabled>Mark all read</button>
+    </div>
+    <div class="notif-list" id="notifList"><div class="notif-empty">Loading&#8230;</div></div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
   <script>
     var currentBusinessId = null;
+    var currentProfileId = null;
     var allBookings = [];
     var allVenues   = [];
     var allProfiles = [];   // every team member in the business
@@ -295,16 +329,18 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('role, name, business_id, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
+        .select('id, role, name, business_id, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       if (profile.role !== 'admin' && profile.role !== 'owner') { window.location.href = 'dashboard.html'; return; }
 
       currentBusinessId = profile.business_id;
+      currentProfileId  = profile.id;
       document.getElementById('bizName').textContent = profile.businesses.name;
       document.getElementById('dateText').textContent = 'Agency overview — ' + new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
+      loadNotifications();
       await loadAll();
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashBody').style.display = 'block';
@@ -324,7 +360,92 @@
       renderAll();
     }
 
-    function refreshAll() { loadAll(); }
+    // ── NOTIFICATIONS (venue band requests routed to me) ───────────────────────
+    var notifData = [];
+
+    async function loadNotifications() {
+      // RLS returns broadcast notifications + ones addressed to me
+      var res = await Promise.all([
+        sb.from('notifications').select('id, type, icon, message, subtext, data, created_at')
+          .order('created_at', { ascending: false }).limit(40),
+        sb.from('notification_reads').select('notification_id').eq('agent_id', currentProfileId)
+      ]);
+      var readSet = {};
+      (res[1].data || []).forEach(function(r){ readSet[r.notification_id] = true; });
+      notifData = (res[0].data || []).map(function(n){ n.isRead = !!readSet[n.id]; return n; });
+      renderNotifBell();
+      renderNotifDrawer();
+    }
+
+    function unreadIds() { return notifData.filter(function(n){ return !n.isRead; }).map(function(n){ return n.id; }); }
+
+    function renderNotifBell() {
+      var u = unreadIds().length, badge = document.getElementById('notifCount');
+      if (u > 0) { badge.textContent = u > 9 ? '9+' : String(u); badge.style.display = 'flex'; }
+      else badge.style.display = 'none';
+    }
+
+    function timeAgo(date) {
+      var diff = Math.floor((Date.now() - date.getTime()) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff/60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff/3600) + 'h ago';
+      var days = Math.floor(diff/86400);
+      if (days === 1) return 'yesterday';
+      if (days < 7) return days + 'd ago';
+      return date.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+    }
+
+    function renderNotifDrawer() {
+      var u = unreadIds().length, badge = document.getElementById('drawerUnreadBadge'), mb = document.getElementById('markAllBtn');
+      if (u > 0) { badge.textContent = u + ' new'; badge.style.display = 'inline-block'; mb.disabled = false; }
+      else { badge.style.display = 'none'; mb.disabled = true; }
+      var list = document.getElementById('notifList');
+      if (!notifData.length) { list.innerHTML = '<div class="notif-empty"><div style="font-size:2rem;">&#128277;</div>No notifications yet</div>'; return; }
+      list.innerHTML = notifData.map(function(n, i) {
+        var isBR = n.type === 'band_request';
+        // Bold the venue/band names the way the original did
+        var msg = esc(n.message);
+        var d = n.data || {};
+        [d.venueName, d.bandName].forEach(function(nm){ if (nm) msg = msg.split(esc(nm)).join('<strong>' + esc(nm) + '</strong>'); });
+        return '<div class="notif-item' + (n.isRead ? '' : ' unread') + '"' + (isBR ? ' onclick="handleNotifClick(' + i + ')"' : ' style="cursor:default;"') + '>' +
+          '<div class="notif-icon">' + esc(n.icon || '\u{1F514}') + '</div><div class="notif-body"><div class="notif-text">' + msg + '</div>' +
+          (n.subtext && !isBR ? '<div class="notif-text" style="color:var(--muted);font-size:0.78rem;">' + esc(n.subtext) + '</div>' : '') +
+          (isBR ? '<div class="notif-text" style="color:var(--bronze3);font-size:0.78rem;font-weight:600;">&#128073; Tap to create booking</div>' : '') +
+          '<div class="notif-meta">' + timeAgo(new Date(n.created_at)) + '</div></div>' + (n.isRead ? '' : '<div class="notif-unread-dot"></div>') + '</div>';
+      }).join('');
+    }
+
+    async function markRead(ids) {
+      if (!ids.length) return;
+      var r = await sb.rpc('mark_notifications_read', { p_ids: ids });
+      if (r.error) return;
+      notifData.forEach(function(n) { if (ids.indexOf(n.id) !== -1) n.isRead = true; });
+      renderNotifBell(); renderNotifDrawer();
+    }
+    function markAllRead() { markRead(unreadIds()); }
+
+    function toggleNotifDrawer() {
+      var d = document.getElementById('notifDrawer'), b = document.getElementById('notifBackdrop');
+      if (d.classList.contains('open')) { closeNotifDrawer(); return; }
+      d.classList.add('open'); b.classList.add('open');
+      // Same as the original: mark read shortly after opening
+      setTimeout(function() { if (d.classList.contains('open')) markRead(unreadIds()); }, 1200);
+    }
+    function closeNotifDrawer() {
+      document.getElementById('notifDrawer').classList.remove('open');
+      document.getElementById('notifBackdrop').classList.remove('open');
+    }
+
+    function handleNotifClick(i) {
+      var n = notifData[i]; if (!n || n.type !== 'band_request' || !n.data) return;
+      closeNotifDrawer();
+      window.location.href = 'create-booking.html?venue=' + encodeURIComponent(n.data.venueId) +
+        '&date=' + encodeURIComponent(n.data.date) + '&band=' + encodeURIComponent(n.data.bandId) +
+        '&request=' + encodeURIComponent(n.data.requestId);
+    }
+
+    function refreshAll() { loadAll(); loadNotifications(); }
 
     function agencyEarnings(b) {
       var pay = parseFloat(b.pay_amount) || 0;
