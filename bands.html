@@ -32,6 +32,13 @@
     .delete-btn { color: #8B2000; }
     .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
 
+
+    .ag-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border:1px solid #e0d8c8; border-radius:8px; margin-bottom:6px; font-size:0.85rem; }
+    .ag-chip { display:inline-block; background:#f2ede4; color:#7A5210; border-radius:10px; padding:2px 8px; font-size:0.72rem; font-weight:700; margin:0 4px 3px 0; }
+    .ag-chip.cover { background:#e8f0fb; color:#2a5a9a; }
+    .ag-chk { display:flex; align-items:center; gap:8px; padding:6px 2px; font-size:0.85rem; text-transform:none !important; letter-spacing:0 !important; font-weight:600 !important; color:#1a1408 !important; margin:0 !important; }
+    .ag-chk input { width:auto; }
+    .ag-rm { background:none; border:none; color:#8B2000; font-weight:700; cursor:pointer; font-size:0.78rem; }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; z-index: 500; }
     .modal-overlay.show { display: flex; }
     .modal { background: #fff; border-radius: 14px; max-width: 720px; width: 100%; margin: auto; overflow: hidden; }
@@ -105,7 +112,7 @@
 
     <table id="bandsTable" style="display:none;">
       <thead>
-        <tr><th>Name</th><th>Genre(s)</th><th>Size</th><th>Rating</th><th>Pay Rate</th><th></th></tr>
+        <tr><th>Name</th><th>Genre(s)</th><th>Size</th><th>Rating</th><th>Pay Rate</th><th>Agents</th><th></th></tr>
       </thead>
       <tbody id="bandsBody"></tbody>
     </table>
@@ -308,6 +315,36 @@
     </div>
   </div>
 
+  <!-- Band agents modal -->
+  <div class="modal-overlay" id="agentsModal">
+    <div class="modal" style="max-width:520px;">
+      <div class="modal-header"><h2 id="agentsTitle">Agents</h2></div>
+      <div class="modal-body">
+        <div class="section-label" style="margin-top:4px;">Assigned agents</div>
+        <div id="agAssigned"></div>
+        <div id="agAssignedAdmin" style="display:none;">
+          <div id="agCheckList"></div>
+          <button type="button" class="add-btn" style="background:#A07018;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:700;cursor:pointer;margin-top:8px;" onclick="saveAssignedAgents()">Save assigned agents</button>
+        </div>
+
+        <div class="section-label">Cover (vacation / time off)</div>
+        <div id="agCover"></div>
+        <div id="agCoverForm" style="display:none;">
+          <label>Add a cover agent</label>
+          <select id="agCoverPick" style="width:100%;padding:9px;border:1px solid #d4c4a0;border-radius:8px;"></select>
+          <label>Cover ends on (optional)</label>
+          <input type="date" id="agCoverEnd" style="width:100%;padding:9px;border:1px solid #d4c4a0;border-radius:8px;">
+          <div class="field-hint">Leave blank to keep the cover until someone removes them. Cover is removed automatically after this date.</div>
+          <button type="button" class="add-btn" style="background:#A07018;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:700;cursor:pointer;margin-top:10px;" onclick="addCoverAgent()">Add cover agent</button>
+        </div>
+        <div id="agNoRights" class="field-hint" style="display:none;">Only an agent on this band, or an administrator, can add cover.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="closeAgentsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete confirm modal -->
   <div class="modal-overlay" id="deleteModal">
     <div class="modal" style="max-width:400px;">
@@ -328,6 +365,9 @@
   <script>
     var currentBusinessId = null;
     var currentRole = null;
+    var currentProfileId = null;
+    var allProfiles = [];
+    var allBandAgents = [];
     var allBands = [];
     var editingBandId = null;
     var pendingDeleteId = null;
@@ -340,12 +380,13 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('business_id, role, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
+        .select('id, business_id, role, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
       currentRole = profile.role;
+      currentProfileId = profile.id;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
       // Wire up the pill selectors
@@ -379,6 +420,7 @@
       document.getElementById('loadingState').style.display = 'none';
       if (error) { showToast('Error loading bands: ' + error.message, 'error'); return; }
       allBands = data || [];
+      await loadBandAgents();
       renderTable();
     }
 
@@ -420,8 +462,10 @@
             '<td data-label="Size">' + esc(b.band_size || '\u2013') + '</td>' +
             '<td data-label="Rating">' + (b.band_rating ? '<span class="rating-badge">' + esc(b.band_rating) + '</span>' : '\u2013') + '</td>' +
             '<td data-label="Pay Rate">' + esc(payStr) + '</td>' +
+            '<td data-label="Agents">' + agentsCell(b.id) + '</td>' +
             '<td><div class="row-actions">' +
               '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
+              '<button class="edit-btn" onclick="openAgentsModal(\'' + b.id + '\')">Agents</button>' +
               '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>' +
             '</div></td>' +
           '</tr>';
@@ -608,6 +652,113 @@
         btn.disabled = false;
         btn.textContent = 'Delete';
       }
+    }
+
+
+    // ── Band agents (assigned + cover) ──────────────────────────────────────
+    var agentsBandId = null;
+
+    function todayIso() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+    function isActiveAssign(r) { return !r.ends_on || r.ends_on >= todayIso(); }
+    function profName(id) { var p = allProfiles.find(function(x){ return x.id === id; }); return p ? (p.name || p.email || 'Agent') : 'Agent'; }
+    function fmtShort(iso) { return new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }); }
+
+    async function loadBandAgents() {
+      var res = await Promise.all([
+        sb.from('band_agents').select('band_id, agent_id, is_cover, ends_on'),
+        sb.from('profiles').select('id, name, email, role').order('name')
+      ]);
+      allBandAgents = res[0].data || [];
+      allProfiles = res[1].data || [];
+    }
+
+    function agentsCell(bandId) {
+      var rows = allBandAgents.filter(function(r){ return r.band_id === bandId && isActiveAssign(r); });
+      if (!rows.length) return '<span style="color:#aaa;">Unassigned</span>';
+      return rows.map(function(r) {
+        return '<span class="ag-chip' + (r.is_cover ? ' cover' : '') + '">' + esc(profName(r.agent_id)) +
+          (r.is_cover ? ' (cover' + (r.ends_on ? ' to ' + fmtShort(r.ends_on) : '') + ')' : '') + '</span>';
+      }).join('');
+    }
+
+    function isAdminRole() { return currentRole === 'admin' || currentRole === 'owner'; }
+
+    function openAgentsModal(bandId) {
+      agentsBandId = bandId;
+      renderAgentsModal();
+      document.getElementById('agentsModal').classList.add('show');
+    }
+    function closeAgentsModal() { document.getElementById('agentsModal').classList.remove('show'); agentsBandId = null; }
+
+    function renderAgentsModal() {
+      var band = allBands.find(function(b){ return b.id === agentsBandId; });
+      document.getElementById('agentsTitle').textContent = 'Agents — ' + (band ? band.name : '');
+      var rows = allBandAgents.filter(function(r){ return r.band_id === agentsBandId && isActiveAssign(r); });
+      var assigned = rows.filter(function(r){ return !r.is_cover; });
+      var covers = rows.filter(function(r){ return r.is_cover; });
+      var amOnBand = rows.some(function(r){ return r.agent_id === currentProfileId; });
+
+      document.getElementById('agAssigned').innerHTML = assigned.length
+        ? assigned.map(function(r){ return '<div class="ag-row"><span>' + esc(profName(r.agent_id)) + '</span>' +
+            (amOnBand && r.agent_id === currentProfileId && !isAdminRole() ? '<button class="ag-rm" onclick="removeAgent(\'' + r.agent_id + '\')">Remove me</button>' : '') + '</div>'; }).join('')
+        : '<div class="field-hint" style="margin-bottom:8px;">No agents assigned yet.' + (isAdminRole() ? '' : ' Ask an administrator to assign one.') + '</div>';
+
+      var adm = document.getElementById('agAssignedAdmin');
+      adm.style.display = isAdminRole() ? 'block' : 'none';
+      if (isAdminRole()) {
+        var set = {}; assigned.forEach(function(r){ set[r.agent_id] = true; });
+        document.getElementById('agCheckList').innerHTML = allProfiles.map(function(p){
+          return '<label class="ag-chk"><input type="checkbox" value="' + p.id + '"' + (set[p.id] ? ' checked' : '') + '> ' + esc(p.name || p.email) + (p.role !== 'agent' ? ' <span style="color:#999;font-weight:500;">(' + esc(p.role) + ')</span>' : '') + '</label>';
+        }).join('');
+        document.getElementById('agAssigned').style.display = 'none';
+      } else {
+        document.getElementById('agAssigned').style.display = 'block';
+      }
+
+      document.getElementById('agCover').innerHTML = covers.length
+        ? covers.map(function(r){ return '<div class="ag-row"><span>' + esc(profName(r.agent_id)) + '<span style="color:#6b5e48;"> — ' + (r.ends_on ? 'through ' + fmtShort(r.ends_on) : 'until removed') + '</span></span>' +
+            ((isAdminRole() || amOnBand) ? '<button class="ag-rm" onclick="removeAgent(\'' + r.agent_id + '\')">Remove</button>' : '') + '</div>'; }).join('')
+        : '<div class="field-hint" style="margin-bottom:8px;">No cover agents right now.</div>';
+
+      var canCover = isAdminRole() || amOnBand;
+      document.getElementById('agCoverForm').style.display = canCover ? 'block' : 'none';
+      document.getElementById('agNoRights').style.display = canCover ? 'none' : 'block';
+      var taken = {}; rows.forEach(function(r){ taken[r.agent_id] = true; });
+      document.getElementById('agCoverPick').innerHTML = '<option value="">Choose an agent…</option>' +
+        allProfiles.filter(function(p){ return !taken[p.id]; }).map(function(p){ return '<option value="' + p.id + '">' + esc(p.name || p.email) + '</option>'; }).join('');
+      document.getElementById('agCoverEnd').value = '';
+      document.getElementById('agCoverEnd').min = todayIso();
+    }
+
+    async function refreshAgents() {
+      await loadBandAgents();
+      renderTable();
+      if (agentsBandId) renderAgentsModal();
+    }
+
+    async function saveAssignedAgents() {
+      var ids = Array.prototype.slice.call(document.querySelectorAll('#agCheckList input:checked')).map(function(c){ return c.value; });
+      var r = await sb.rpc('set_band_agents', { p_band_id: agentsBandId, p_agent_ids: ids });
+      if (r.error) { showToast(r.error.message, 'error'); return; }
+      showToast('Assigned agents saved');
+      await refreshAgents();
+    }
+
+    async function addCoverAgent() {
+      var id = document.getElementById('agCoverPick').value;
+      if (!id) { showToast('Choose an agent first', 'error'); return; }
+      var end = document.getElementById('agCoverEnd').value || null;
+      var r = await sb.rpc('add_band_cover', { p_band_id: agentsBandId, p_agent_id: id, p_ends_on: end });
+      if (r.error) { showToast(r.error.message, 'error'); return; }
+      showToast('Cover agent added');
+      await refreshAgents();
+    }
+
+    async function removeAgent(agentId) {
+      var r = await sb.rpc('remove_band_agent', { p_band_id: agentsBandId, p_agent_id: agentId });
+      if (r.error) { showToast(r.error.message, 'error'); return; }
+      showToast('Removed');
+      await refreshAgents();
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
