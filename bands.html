@@ -289,6 +289,18 @@
           <label>Notes</label>
           <textarea id="bNotes" placeholder="Additional info..."></textarea>
 
+          <div id="bandSetupSection" style="display:none;margin-top:22px;padding-top:18px;border-top:1.5px solid #eee;">
+            <label style="font-size:0.95rem;color:#A07018;">&#128101; Agent(s) for this band <span style="color:#8B2000;">*</span></label>
+            <p id="bandSetupHint" style="font-size:0.82rem;color:#6b5e48;margin:4px 0 8px;"></p>
+            <div id="bSetupAgents"></div>
+            <label style="font-size:0.95rem;color:#A07018;margin-top:16px;">&#128273; Band Portal Login <span style="font-weight:500;color:#999;">(optional)</span></label>
+            <p id="bandSetupLoginHint" style="font-size:0.82rem;color:#6b5e48;margin:4px 0 8px;"></p>
+            <div class="row2">
+              <div><label>Username</label><input type="text" id="bSetupUser" placeholder="e.g. thehighnotes" autocomplete="off"></div>
+              <div><label>Password</label><input type="text" id="bSetupPass" placeholder="At least 6 characters" autocomplete="off"></div>
+            </div>
+          </div>
+
           <div id="bandPortalLoginSection" style="display:none;margin-top:22px;padding-top:18px;border-top:1.5px solid #eee;">
             <label style="font-size:0.95rem;color:#A07018;">&#128273; Band Portal Login</label>
             <p style="font-size:0.82rem;color:#6b5e48;margin:4px 0 12px;">Set a username and password for this band to log in and see their own gigs, calendar, and submit availability. Leave blank to leave an existing login unchanged.</p>
@@ -302,7 +314,7 @@
                 <input type="text" id="bPortalPassword" placeholder="Set a new password">
               </div>
             </div>
-            <button type="button" onclick="saveBandPortalLogin()" style="margin-top:10px;padding:9px 16px;background:#A07018;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:0.82rem;cursor:pointer;">Save Portal Login</button>
+            <button type="button" id="bandPortalLoginBtn" onclick="saveBandPortalLogin()" style="margin-top:10px;padding:9px 16px;background:#A07018;color:#fff;border:none;border-radius:7px;font-weight:700;font-size:0.82rem;cursor:pointer;">Save Portal Login</button>
             <span id="bandPortalLoginStatus" style="margin-left:10px;font-size:0.8rem;"></span>
           </div>
 
@@ -368,6 +380,7 @@
     var currentProfileId = null;
     var allProfiles = [];
     var allBandAgents = [];
+    var allApprovals = [];
     var allBands = [];
     var editingBandId = null;
     var pendingDeleteId = null;
@@ -508,7 +521,26 @@
       setPillSelection('bandSizeSelector', []);
       setPillSelection('genreSelector', []);
       document.getElementById('bandPortalLoginSection').style.display = 'none';
+      setupAddSection();
       document.getElementById('bandModal').classList.add('show');
+    }
+
+    function setupAddSection() {
+      var sec = document.getElementById('bandSetupSection');
+      sec.style.display = 'block';
+      document.getElementById('bSetupUser').value = '';
+      document.getElementById('bSetupPass').value = '';
+      var adm = isAdminRole();
+      document.getElementById('bandSetupHint').textContent = adm
+        ? 'Choose who books this band. Applied immediately.'
+        : 'Choose who books this band (at least one). This goes to an administrator for approval.';
+      document.getElementById('bandSetupLoginHint').textContent = adm
+        ? 'Username and password for the band to log in. Applied immediately.'
+        : 'Username and password for the band to log in. An administrator must approve it before it works.';
+      document.getElementById('bSetupAgents').innerHTML = allProfiles.map(function(p) {
+        return '<label class="ag-chk"><input type="checkbox" value="' + p.id + '"' + (p.id === currentProfileId ? ' checked' : '') + '> ' +
+          esc(p.name || p.email) + (p.role !== 'agent' ? ' <span style="color:#999;font-weight:500;">(' + esc(p.role) + ')</span>' : '') + '</label>';
+      }).join('');
     }
 
     function openEditModal(id) {
@@ -517,8 +549,11 @@
       editingBandId = id;
       document.getElementById('modalTitle').textContent = 'Edit Band';
       document.getElementById('saveBtn').textContent = 'Save Changes';
-      var canSetLogin = currentRole === 'admin' || currentRole === 'owner';
+      document.getElementById('bandSetupSection').style.display = 'none';
+      var onThisBand = allBandAgents.some(function(r){ return r.band_id === id && r.agent_id === currentProfileId && isActiveAssign(r); });
+      var canSetLogin = isAdminRole() || onThisBand;
       document.getElementById('bandPortalLoginSection').style.display = canSetLogin ? 'block' : 'none';
+      document.getElementById('bandPortalLoginBtn').textContent = isAdminRole() ? 'Save Portal Login' : 'Request Portal Login (admin approval)';
       document.getElementById('bPortalUsername').value = '';
       document.getElementById('bPortalPassword').value = '';
       document.getElementById('bandPortalLoginStatus').textContent = '';
@@ -606,9 +641,21 @@
           showToast('Band updated.');
         } else {
           bandData.business_id = currentBusinessId; // required — RLS checks this on insert
-          var { error: insErr } = await sb.from('bands').insert(bandData);
-          if (insErr) throw insErr;
-          showToast('Band added.');
+          var setupIds = Array.prototype.slice.call(document.querySelectorAll('#bSetupAgents input:checked')).map(function(c){ return c.value; });
+          var suUser = document.getElementById('bSetupUser').value.trim();
+          var suPass = document.getElementById('bSetupPass').value;
+          if (!setupIds.length) throw new Error('Choose at least one agent for this band.');
+          if ((suUser && !suPass) || (!suUser && suPass)) throw new Error('Enter both a login username and password, or leave both blank.');
+          var insRes = await sb.from('bands').insert(bandData).select('id').single();
+          if (insRes.error) throw insRes.error;
+          var setupRes = await sb.rpc('submit_band_setup', { p_band_id: insRes.data.id, p_agent_ids: setupIds,
+            p_username: suUser || null, p_password: suPass || null });
+          if (setupRes.error) {
+            await sb.from('bands').delete().eq('id', insRes.data.id);   // don't leave a band without its setup
+            throw setupRes.error;
+          }
+          showToast(setupRes.data && setupRes.data.status === 'pending'
+            ? 'Band added. Agent assignment sent to an administrator for approval.' : 'Band added.');
         }
         closeBandModal();
         await loadBands();
@@ -670,12 +717,19 @@
       ]);
       allBandAgents = res[0].data || [];
       allProfiles = res[1].data || [];
+      var ap = await sb.rpc('list_band_approvals', { p_status: 'Pending' });
+      allApprovals = (ap.data || []);
     }
 
     function agentsCell(bandId) {
       var rows = allBandAgents.filter(function(r){ return r.band_id === bandId && isActiveAssign(r); });
-      if (!rows.length) return '<span style="color:#aaa;">Unassigned</span>';
-      return rows.map(function(r) {
+      var pend = allApprovals.filter(function(x){ return x.bandId === bandId; });
+      var pendHtml = pend.map(function(x){
+        return '<span class="ag-chip" style="background:#fff3cd;color:#856404;" title="Waiting for an administrator">&#9203; ' +
+          (x.kind === 'setup' ? 'Setup' : 'Login') + ' pending approval</span>';
+      }).join('');
+      if (!rows.length) return '<span style="color:#aaa;">Unassigned</span> ' + pendHtml;
+      return pendHtml + rows.map(function(r) {
         return '<span class="ag-chip' + (r.is_cover ? ' cover' : '') + '">' + esc(profName(r.agent_id)) +
           (r.is_cover ? ' (cover' + (r.ends_on ? ' to ' + fmtShort(r.ends_on) : '') + ')' : '') + '</span>';
       }).join('');
@@ -792,6 +846,14 @@
       statusEl.textContent = 'Saving\u2026';
 
       try {
+        if (!isAdminRole()) {
+          var rq = await sb.rpc('request_band_login', { p_band_id: editingBandId, p_username: username, p_password: password });
+          if (rq.error) throw rq.error;
+          statusEl.style.color = '#2e7d32';
+          statusEl.textContent = '\u2713 Sent to an administrator for approval. The login works once they approve it.';
+          await loadBandAgents(); renderTable();
+          return;
+        }
         var result = await sb.rpc('set_portal_login', {
           p_business_id: currentBusinessId,
           p_owner_type: 'band',
