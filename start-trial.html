@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start Your Free Trial — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.1); padding: 32px 28px; max-width: 420px; width: 100%; }
+    h1 { font-size: 1.35rem; color: #A07018; margin: 0 0 6px; }
+    p.sub { color: #6b5e48; font-size: .9rem; margin: 0 0 20px; line-height: 1.5; }
+    label { display: block; font-size: .8rem; font-weight: 700; color: #6b5e48; margin: 12px 0 4px; }
+    input { width: 100%; padding: 11px 12px; border: 1px solid #d8cfba; border-radius: 8px; font-size: 1rem; }
+    button { width: 100%; margin-top: 20px; padding: 13px; background: #A07018; color: #fff; border: 0; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .err { color: #b3261e; font-size: .88rem; margin-top: 12px; min-height: 1.2em; }
+    .foot { text-align: center; margin-top: 16px; font-size: .85rem; }
+    .foot a { color: #A07018; }
+    .hp { position: absolute; left: -9999px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Start your free trial</h1>
+    <p class="sub">14 days, full access, no card needed. You'll be the administrator and can add your agents afterwards.</p>
+    <form id="f">
+      <label>Company name</label><input id="company" required maxlength="100" autocomplete="organization">
+      <label>Your name</label><input id="name" required maxlength="100" autocomplete="name">
+      <label>Email</label><input id="email" type="email" required autocomplete="email">
+      <label>Password (8+ characters)</label><input id="password" type="password" required minlength="8" autocomplete="new-password">
+      <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button id="go" type="submit">Start free trial</button>
+      <div class="err" id="err"></div>
+    </form>
+    <div class="foot"><a href="login.html">Already have an account? Log in</a></div>
+  </div>
+  <script src="config.js"></script>
+  <script>
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const go = document.getElementById('go'), err = document.getElementById('err');
+      err.textContent = ''; go.disabled = true; go.textContent = 'Setting up your company…';
+      const v = id => document.getElementById(id).value;
+      try {
+        const { data, error } = await sb.functions.invoke('start-trial', {
+          body: { company: v('company'), name: v('name'), email: v('email'), password: v('password'), website: v('website') }
+        });
+        let msg = data && data.error;
+        if (error && !msg) {
+          try { msg = (await error.context.json()).error; } catch (_) { msg = error.message; }
+        }
+        if (msg) throw new Error(msg);
+        const si = await sb.auth.signInWithPassword({ email: v('email').trim().toLowerCase(), password: v('password') });
+        if (si.error) throw si.error;
+        window.location.href = 'admin-dashboard.html';
+      } catch (ex) {
+        err.textContent = ex.message || 'Something went wrong';
+        go.disabled = false; go.textContent = 'Start free trial';
+      }
+    });
+  </script>
+</body>
+</html>
