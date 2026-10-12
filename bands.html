@@ -726,7 +726,15 @@
         closeDeleteModal();
         await loadBands();
       } catch (err) {
-        showToast('Error: ' + err.message, 'error');
+        var m = String((err && err.message) || '');
+        if ((err && err.code === '23503') || m.indexOf('foreign key') !== -1) {
+          closeDeleteModal();
+          alert('This band can\u2019t be deleted because it has bookings (past or upcoming) on record. ' +
+                'Deleting it would erase that booking and earnings history.\n\n' +
+                'To remove it, delete or reassign its bookings first. Or keep it and just stop booking it.');
+        } else {
+          showToast('Error: ' + m, 'error');
+        }
       } finally {
         btn.disabled = false;
         btn.textContent = 'Delete';
