@@ -210,7 +210,8 @@ async function handleSubmit(ev){
 
 function fmtTime(t){ if(!t) return ''; var p=t.split(':'), h=parseInt(p[0]); return (h%12||12)+':'+p[1]+' '+(h>=12?'PM':'AM'); }
 function meta(l,v,c){ return '<div><div class="meta-label">'+l+'</div><div class="meta-value '+(c||'')+'">'+esc(v)+'</div></div>'; }
-function rate(l,p,active){ return '<div class="rate-block'+(active?' rate-highlight':'')+'"><div class="rate-label">'+l+(active?' ★':'')+'</div><div class="rate-value">'+(p>0?'$'+Number(p).toLocaleString():'—')+'</div></div>'; }
+function money(n){ return '$'+Number(n).toLocaleString(); }
+function rate(l,p,active,pMax){ var txt = p>0 ? ((pMax>p) ? money(p)+' – '+money(pMax) : money(p)) : '—'; return '<div class="rate-block'+(active?' rate-highlight':'')+'"><div class="rate-label">'+l+(active?' ★':'')+'</div><div class="rate-value">'+txt+'</div></div>'; }
 
 function displayResults(){
   var res = document.getElementById('results'); res.style.display = 'block';
@@ -236,8 +237,8 @@ function displayResults(){
     h += '<div class="band-meta">' + meta('Members', b.numMembers||'—') + meta('Typical Draw', (b.typicalDraw||'—')+' people') + meta('Can Travel', b.canTravel||'—') +
       (b.maxTravelDistance>0 ? meta('Max Distance', b.maxTravelDistance+' mi') : '') +
       meta('W9 Status', b.w9Current||'—', w9==='yes'?'w9-yes':w9==='no'?'w9-no':'') + '</div>';
-    h += '<div class="band-rates">' + rate('Without Sound/Lights', b.payRateNoSound, venueProv) + rate('With Sound/Lights', b.payRateWithSound, !venueProv) +
-      (b.privatePartyRate>0 ? rate('Private Party', b.privatePartyRate, false) : '') + '</div>';
+    h += '<div class="band-rates">' + rate('Without Sound/Lights', b.payRateNoSound, venueProv, b.payRateNoSoundMax) + rate('With Sound/Lights', b.payRateWithSound, !venueProv, b.payRateWithSoundMax) +
+      (b.privatePartyRate>0 ? rate('Private Party', b.privatePartyRate, false, b.privatePartyRateMax) : '') + '</div>';
     var links = [['promoVideo','&#9654; Promo Video'],['socialMedia','&#128101; Social Media'],['website','&#127760; Website']].filter(function(l){ return b[l[0]] && /^https?:\/\//i.test(b[l[0]]); });
     if (links.length) h += '<div class="band-links">' + links.map(function(l){ return '<a class="band-link" target="_blank" rel="noopener" href="'+esc(b[l[0]])+'">'+l[1]+'</a>'; }).join('') + '</div>';
     if (b.canTravel && b.canTravel !== 'No') h += '<div class="band-travel">&#128656; This band is available to travel' + (b.maxTravelDistance>0 ? ' up to '+b.maxTravelDistance+' miles' : '') + '</div>';
