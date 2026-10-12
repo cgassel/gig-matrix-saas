@@ -130,7 +130,8 @@
         </div>
         <div class="form-group">
           <label>Pay Amount <span class="required">*</span></label>
-          <div class="calculated-field" id="payAmount">Select band first</div>
+          <input type="number" id="payAmountInput" min="0" step="1" placeholder="Select band first" oninput="onPayInput()">
+          <div class="field-hint" id="payRangeHint" style="font-size:0.74rem;color:#7A5210;margin-top:4px;"></div>
           <input type="hidden" id="payAmountValue">
         </div>
       </div>
@@ -344,17 +345,29 @@
 
     function updatePayAmount() {
       if (!selectedBand) {
-        document.getElementById('payAmount').textContent = 'Select band first';
+        document.getElementById('payAmountInput').value = '';
+        document.getElementById('payRangeHint').textContent = '';
         document.getElementById('payAmountValue').value = '';
         updateCommissionSummary();
         return;
       }
+      // Band rates are ranges: the existing column is the low end, *_max the high end.
       var soundLights = document.getElementById('soundLights').value;
-      var amount = soundLights === 'Venue'
+      var lo = soundLights === 'Venue'
         ? (parseFloat(selectedBand.pay_rate_no_sound) || 0)
         : (parseFloat(selectedBand.pay_rate_with_sound) || 0);
-      document.getElementById('payAmount').textContent = '$' + amount.toFixed(2);
-      document.getElementById('payAmountValue').value = amount;
+      var hiRaw = soundLights === 'Venue' ? selectedBand.pay_rate_no_sound_max : selectedBand.pay_rate_with_sound_max;
+      var hi = parseFloat(hiRaw) || lo;
+      document.getElementById('payRangeHint').textContent = hi > lo
+        ? 'Band range: $' + lo.toLocaleString() + ' – $' + hi.toLocaleString() + ' — enter the amount you agreed on'
+        : '';
+      document.getElementById('payAmountInput').value = lo || '';
+      document.getElementById('payAmountValue').value = lo || '';
+      updateCommissionSummary();
+    }
+
+    function onPayInput() {
+      document.getElementById('payAmountValue').value = document.getElementById('payAmountInput').value;
       updateCommissionSummary();
     }
 
@@ -580,7 +593,8 @@
         document.getElementById('venueInfo').style.display = 'none';
         document.getElementById('bandInfo').style.display = 'none';
         document.getElementById('commissionSummary').classList.remove('show');
-        document.getElementById('payAmount').textContent = 'Select band first';
+        document.getElementById('payAmountInput').value = '';
+        document.getElementById('payRangeHint').textContent = '';
         window.scrollTo(0, 0);
 
       } catch (err) {
