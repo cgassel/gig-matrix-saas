@@ -71,6 +71,7 @@
 </div>
 
 <script src="config.js"></script>
+  <script src="booking-money.js"></script>
 <script>
 var allStats = [], filtered = [];
 function fmt(n){ return '$' + Math.round(n||0).toLocaleString('en-US'); }
@@ -85,10 +86,11 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 
   // This agent's own, non-cancelled bookings (same scope as the original)
   var r = await sb.from('bookings')
-    .select('band_id, booking_date, pay_amount, commission_pct, status, bands(name, commission_pct)')
+    .select('id, band_id, booking_date, status, bands(name, commission_pct)')
     .eq('created_by', p.data.id).neq('status', 'Cancelled');
   if (r.error) { document.getElementById('tableWrap').innerHTML = '<div class="empty-state">Error loading stats: ' + esc(r.error.message) + '</div>'; return; }
 
+  await attachMoney(r.data || []);
   var bands = {};
   (r.data || []).forEach(function(b){
     var pay = parseFloat(b.pay_amount) || 0;

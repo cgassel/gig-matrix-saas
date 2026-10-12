@@ -194,6 +194,7 @@
   </div>
 
   <script src="config.js"></script>
+  <script src="booking-money.js"></script>
   <script src="contract-template.js"></script>
   <script>
     var venues = [], bands = [];
@@ -486,7 +487,7 @@
       };
 
       try {
-        var { data: inserted, error: insErr } = await sb.from('bookings').insert(bookingRow).select().single();
+        var { data: inserted, error: insErr } = await sb.from('bookings').insert(bookingRow).select('id').single();
         if (insErr) throw insErr;
 
         var bookingId = inserted.id;

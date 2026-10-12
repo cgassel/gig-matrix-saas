@@ -200,8 +200,11 @@
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
+  <script src="booking-money.js"></script>
   <script>
     var currentBusinessId = null;
+    var currentRole = null;
+    function isAdminRole() { return currentRole === 'admin' || currentRole === 'owner'; }
     var currentProfileId = null;
     var mineOnly = false;
     var allBookings = [];
@@ -216,12 +219,13 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('id, business_id, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
+        .select('id, role, business_id, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
       currentProfileId = profile.id;
+      currentRole = profile.role;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
       mineOnly = new URLSearchParams(window.location.search).get('mine') === '1';
@@ -254,7 +258,7 @@
       // don't have to look them up separately for the table.
       var { data, error } = await sb
         .from('bookings')
-        .select('*, venues(name), bands(name)')
+        .select(BK_COLS + ', venues(name), bands(name)')
         .order('booking_date', { ascending: false });
 
       document.getElementById('loadingState').style.display = 'none';
@@ -264,7 +268,7 @@
         return;
       }
 
-      allBookings = data || [];
+      allBookings = await attachMoney(data || []);
       renderTable();
     }
 
@@ -308,7 +312,8 @@
         var ds = d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
         var venueName = b.venues ? b.venues.name : '(deleted venue)';
         var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
-        var pay = b.pay_amount != null ? '$' + Number(b.pay_amount).toLocaleString() : '\u2013';
+        var pay = !b.money_visible ? '\u{1F512}' : (b.pay_amount != null ? '$' + Number(b.pay_amount).toLocaleString() : '\u2013');
+        var canEdit = isAdminRole() || b.created_by === currentProfileId;
         var statusClass = 'status-' + (b.status || 'pending').toLowerCase();
 
         html +=
@@ -318,9 +323,10 @@
             '<td data-label="Band">' + esc(bandName) + '</td>' +
             '<td data-label="Pay">' + esc(pay) + '</td>' +
             '<td data-label="Status"><span class="status-pill ' + statusClass + '">' + esc(b.status || 'Pending') + '</span></td>' +
-            '<td><div class="row-actions">' +
-              '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
-              '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>' +
+            '<td><div class="row-actions">' + (canEdit
+              ? '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
+                '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>'
+              : '<span style="color:#aaa;font-size:0.75rem;" title="Only the booking agent or an administrator can change this booking">View only</span>') +
             '</div></td>' +
           '</tr>';
       });
@@ -382,6 +388,7 @@
         commission_pct: document.getElementById('bkCommission').value !== '' ? parseFloat(document.getElementById('bkCommission').value) : null,
         notes:          document.getElementById('bkNotes').value.trim() || null
       };
+      if (!editingBookingId) bookingData.created_by = currentProfileId;   // you are the booking agent
 
       var btn = document.getElementById('saveBtn');
       btn.disabled = true;

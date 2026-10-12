@@ -73,6 +73,7 @@
 </div>
 
 <script src="config.js"></script>
+  <script src="booking-money.js"></script>
 <script>
 var allStats = [], filtered = [];
 function fmt(n){ return '$' + Math.round(n||0).toLocaleString('en-US'); }
@@ -90,10 +91,11 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
   }
 
   var r = await sb.from('bookings')
-    .select('venue_id, booking_date, pay_amount, commission_pct, status, created_by, venues(name), bands(commission_pct), profiles:created_by(name)')
+    .select('id, venue_id, booking_date, status, created_by, venues(name), bands(commission_pct), profiles:created_by(name)')
     .neq('status', 'Cancelled');
   if (r.error) { document.getElementById('cardsWrap').innerHTML = '<div class="empty-state">Error: ' + esc(r.error.message) + '</div>'; return; }
 
+  await attachMoney(r.data || []);   // money only for bookings you're allowed to see
   var venues = {};
   (r.data || []).forEach(function(b){
     var pay = parseFloat(b.pay_amount) || 0;

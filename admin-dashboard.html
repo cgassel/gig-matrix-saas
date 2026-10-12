@@ -319,6 +319,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
+  <script src="booking-money.js"></script>
   <script>
     var currentBusinessId = null;
     var currentProfileId = null;
@@ -356,11 +357,11 @@
 
     async function loadAll() {
       var [bookingsRes, venuesRes, profilesRes] = await Promise.all([
-        sb.from('bookings').select('*, venues(name,city,state), bands(name,commission_pct)').order('booking_date', { ascending: false }),
+        sb.from('bookings').select(BK_COLS + ', venues(name,city,state), bands(name,commission_pct)').order('booking_date', { ascending: false }),
         sb.from('venues').select('*'),
         sb.from('profiles').select('id, name, email, role').order('name')
       ]);
-      allBookings = bookingsRes.data || [];
+      allBookings = await attachMoney(bookingsRes.data || []);
       allVenues   = venuesRes.data   || [];
       allProfiles = profilesRes.data || [];
       agentNameMap = {};

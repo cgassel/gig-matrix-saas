@@ -206,10 +206,12 @@
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
+  <script src="booking-money.js"></script>
   <script src="contract-template.js"></script>
   <script>
     var currentBusinessId = null;
     var currentProfileId = null;
+    var currentRole = null;
     var currentAgencyName = 'Gig Matrix';
     var contractTemplateOverride = null;
     var allContracts = [];
@@ -225,12 +227,13 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('id, business_id, businesses(name, contract_template)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
+        .select('id, role, business_id, businesses(name, contract_template)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
       currentBusinessId = profile.business_id;
       currentProfileId  = profile.id;
+      currentRole       = profile.role;
       currentAgencyName = (profile.businesses && profile.businesses.name) || 'Gig Matrix';
       contractTemplateOverride = profile.businesses ? profile.businesses.contract_template : null;
       document.getElementById('bizName').textContent = profile.businesses.name;
@@ -310,10 +313,12 @@
       var contractedBookingIds = allContracts.map(function(c) { return c.booking_id; });
       var { data: bookings } = await sb
         .from('bookings')
-        .select('id, booking_date, start_time, end_time, pay_amount, sound_lights, notes, commission_pct, venues(*), bands(*)')
+        .select('id, booking_date, start_time, end_time, sound_lights, notes, created_by, venues(*), bands(*)')
         .order('booking_date', { ascending: false });
 
-      allBookingsWithoutContract = (bookings || []).filter(function(b) { return contractedBookingIds.indexOf(b.id) === -1; });
+      await attachMoney(bookings || []);
+      // Only the booking's agent (or an admin) creates its contract
+      allBookingsWithoutContract = (bookings || []).filter(function(b) { return contractedBookingIds.indexOf(b.id) === -1 && b.money_visible && ((currentRole === 'admin' || currentRole === 'owner') || b.created_by === currentProfileId); });
 
       var sel = document.getElementById('cBooking');
       if (allBookingsWithoutContract.length === 0) {
