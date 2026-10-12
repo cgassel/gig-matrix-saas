@@ -39,6 +39,9 @@
     .ag-chk { display:flex; align-items:center; gap:8px; padding:6px 2px; font-size:0.85rem; text-transform:none !important; letter-spacing:0 !important; font-weight:600 !important; color:#1a1408 !important; margin:0 !important; }
     .ag-chk input { width:auto; }
     .ag-rm { background:none; border:none; color:#8B2000; font-weight:700; cursor:pointer; font-size:0.78rem; }
+    .range-row { display:flex; align-items:center; gap:6px; }
+    .range-row input { flex:1; min-width:0; }
+    .range-dash { font-weight:700; color:#6b5e48; padding:0 4px; }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 24px 16px; overflow-y: auto; z-index: 500; }
     .modal-overlay.show { display: flex; }
     .modal { background: #fff; border-radius: 14px; max-width: 720px; width: 100%; margin: auto; overflow: hidden; }
@@ -160,23 +163,32 @@
           </select>
 
           <div class="section-label">Payment Rates &amp; Commission</div>
-          <div class="row2">
-            <div>
-              <label>Pay Rate (No Sound/Lights) <span class="req">*</span></label>
-              <input type="number" id="bPayNoSound" min="0" step="1" required placeholder="500">
-              <div class="field-hint">Venue provides sound</div>
-            </div>
-            <div>
-              <label>Pay Rate (With Sound/Lights) <span class="req">*</span></label>
-              <input type="number" id="bPayWithSound" min="0" step="1" required placeholder="750">
-              <div class="field-hint">Band brings equipment</div>
-            </div>
+          <p class="field-hint" style="margin:-6px 0 10px;">Enter each rate as a range (low &ndash; high). Leave the high end blank for a single flat price.</p>
+
+          <label>Clubs &mdash; With Sound/Lights <span class="req">*</span></label>
+          <div class="range-row">
+            <span>$</span><input type="number" id="bPayWithSound" min="0" step="1" required placeholder="600">
+            <span class="range-dash">&ndash;</span>
+            <span>$</span><input type="number" id="bPayWithSoundMax" min="0" step="1" placeholder="1000">
           </div>
+          <div class="field-hint">Band brings sound &amp; lights</div>
+
+          <label>Clubs &mdash; No Sound/Lights <span class="req">*</span></label>
+          <div class="range-row">
+            <span>$</span><input type="number" id="bPayNoSound" min="0" step="1" required placeholder="1200">
+            <span class="range-dash">&ndash;</span>
+            <span>$</span><input type="number" id="bPayNoSoundMax" min="0" step="1" placeholder="1800">
+          </div>
+          <div class="field-hint">Venue provides sound &amp; lights (no production from the band)</div>
+
+          <label>Private Party</label>
+          <div class="range-row">
+            <span>$</span><input type="number" id="bPrivatePartyRate" min="0" step="1" placeholder="1000">
+            <span class="range-dash">&ndash;</span>
+            <span>$</span><input type="number" id="bPrivatePartyRateMax" min="0" step="1" placeholder="1500">
+          </div>
+
           <div class="row2">
-            <div>
-              <label>Private Party Rate</label>
-              <input type="number" id="bPrivatePartyRate" min="0" step="1" placeholder="1000">
-            </div>
             <div>
               <label>Agency Commission <span class="req">*</span></label>
               <div class="pct-wrap">
@@ -437,6 +449,13 @@
       renderTable();
     }
 
+    function fmtMoneyNum(n) { return '$' + Number(n).toLocaleString('en-US'); }
+    function fmtRange(lo, hi, label) {
+      if (lo == null || lo === '') return null;
+      var txt = (hi != null && hi !== '' && Number(hi) > Number(lo)) ? fmtMoneyNum(lo) + '\u2013' + fmtMoneyNum(hi) : fmtMoneyNum(lo);
+      return txt + ' (' + label + ')';
+    }
+
     function renderTable() {
       var search = document.getElementById('searchBox').value.toLowerCase();
       var filtered = allBands.filter(function(b) {
@@ -464,8 +483,9 @@
       filtered.forEach(function(b) {
         var genreHtml = (b.genres || []).map(function(g) { return '<span class="genre-pill">' + esc(g) + '</span>'; }).join('') || '\u2013';
         var payStr = [
-          b.pay_rate_no_sound   != null ? '$' + b.pay_rate_no_sound + ' (no sound)'   : null,
-          b.pay_rate_with_sound != null ? '$' + b.pay_rate_with_sound + ' (w/ sound)' : null
+          fmtRange(b.pay_rate_with_sound, b.pay_rate_with_sound_max, 'w/ sound'),
+          fmtRange(b.pay_rate_no_sound, b.pay_rate_no_sound_max, 'no sound'),
+          fmtRange(b.private_party_rate, b.private_party_rate_max, 'party')
         ].filter(Boolean).join(' / ') || '\u2013';
 
         html +=
@@ -567,6 +587,9 @@
       document.getElementById('bPayNoSound').value             = b.pay_rate_no_sound   != null ? b.pay_rate_no_sound   : '';
       document.getElementById('bPayWithSound').value           = b.pay_rate_with_sound != null ? b.pay_rate_with_sound : '';
       document.getElementById('bPrivatePartyRate').value       = b.private_party_rate  != null ? b.private_party_rate  : '';
+      document.getElementById('bPayNoSoundMax').value          = b.pay_rate_no_sound_max   != null ? b.pay_rate_no_sound_max   : '';
+      document.getElementById('bPayWithSoundMax').value        = b.pay_rate_with_sound_max != null ? b.pay_rate_with_sound_max : '';
+      document.getElementById('bPrivatePartyRateMax').value    = b.private_party_rate_max  != null ? b.private_party_rate_max  : '';
       document.getElementById('bCommission').value             = b.commission_pct      != null ? b.commission_pct      : '';
       document.getElementById('bNumMembers').value              = b.num_members        != null ? b.num_members        : '';
       document.getElementById('bTypicalDraw').value              = b.typical_draw       != null ? b.typical_draw       : '';
@@ -600,6 +623,12 @@
 
       if (!selectedBandSize) { showToast('Please select a band size.', 'error'); return; }
       if (selectedGenres.length === 0) { showToast('Please select at least one genre.', 'error'); return; }
+      var rangeChecks = [['bPayWithSound','bPayWithSoundMax','With Sound/Lights'],['bPayNoSound','bPayNoSoundMax','No Sound/Lights'],['bPrivatePartyRate','bPrivatePartyRateMax','Private Party']];
+      for (var ri = 0; ri < rangeChecks.length; ri++) {
+        var lo = document.getElementById(rangeChecks[ri][0]).value, hi = document.getElementById(rangeChecks[ri][1]).value;
+        if (hi !== '' && lo === '') { showToast(rangeChecks[ri][2] + ': enter the low end of the range too.', 'error'); return; }
+        if (hi !== '' && parseFloat(hi) < parseFloat(lo)) { showToast(rangeChecks[ri][2] + ': the high end must be at least the low end.', 'error'); return; }
+      }
 
       var typicalDraw = document.getElementById('bTypicalDraw').value ? parseInt(document.getElementById('bTypicalDraw').value) : null;
 
@@ -613,6 +642,9 @@
         pay_rate_no_sound:   document.getElementById('bPayNoSound').value   !== '' ? parseFloat(document.getElementById('bPayNoSound').value)   : null,
         pay_rate_with_sound: document.getElementById('bPayWithSound').value !== '' ? parseFloat(document.getElementById('bPayWithSound').value) : null,
         private_party_rate:  document.getElementById('bPrivatePartyRate').value !== '' ? parseFloat(document.getElementById('bPrivatePartyRate').value) : null,
+        pay_rate_no_sound_max:   document.getElementById('bPayNoSoundMax').value   !== '' ? parseFloat(document.getElementById('bPayNoSoundMax').value)   : null,
+        pay_rate_with_sound_max: document.getElementById('bPayWithSoundMax').value !== '' ? parseFloat(document.getElementById('bPayWithSoundMax').value) : null,
+        private_party_rate_max:  document.getElementById('bPrivatePartyRateMax').value !== '' ? parseFloat(document.getElementById('bPrivatePartyRateMax').value) : null,
         commission_pct:      document.getElementById('bCommission').value !== '' ? parseFloat(document.getElementById('bCommission').value) : null,
         band_size:           selectedBandSize,
         genres:              selectedGenres,
