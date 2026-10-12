@@ -314,6 +314,7 @@
         var bandName  = b.bands  ? b.bands.name  : '(deleted band)';
         var pay = !b.money_visible ? '\u{1F512}' : (b.pay_amount != null ? '$' + Number(b.pay_amount).toLocaleString() : '\u2013');
         var canEdit = isAdminRole() || b.created_by === currentProfileId;
+        var canChange = canEdit || b.money_visible;   // backups can edit but not delete
         var statusClass = 'status-' + (b.status || 'pending').toLowerCase();
 
         html +=
@@ -323,10 +324,9 @@
             '<td data-label="Band">' + esc(bandName) + '</td>' +
             '<td data-label="Pay">' + esc(pay) + '</td>' +
             '<td data-label="Status"><span class="status-pill ' + statusClass + '">' + esc(b.status || 'Pending') + '</span></td>' +
-            '<td><div class="row-actions">' + (canEdit
-              ? '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
-                '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>'
-              : '<span style="color:#aaa;font-size:0.75rem;" title="Only the booking agent or an administrator can change this booking">View only</span>') +
+            '<td><div class="row-actions">' + (canChange
+              ? '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' + (canEdit ? '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>' : '')
+              : '<span style="color:#aaa;font-size:0.75rem;" title="Only the booking agent, their backup, or an administrator can change this booking">View only</span>') +
             '</div></td>' +
           '</tr>';
       });
