@@ -157,6 +157,7 @@
       <a href="bookings.html">Bookings</a>
       <a href="contracts.html">Contracts</a>
       <a href="venue-stats.html">Venue Stats</a>
+      <button onclick="openBackupModal()" title="Choose who can cover your bookings while you are away">&#129309; Backup</button>
       <button class="notif-bell-btn" id="notifBellBtn" onclick="toggleNotifDrawer()" title="Notifications">&#128276;<span class="notif-count" id="notifCount"></span></button>
       <button class="refresh-btn" style="color:#fff;border-color:rgba(255,255,255,0.4);" onclick="refreshAll()">&#8635; Refresh</button>
       <button onclick="logout()">Sign Out</button>
@@ -314,6 +315,24 @@
       <button class="notif-mark-all" id="markAllBtn" onclick="markAllRead()" disabled>Mark all read</button>
     </div>
     <div class="notif-list" id="notifList"><div class="notif-empty">Loading&#8230;</div></div>
+  </div>
+
+  <!-- Backup agent modal -->
+  <div id="backupOverlay" onclick="if(event.target===this)closeBackupModal()" style="display:none;position:fixed;inset:0;background:rgba(20,14,4,0.6);z-index:300;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;">
+    <div style="background:#faf8f4;border-radius:14px;max-width:460px;width:100%;padding:22px;box-shadow:0 8px 40px rgba(0,0,0,0.25);">
+      <h2 style="margin:0 0 6px;font-size:1.1rem;">&#129309; My Backup Agent</h2>
+      <p style="font-size:0.82rem;color:#6b5e48;margin:0 0 14px;line-height:1.45;">A backup can <strong>see and edit</strong> your bookings &mdash; including pay and commission &mdash; while you're away. They can't delete them, and they never get access to anything else admin-only (team details, agency-wide earnings, approvals, other agents' money).</p>
+      <div id="backupList" style="margin-bottom:12px;"></div>
+      <label style="display:block;font-size:0.72rem;font-weight:700;text-transform:uppercase;color:#6b5e48;margin:10px 0 5px;">Add a backup</label>
+      <select id="backupPick" style="width:100%;padding:9px;border:1px solid #d4c4a0;border-radius:8px;"></select>
+      <label style="display:block;font-size:0.72rem;font-weight:700;text-transform:uppercase;color:#6b5e48;margin:10px 0 5px;">Until (optional)</label>
+      <input type="date" id="backupEnd" style="width:100%;padding:9px;border:1px solid #d4c4a0;border-radius:8px;">
+      <div style="font-size:0.72rem;color:#999;margin-top:4px;font-style:italic;">Leave blank to keep them as your backup until you remove them.</div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button onclick="closeBackupModal()" style="padding:9px 16px;border:none;border-radius:8px;background:#f0ebe0;cursor:pointer;">Close</button>
+        <button onclick="addBackup()" style="padding:9px 16px;border:none;border-radius:8px;background:#A07018;color:#fff;font-weight:700;cursor:pointer;">Add backup</button>
+      </div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -488,6 +507,53 @@
       if (r.error) { showToast(r.error.message, 'error'); return; }
       showToast(approve ? 'Approved' : 'Rejected');
       loadApprovals();
+    }
+
+    // ── MY BACKUP AGENT ─────────────────────────────────────────────────────
+    var teamProfiles = [], myBackups = [];
+
+    async function openBackupModal() {
+      document.getElementById('backupOverlay').style.display = 'flex';
+      await refreshBackups();
+    }
+    function closeBackupModal() { document.getElementById('backupOverlay').style.display = 'none'; }
+
+    async function refreshBackups() {
+      var res = await Promise.all([
+        sb.rpc('team_directory'),
+        sb.from('agent_backups').select('agent_id, backup_id, ends_on').eq('agent_id', currentProfileId)
+      ]);
+      teamProfiles = res[0].data || [];
+      myBackups = (res[1].data || []).filter(function(r){ return !r.ends_on || r.ends_on >= new Date().toISOString().slice(0, 10); });
+      var nameOf = function(id){ var p = teamProfiles.find(function(x){ return x.id === id; }); return p ? (p.name || p.email) : 'Agent'; };
+      document.getElementById('backupList').innerHTML = myBackups.length
+        ? myBackups.map(function(r){
+            return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid #e0d8c8;border-radius:8px;margin-bottom:6px;font-size:0.86rem;">' +
+              '<span>' + esc(nameOf(r.backup_id)) + '<span style="color:#6b5e48;"> &mdash; ' + (r.ends_on ? 'through ' + new Date(r.ends_on + 'T12:00:00').toLocaleDateString('en-US', {month:'short', day:'numeric'}) : 'until removed') + '</span></span>' +
+              '<button onclick="removeBackup(\'' + r.backup_id + '\')" style="background:none;border:none;color:#8B2000;font-weight:700;cursor:pointer;">Remove</button></div>';
+          }).join('')
+        : '<div style="font-size:0.84rem;color:#999;">You have no backup agent right now.</div>';
+      var taken = {}; myBackups.forEach(function(r){ taken[r.backup_id] = true; });
+      document.getElementById('backupPick').innerHTML = '<option value="">Choose an agent&hellip;</option>' +
+        teamProfiles.filter(function(p){ return p.id !== currentProfileId && !taken[p.id]; })
+          .map(function(p){ return '<option value="' + p.id + '">' + esc(p.name || p.email) + '</option>'; }).join('');
+      document.getElementById('backupEnd').value = '';
+    }
+
+    async function addBackup() {
+      var id = document.getElementById('backupPick').value;
+      if (!id) { showToast('Choose an agent first'); return; }
+      var r = await sb.rpc('set_my_backup', { p_backup_id: id, p_ends_on: document.getElementById('backupEnd').value || null });
+      if (r.error) { showToast(r.error.message); return; }
+      showToast('Backup added');
+      refreshBackups();
+    }
+
+    async function removeBackup(id) {
+      var r = await sb.rpc('remove_backup', { p_backup_id: id });
+      if (r.error) { showToast(r.error.message); return; }
+      showToast('Backup removed');
+      refreshBackups();
     }
 
     function refreshAll() { loadAll(); loadNotifications(); loadApprovals(); }

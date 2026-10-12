@@ -319,7 +319,7 @@
   <div id="backupOverlay" onclick="if(event.target===this)closeBackupModal()" style="display:none;position:fixed;inset:0;background:rgba(20,14,4,0.6);z-index:300;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;">
     <div style="background:#faf8f4;border-radius:14px;max-width:460px;width:100%;padding:22px;box-shadow:0 8px 40px rgba(0,0,0,0.25);">
       <h2 style="margin:0 0 6px;font-size:1.1rem;">&#129309; My Backup Agent</h2>
-      <p style="font-size:0.82rem;color:#6b5e48;margin:0 0 14px;line-height:1.45;">A backup can <strong>see</strong> your bookings &mdash; including pay and commission &mdash; while you're away. They can't change them. No one else can see your financial details except administrators.</p>
+      <p style="font-size:0.82rem;color:#6b5e48;margin:0 0 14px;line-height:1.45;">A backup can <strong>see and edit</strong> your bookings &mdash; including pay and commission &mdash; while you're away. They can't delete them. No one else can see your financial details except administrators.</p>
       <div id="backupList" style="margin-bottom:12px;"></div>
       <label style="display:block;font-size:0.72rem;font-weight:700;text-transform:uppercase;color:#6b5e48;margin:10px 0 5px;">Add a backup</label>
       <select id="backupPick" style="width:100%;padding:9px;border:1px solid #d4c4a0;border-radius:8px;"></select>
@@ -598,7 +598,7 @@
 
     async function refreshBackups() {
       var res = await Promise.all([
-        sb.from('profiles').select('id, name, email').order('name'),
+        sb.rpc('team_directory'),
         sb.from('agent_backups').select('agent_id, backup_id, ends_on').eq('agent_id', currentProfileId)
       ]);
       teamProfiles = res[0].data || [];

@@ -238,7 +238,7 @@
       contractTemplateOverride = profile.businesses ? profile.businesses.contract_template : null;
       document.getElementById('bizName').textContent = profile.businesses.name;
 
-      var { data: agents } = await sb.from('profiles').select('id, name').order('name');
+      var { data: agents } = await sb.rpc('team_directory');
       businessAgents = agents || [];
 
       await loadContracts();

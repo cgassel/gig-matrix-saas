@@ -559,7 +559,7 @@
         : 'Username and password for the band to log in. An administrator must approve it before it works.';
       document.getElementById('bSetupAgents').innerHTML = allProfiles.map(function(p) {
         return '<label class="ag-chk"><input type="checkbox" value="' + p.id + '"' + (p.id === currentProfileId ? ' checked' : '') + '> ' +
-          esc(p.name || p.email) + (p.role !== 'agent' ? ' <span style="color:#999;font-weight:500;">(' + esc(p.role) + ')</span>' : '') + '</label>';
+          esc(p.name || p.email) + (p.role && p.role !== 'agent' ? ' <span style="color:#999;font-weight:500;">(' + esc(p.role) + ')</span>' : '') + '</label>';
       }).join('');
     }
 
@@ -753,7 +753,7 @@
     async function loadBandAgents() {
       var res = await Promise.all([
         sb.from('band_agents').select('band_id, agent_id, is_cover, ends_on'),
-        sb.from('profiles').select('id, name, email, role').order('name')
+        sb.rpc('team_directory')
       ]);
       allBandAgents = res[0].data || [];
       allProfiles = res[1].data || [];
@@ -802,7 +802,7 @@
       if (isAdminRole()) {
         var set = {}; assigned.forEach(function(r){ set[r.agent_id] = true; });
         document.getElementById('agCheckList').innerHTML = allProfiles.map(function(p){
-          return '<label class="ag-chk"><input type="checkbox" value="' + p.id + '"' + (set[p.id] ? ' checked' : '') + '> ' + esc(p.name || p.email) + (p.role !== 'agent' ? ' <span style="color:#999;font-weight:500;">(' + esc(p.role) + ')</span>' : '') + '</label>';
+          return '<label class="ag-chk"><input type="checkbox" value="' + p.id + '"' + (set[p.id] ? ' checked' : '') + '> ' + esc(p.name || p.email) + (p.role && p.role !== 'agent' ? ' <span style="color:#999;font-weight:500;">(' + esc(p.role) + ')</span>' : '') + '</label>';
         }).join('');
         document.getElementById('agAssigned').style.display = 'none';
       } else {

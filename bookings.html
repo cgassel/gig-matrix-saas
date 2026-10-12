@@ -36,6 +36,55 @@
     .empty-state, .loading-state { text-align: center; padding: 50px 20px; color: #6b5e48; }
     .empty-state .hint { font-size: 0.8rem; color: #999; margin-top: 8px; }
 
+
+    /* Calendar view */
+    .view-toggle { display:flex; border:1.5px solid #d4c4a0; border-radius:8px; overflow:hidden; }
+    .view-toggle button { border:none; background:#fff; padding:9px 14px; font-size:0.82rem; font-weight:700; color:#6b5e48; cursor:pointer; font-family:inherit; }
+    .view-toggle button.active { background:#A07018; color:#fff; }
+    .stats-bar { display:flex; gap:12px; align-items:stretch; flex-wrap:wrap; margin-bottom:14px; }
+    .stat-card { background:#fff; border-radius:10px; padding:10px 18px; box-shadow:0 1px 6px rgba(0,0,0,0.06); text-align:center; min-width:84px; }
+    .stat-value { font-size:1.4rem; font-weight:800; color:#1a1408; }
+    .stat-label { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.5px; color:#6b5e48; }
+    .cal-legend { display:flex; gap:14px; align-items:center; flex-wrap:wrap; margin-left:auto; font-size:0.75rem; color:#6b5e48; }
+    .leg-item { display:flex; align-items:center; gap:6px; }
+    .leg-dot { width:11px; height:11px; border-radius:3px; }
+    .cal-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .month-nav { display:flex; align-items:center; gap:10px; }
+    .month-nav button, .btn-today { border:1.5px solid #d4c4a0; background:#fff; border-radius:8px; padding:7px 13px; font-size:1rem; font-weight:700; color:#7A5210; cursor:pointer; font-family:inherit; }
+    .btn-today { font-size:0.8rem; }
+    .current-month { font-size:1.15rem; font-weight:800; min-width:170px; text-align:center; }
+    .cal-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 10px rgba(0,0,0,0.06); }
+    .cal-hdr { background:#f2ede4; text-align:center; padding:9px 4px; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.5px; color:#6b5e48; font-weight:700; }
+    .cal-day { min-height:104px; border-top:1px solid #eee; border-left:1px solid #f0ebe0; padding:5px; cursor:pointer; overflow:hidden; }
+    .cal-day:nth-child(7n+1) { border-left:none; }
+    .cal-day.other { background:#faf8f4; cursor:default; }
+    .cal-day.other .day-num { color:#c9bfa8; }
+    .cal-day.today { background:#fff8e6; }
+    .cal-day.today .day-num { background:#A07018; color:#fff; border-radius:50%; width:22px; height:22px; display:flex; align-items:center; justify-content:center; }
+    .day-num { font-size:0.78rem; font-weight:700; color:#6b5e48; margin-bottom:3px; }
+    .bk-chip { display:flex; align-items:center; justify-content:space-between; gap:4px; font-size:0.68rem; font-weight:700; padding:3px 6px; border-radius:5px; margin-bottom:3px; cursor:pointer; color:#fff; overflow:hidden; white-space:nowrap; }
+    .bk-chip span { overflow:hidden; text-overflow:ellipsis; }
+    .bk-chip.confirmed { background:#2e7d32; }
+    .bk-chip.pending { background:#C8960C; }
+    .bk-chip.tentative { background:#2a5a9a; }
+    .bk-chip.completed { background:#6b5e48; }
+    .bk-chip.cancelled { background:#b71c1c; opacity:0.75; text-decoration:line-through; }
+    .bk-chip .chip-actions { display:none; gap:2px; flex-shrink:0; }
+    .bk-chip:hover .chip-actions { display:flex; }
+    .chip-actions button { border:none; background:rgba(0,0,0,0.25); color:#fff; border-radius:3px; font-size:0.62rem; cursor:pointer; padding:1px 4px; }
+    .more-bk { font-size:0.68rem; font-weight:700; color:#A07018; padding:1px 4px; }
+    .detail-row { display:flex; justify-content:space-between; gap:14px; padding:8px 0; border-bottom:1px solid #f0ebe0; font-size:0.86rem; }
+    .detail-label { color:#6b5e48; font-weight:700; font-size:0.74rem; text-transform:uppercase; letter-spacing:0.4px; }
+    .detail-value { text-align:right; }
+    .day-bk { padding:10px 12px; border:1px solid #e8dcc8; border-radius:9px; margin-bottom:8px; cursor:pointer; }
+    .day-bk:hover { background:#faf8f4; }
+    @media (max-width: 700px) {
+      .cal-day { min-height:64px; padding:3px; }
+      .bk-chip { font-size:0.58rem; padding:2px 3px; }
+      .cal-hdr { font-size:0.58rem; padding:6px 1px; }
+      .current-month { min-width:0; font-size:1rem; }
+      .cal-legend { margin-left:0; }
+    }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(20,14,4,0.6); align-items: flex-start; justify-content: center; padding: 30px 16px; overflow-y: auto; z-index: 500; }
     .modal-overlay.show { display: flex; }
     .modal { background: #fff; border-radius: 14px; max-width: 480px; width: 100%; padding: 26px 28px; margin: auto; }
@@ -84,6 +133,11 @@
   <div class="content">
     <div class="toolbar">
       <button class="add-btn" onclick="window.location.href='create-booking.html'">+ Add Booking</button>
+      <div class="view-toggle">
+        <button id="viewCalBtn" class="active" onclick="setView('calendar')">&#128197; Calendar</button>
+        <button id="viewListBtn" onclick="setView('list')">&#9776; List</button>
+      </div>
+      <select id="filterVenue" onchange="renderTable()"><option value="">All Venues</option></select>
       <select id="filterStatus" onchange="renderTable()">
         <option value="">All Statuses</option>
         <option value="Pending">Pending</option>
@@ -99,6 +153,29 @@
     </div>
 
     <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
+
+    <div id="calView" style="display:none;">
+      <div class="stats-bar">
+        <div class="stat-card"><div class="stat-value" id="statTotal">0</div><div class="stat-label">Total</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#2e7d32;" id="statConfirmed">0</div><div class="stat-label">Confirmed</div></div>
+        <div class="stat-card"><div class="stat-value" style="color:#b45309;" id="statPending">0</div><div class="stat-label">Pending</div></div>
+        <div class="cal-legend">
+          <div class="leg-item"><div class="leg-dot" style="background:#2e7d32;"></div>Confirmed</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#C8960C;"></div>Pending</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#2a5a9a;"></div>Tentative</div>
+          <div class="leg-item"><div class="leg-dot" style="background:#b71c1c;"></div>Cancelled</div>
+        </div>
+      </div>
+      <div class="cal-controls">
+        <div class="month-nav">
+          <button onclick="previousMonth()">&#8249;</button>
+          <div class="current-month" id="currentMonth">Loading&hellip;</div>
+          <button onclick="nextMonth()">&#8250;</button>
+        </div>
+        <button class="btn-today" onclick="goToToday()">Today</button>
+      </div>
+      <div id="calendarContainer"></div>
+    </div>
 
     <table id="bookingsTable" style="display:none;">
       <thead>
@@ -197,6 +274,14 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="detailModal" onclick="if(event.target===this)closeDetail()">
+    <div class="modal">
+      <h2 id="detailTitle">Booking</h2>
+      <div id="detailBody"></div>
+      <div class="modal-actions" id="detailActions" style="flex-wrap:wrap;"></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
@@ -231,7 +316,12 @@
       mineOnly = new URLSearchParams(window.location.search).get('mine') === '1';
       if (mineOnly) document.getElementById('mineBanner').style.display = 'flex';
 
-      await Promise.all([loadVenuesAndBands(), loadBookings()]);
+      var pn = await sb.rpc('team_directory');
+      (pn.data || []).forEach(function(p){ profileNames[p.id] = p.name || p.email; });
+      await loadVenuesAndBands();
+      fillVenueFilter();
+      setView(viewMode);
+      await loadBookings();
     })();
 
     async function loadVenuesAndBands() {
@@ -275,9 +365,11 @@
     function renderTable() {
       var status = document.getElementById('filterStatus').value;
       var search = document.getElementById('searchBox').value.toLowerCase();
+      var venueFilter = document.getElementById('filterVenue').value;
 
       var filtered = allBookings.filter(function(b) {
         if (mineOnly && b.created_by !== currentProfileId) return false;
+        if (venueFilter && b.venue_id !== venueFilter) return false;
         if (status && b.status !== status) return false;
         if (search) {
           var haystack = [(b.venues && b.venues.name), (b.bands && b.bands.name)].join(' ').toLowerCase();
@@ -288,6 +380,15 @@
 
       var table = document.getElementById('bookingsTable');
       var emptyState = document.getElementById('emptyState');
+
+      // Calendar is the default view; the table is the "List" view
+      document.getElementById('calView').style.display = viewMode === 'calendar' ? 'block' : 'none';
+      if (viewMode === 'calendar') {
+        table.style.display = 'none';
+        emptyState.style.display = 'none';
+        renderCalendar(filtered);
+        return;
+      }
 
       if (filtered.length === 0) {
         table.style.display = 'none';
@@ -331,6 +432,142 @@
           '</tr>';
       });
       document.getElementById('bookingsBody').innerHTML = html;
+    }
+
+
+    // ── CALENDAR VIEW ───────────────────────────────────────────────────────
+    var viewMode = 'calendar';
+    var calDate = new Date(), calYear = calDate.getFullYear(), calMonth = calDate.getMonth();
+    var calFiltered = [], profileNames = {};
+    var MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    try { var savedView = localStorage.getItem('gm_bookings_view'); if (savedView === 'list') viewMode = 'list'; } catch (e) {}
+
+    function setView(v) {
+      viewMode = v;
+      try { localStorage.setItem('gm_bookings_view', v); } catch (e) {}
+      document.getElementById('viewCalBtn').classList.toggle('active', v === 'calendar');
+      document.getElementById('viewListBtn').classList.toggle('active', v === 'list');
+      renderTable();
+    }
+
+    function fillVenueFilter() {
+      var sel = document.getElementById('filterVenue'), keep = sel.value;
+      sel.innerHTML = '<option value="">All Venues</option>' + allVenues.map(function(v){ return '<option value="' + v.id + '">' + esc(v.name) + '</option>'; }).join('');
+      sel.value = keep;
+    }
+
+    function canEditBooking(b)   { return isAdminRole() || b.created_by === currentProfileId; }   // may delete
+    function canChangeBooking(b) { return canEditBooking(b) || b.money_visible; }                  // may edit (agent, backup, admin)
+
+    function renderCalendar(filtered) {
+      calFiltered = filtered;
+      document.getElementById('viewCalBtn').classList.toggle('active', true);
+      document.getElementById('viewListBtn').classList.toggle('active', false);
+      document.getElementById('currentMonth').textContent = MONTH_NAMES[calMonth] + ' ' + calYear;
+
+      // Month stats
+      var monthKey = calYear + '-' + String(calMonth + 1).padStart(2, '0');
+      var inMonth = filtered.filter(function(b){ return String(b.booking_date).indexOf(monthKey) === 0; });
+      document.getElementById('statTotal').textContent = inMonth.length;
+      document.getElementById('statConfirmed').textContent = inMonth.filter(function(b){ return b.status === 'Confirmed'; }).length;
+      document.getElementById('statPending').textContent = inMonth.filter(function(b){ return b.status === 'Pending'; }).length;
+
+      var byDate = {};
+      filtered.forEach(function(b){ (byDate[b.booking_date] = byDate[b.booking_date] || []).push(b); });
+
+      var first = new Date(calYear, calMonth, 1), dim = new Date(calYear, calMonth + 1, 0).getDate(), sdow = first.getDay();
+      var prevDim = new Date(calYear, calMonth, 0).getDate(), today = new Date();
+      var h = '<div class="cal-grid">';
+      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){ h += '<div class="cal-hdr">' + d + '</div>'; });
+      for (var i = sdow - 1; i >= 0; i--) h += '<div class="cal-day other"><div class="day-num">' + (prevDim - i) + '</div></div>';
+
+      for (var day = 1; day <= dim; day++) {
+        var ds = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        var isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+        var list = byDate[ds] || [];
+        h += '<div class="cal-day' + (isToday ? ' today' : '') + '" onclick="openDay(\'' + ds + '\')"><div class="day-num">' + day + '</div>';
+        list.slice(0, 3).forEach(function(b) {
+          var sc = String(b.status || 'Pending').toLowerCase().replace(/\s+/g, '-');
+          var vn = b.venues ? b.venues.name : '(deleted venue)', bn = b.bands ? b.bands.name : '(deleted band)';
+          var acts = '';
+          if (canChangeBooking(b) && b.status !== 'Cancelled') acts += '<button title="Cancel booking" onclick="event.stopPropagation();promptCancel(\'' + b.id + '\')">&#10005;</button>';
+          if (canEditBooking(b)) acts += '<button title="Delete booking" onclick="event.stopPropagation();openDeleteModal(\'' + b.id + '\')">&#128465;</button>';
+          h += '<div class="bk-chip ' + sc + '" title="' + esc(vn + ' — ' + bn) + '" onclick="event.stopPropagation();showBooking(\'' + b.id + '\')"><span>' + esc(vn) + ' &middot; ' + esc(bn) + '</span>' +
+               (acts ? '<span class="chip-actions">' + acts + '</span>' : '') + '</div>';
+        });
+        if (list.length > 3) h += '<div class="more-bk">+' + (list.length - 3) + ' more</div>';
+        h += '</div>';
+      }
+      var rem = 42 - (sdow + dim);
+      for (var j = 1; j <= rem; j++) h += '<div class="cal-day other"><div class="day-num">' + j + '</div></div>';
+      h += '</div>';
+      document.getElementById('calendarContainer').innerHTML = h;
+    }
+
+    function previousMonth() { if (--calMonth < 0) { calMonth = 11; calYear--; } renderTable(); }
+    function nextMonth()     { if (++calMonth > 11) { calMonth = 0; calYear++; } renderTable(); }
+    function goToToday()     { var n = new Date(); calYear = n.getFullYear(); calMonth = n.getMonth(); renderTable(); }
+
+    function cleanTime(t) {
+      if (!t) return '';
+      var m = String(t).match(/^(\d{1,2}):(\d{2})/); if (!m) return String(t);
+      var h = parseInt(m[1], 10), ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12;
+      return h + ':' + m[2] + ' ' + ap;
+    }
+    function dRow(l, v) { return '<div class="detail-row"><span class="detail-label">' + l + '</span><span class="detail-value">' + v + '</span></div>'; }
+
+    // Day with several bookings: list them, tap one for details
+    function openDay(ds) {
+      var list = calFiltered.filter(function(b){ return b.booking_date === ds; });
+      if (!list.length) return;
+      if (list.length === 1) { showBooking(list[0].id); return; }
+      document.getElementById('detailTitle').textContent = new Date(ds + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+      document.getElementById('detailBody').innerHTML = list.map(function(b) {
+        var sc = 'status-' + String(b.status || 'pending').toLowerCase();
+        return '<div class="day-bk" onclick="showBooking(\'' + b.id + '\')"><strong>' + esc(b.venues ? b.venues.name : '(deleted venue)') + '</strong> &middot; ' + esc(b.bands ? b.bands.name : '(deleted band)') +
+          ' <span class="status-pill ' + sc + '" style="float:right;">' + esc(b.status || 'Pending') + '</span>' +
+          '<div style="font-size:0.78rem;color:#6b5e48;margin-top:3px;">' + esc(cleanTime(b.start_time)) + (b.end_time ? ' – ' + esc(cleanTime(b.end_time)) : '') + '</div></div>';
+      }).join('');
+      document.getElementById('detailActions').innerHTML = '<button class="btn-cancel" onclick="closeDetail()">Close</button>';
+      document.getElementById('detailModal').classList.add('show');
+    }
+
+    function showBooking(id) {
+      var b = allBookings.find(function(x){ return x.id === id; }); if (!b) return;
+      var sc = 'status-' + String(b.status || 'pending').toLowerCase();
+      var timeStr = (b.start_time && b.end_time) ? cleanTime(b.start_time) + ' - ' + cleanTime(b.end_time) : (cleanTime(b.start_time) || cleanTime(b.end_time) || 'N/A');
+      var money = b.money_visible
+        ? dRow('Pay', b.pay_amount != null ? '$' + Number(b.pay_amount).toLocaleString() : '\u2013') + dRow('Commission', b.commission_pct != null ? b.commission_pct + '%' : '\u2013')
+        : dRow('Pay', '\u{1F512} Private');
+      document.getElementById('detailTitle').textContent = (b.venues ? b.venues.name : 'Booking');
+      document.getElementById('detailBody').innerHTML =
+        dRow('Band', '<strong>' + esc(b.bands ? b.bands.name : '(deleted band)') + '</strong>') +
+        dRow('Date', new Date(b.booking_date + 'T12:00:00').toLocaleDateString()) +
+        dRow('Time', esc(timeStr)) +
+        dRow('Status', '<span class="status-pill ' + sc + '">' + esc(b.status || 'Pending') + '</span>') +
+        money +
+        dRow('Sound/Lights', esc(b.sound_lights || '\u2013')) +
+        dRow('Agent', esc(profileNames[b.created_by] || '\u2013')) +
+        (b.notes ? dRow('Notes', esc(b.notes)) : '');
+      var actions = '';
+      if (canChangeBooking(b)) actions += '<button class="btn-save" onclick="closeDetail();openEditModal(\'' + b.id + '\')">Edit</button>';
+      if (canChangeBooking(b) && b.status !== 'Cancelled') actions += '<button class="btn-cancel" style="background:#fff3e0;color:#e65100;" onclick="closeDetail();promptCancel(\'' + b.id + '\')">Mark Cancelled</button>';
+      if (canEditBooking(b)) actions += '<button class="btn-delete-confirm" onclick="closeDetail();openDeleteModal(\'' + b.id + '\')">Delete</button>';
+      if (!canChangeBooking(b)) actions += '<span style="font-size:0.78rem;color:#999;align-self:center;">View only &mdash; only the booking agent, their backup, or an administrator can change this booking.</span>';
+      actions += '<button class="btn-cancel" onclick="closeDetail()">Close</button>';
+      document.getElementById('detailActions').innerHTML = actions;
+      document.getElementById('detailModal').classList.add('show');
+    }
+    function closeDetail() { document.getElementById('detailModal').classList.remove('show'); }
+
+    async function promptCancel(id) {
+      var b = allBookings.find(function(x){ return x.id === id; }); if (!b) return;
+      if (!confirm('Mark this booking as Cancelled?\n\n' + (b.venues ? b.venues.name : '') + ' \u00b7 ' + (b.bands ? b.bands.name : '') + ' \u00b7 ' + b.booking_date)) return;
+      var r = await sb.from('bookings').update({ status: 'Cancelled' }).eq('id', id);
+      if (r.error) { showToast('Error: ' + r.error.message, 'error'); return; }
+      showToast('Booking cancelled.');
+      await loadBookings();
     }
 
     // ── Add / Edit modal ────────────────────────────────────────────────────

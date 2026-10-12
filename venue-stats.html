@@ -91,11 +91,13 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
   }
 
   var r = await sb.from('bookings')
-    .select('id, venue_id, booking_date, status, created_by, venues(name), bands(commission_pct), profiles:created_by(name)')
+    .select('id, venue_id, booking_date, status, created_by, venues(name), bands(commission_pct)')
     .neq('status', 'Cancelled');
   if (r.error) { document.getElementById('cardsWrap').innerHTML = '<div class="empty-state">Error: ' + esc(r.error.message) + '</div>'; return; }
 
   await attachMoney(r.data || []);   // money only for bookings you're allowed to see
+  var dir = await sb.rpc('team_directory'), agentNames = {};
+  (dir.data || []).forEach(function(p){ agentNames[p.id] = p.name; });
   var venues = {};
   (r.data || []).forEach(function(b){
     var pay = parseFloat(b.pay_amount) || 0;
@@ -105,7 +107,7 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
     var v = venues[b.venue_id] || (venues[b.venue_id] = { venueName: b.venues ? b.venues.name : '(deleted venue)', bookingCount: 0, totalBandPay: 0, totalCommission: 0, agents: {}, lastBooked: null });
     v.bookingCount++; v.totalBandPay += pay; v.totalCommission += comm;
     var aid = b.created_by || 'unknown';
-    var a = v.agents[aid] || (v.agents[aid] = { agentName: b.profiles ? b.profiles.name : 'Unknown agent', bookings: 0, commission: 0 });
+    var a = v.agents[aid] || (v.agents[aid] = { agentName: agentNames[aid] || 'Unknown agent', bookings: 0, commission: 0 });
     a.bookings++; a.commission += comm;
     if (!v.lastBooked || b.booking_date > v.lastBooked) v.lastBooked = b.booking_date;
   });
