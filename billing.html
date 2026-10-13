@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Billing — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; padding: 20px; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.1); padding: 28px; max-width: 460px; margin: 30px auto; }
+    h1 { font-size: 1.3rem; color: #A07018; margin: 0 0 14px; }
+    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee6d3; font-size: .92rem; color: #4a4030; }
+    .row b { color: #2b2418; }
+    button { width: 100%; margin-top: 18px; padding: 13px; background: #A07018; color: #fff; border: 0; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    button.alt { background: #fff; color: #A07018; border: 2px solid #A07018; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .msg { margin-top: 14px; font-size: .88rem; min-height: 1.2em; } .err { color: #b3261e; } .ok { color: #1e7a3a; }
+    a { color: #A07018; font-size: .88rem; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Billing</h1>
+    <div id="body">Loading…</div>
+    <div class="msg" id="msg"></div>
+    <p style="margin-top:18px"><a href="admin-dashboard.html">← Back to dashboard</a></p>
+  </div>
+  <script src="config.js"></script>
+  <script>
+    const msg = (t, c) => { const m = document.getElementById('msg'); m.textContent = t; m.className = 'msg ' + (c || ''); };
+    async function call(fn, btn) {
+      btn.disabled = true; msg('Opening secure checkout…');
+      const { data, error } = await sb.functions.invoke(fn, { body: {} });
+      let e = data && data.error;
+      if (error && !e) { try { e = (await error.context.json()).error; } catch (_) { e = error.message; } }
+      if (e || !data || !data.url) { msg(e || 'Could not start', 'err'); btn.disabled = false; return; }
+      window.location.href = data.url;
+    }
+    (async () => {
+      const { data: { session } } = await sb.auth.getSession();
+      if (!session) { window.location.href = 'login.html'; return; }
+      const { data: s, error } = await sb.rpc('get_trial_status');
+      const body = document.getElementById('body');
+      if (error || !s) { body.textContent = 'Could not load billing.'; return; }
+      const fmt = d => d ? new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '—';
+      const label = { trialing: s.readOnly ? 'Trial ended' : 'Free trial', active: 'Subscribed', past_due: 'Payment past due', canceled: 'Canceled' }[s.status] || s.status;
+      let h = '<div class="row"><span>Company</span><b></b></div><div class="row"><span>Status</span><b>' + label + '</b></div>';
+      if (s.status === 'trialing' && s.trialEndsAt) h += '<div class="row"><span>Trial ends</span><b>' + fmt(s.trialEndsAt) + '</b></div>';
+      if (s.periodEnd && s.status !== 'canceled') h += '<div class="row"><span>Renews / ends</span><b>' + fmt(s.periodEnd) + '</b></div>';
+      if (s.readOnly) h += '<p style="color:#b3261e;font-size:.9rem">The account is read-only. Your data is safe; subscribe to make changes again.</p>';
+      body.innerHTML = h; body.querySelector('b').textContent = s.company || '';
+      if (!s.isAdmin) { body.insertAdjacentHTML('beforeend', '<p style="font-size:.9rem;color:#6b5e48">Only an administrator can manage billing.</p>'); return; }
+      if (s.hasSubscription && s.status !== 'canceled') {
+        const b = document.createElement('button'); b.className = 'alt'; b.textContent = 'Manage billing (card, invoices, cancel)';
+        b.onclick = () => call('billing-portal', b); body.appendChild(b);
+      }
+      if (s.status !== 'active' && s.status !== 'past_due') {
+        const b = document.createElement('button'); b.textContent = s.status === 'canceled' || s.readOnly ? 'Subscribe to continue' : 'Subscribe now';
+        b.onclick = () => call('create-checkout', b); body.appendChild(b);
+      }
+      if (new URLSearchParams(location.search).get('paid')) msg('Thank you! Your subscription is being activated — this can take a few seconds. Refresh to see it.', 'ok');
+    })();
+  </script>
+</body>
+</html>
