@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="referrer" content="no-referrer">
+  <title>Set Your Password — Gig Matrix</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #f0ebe0; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #fff; border-radius: 14px; box-shadow: 0 4px 20px rgba(0,0,0,.1); padding: 32px 28px; max-width: 420px; width: 100%; }
+    h1 { font-size: 1.35rem; color: #A07018; margin: 0 0 6px; }
+    p.sub { color: #6b5e48; font-size: .9rem; margin: 0 0 18px; line-height: 1.5; }
+    label { display: block; font-size: .8rem; font-weight: 700; color: #6b5e48; margin: 12px 0 4px; }
+    input { width: 100%; padding: 11px 12px; border: 1px solid #d8cfba; border-radius: 8px; font-size: 1rem; }
+    button { width: 100%; margin-top: 20px; padding: 13px; background: #A07018; color: #fff; border: 0; border-radius: 8px; font-size: 1rem; font-weight: 700; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: wait; }
+    .err { color: #b3261e; font-size: .88rem; margin-top: 12px; min-height: 1.2em; }
+    a { color: #A07018; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Email confirmed — set your password</h1>
+    <p class="sub">Choose a password to finish creating your company and start your free trial.</p>
+    <form id="f">
+      <label>Password (8+ characters)</label><input id="pw" type="password" required minlength="8" autocomplete="new-password">
+      <label>Confirm password</label><input id="pw2" type="password" required minlength="8" autocomplete="new-password">
+      <button id="go" type="submit">Create my company</button>
+      <div class="err" id="err"></div>
+    </form>
+  </div>
+  <script src="config.js"></script>
+  <script>
+    const token = new URLSearchParams(location.search).get('token') || '';
+    history.replaceState(null, '', location.pathname);            // keep the token out of the address bar / history
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const go = document.getElementById('go'), err = document.getElementById('err');
+      const pw = document.getElementById('pw').value;
+      err.textContent = '';
+      if (pw !== document.getElementById('pw2').value) { err.textContent = 'The passwords do not match.'; return; }
+      go.disabled = true; go.textContent = 'Setting up your company…';
+      try {
+        const { data, error } = await sb.functions.invoke('complete-trial', { body: { token, password: pw } });
+        let msg = data && data.error;
+        if (error && !msg) { try { msg = (await error.context.json()).error; } catch (_) { msg = error.message; } }
+        if (msg) throw new Error(msg);
+        const si = await sb.auth.signInWithPassword({ email: data.email, password: pw });
+        if (si.error) throw si.error;
+        window.location.href = 'admin-dashboard.html';
+      } catch (ex) {
+        err.innerHTML = ''; err.textContent = ex.message || 'Something went wrong';
+        if (/expired|already used|not valid/i.test(err.textContent)) err.insertAdjacentHTML('beforeend', ' <a href="start-trial.html">Start again</a>');
+        go.disabled = false; go.textContent = 'Create my company';
+      }
+    });
+  </script>
+</body>
+</html>
