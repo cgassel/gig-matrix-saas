@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roles Guide — Gig Matrix</title>
+<style>
+  :root { --gold:#A07018; --ink:#2b2418; --muted:#6b5e48; --line:#e4dcc8; --bg:#f0ebe0; --yes:#1e7a3a; --no:#b3261e; --part:#b26a00; }
+  * { box-sizing: border-box; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); color:var(--ink); margin:0; line-height:1.55; }
+  .wrap { max-width:900px; margin:0 auto; padding:24px 16px 60px; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px; }
+  h1 { font-size:1.7rem; color:var(--gold); margin:0; }
+  h2 { font-size:1.2rem; color:var(--gold); margin:0 0 10px; }
+  h3 { font-size:1rem; margin:18px 0 6px; }
+  .btns a, .btns button { font:600 .85rem 'Segoe UI',Arial; background:var(--gold); color:#fff; border:0; border-radius:8px; padding:9px 14px; cursor:pointer; text-decoration:none; margin-left:6px; }
+  .btns a.alt { background:#fff; color:var(--gold); border:2px solid var(--gold); }
+  .lead { color:var(--muted); margin:4px 0 18px; }
+  section { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); padding:22px 24px; margin-bottom:18px; }
+  table { width:100%; border-collapse:collapse; font-size:.9rem; }
+  th, td { border-bottom:1px solid var(--line); padding:8px 6px; text-align:left; vertical-align:top; }
+  th { font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  td.c, th.c { text-align:center; white-space:nowrap; }
+  .y { color:var(--yes); font-weight:700; } .n { color:var(--no); font-weight:700; } .p { color:var(--part); font-weight:700; }
+  .tablewrap { overflow-x:auto; }
+  ul, ol { padding-left:20px; margin:6px 0; } li { margin:4px 0; }
+  .role { border-left:4px solid var(--gold); padding-left:14px; margin:16px 0; }
+  .note { background:#fbf6e8; border:1px solid #ecdcaa; border-radius:10px; padding:10px 14px; font-size:.9rem; margin:12px 0; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media (max-width:640px){ .two{ grid-template-columns:1fr; } }
+  .can, .cant { border-radius:10px; padding:10px 14px; font-size:.9rem; } .can { background:#eef8f0; } .cant { background:#fdf0ee; }
+  .can b, .cant b { display:block; margin-bottom:2px; }
+  footer { color:var(--muted); font-size:.8rem; text-align:center; margin-top:20px; }
+  @media print { body { background:#fff; } section { box-shadow:none; border:1px solid var(--line); break-inside:avoid; } .btns { display:none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Gig Matrix — Roles Guide</h1>
+    <div class="btns"><button onclick="window.print()">Print / Save as PDF</button><a class="alt" href="login.html">Log in</a></div>
+  </header>
+  <p class="lead">Who can do what, how to set your team up, and how coverage for time off works. Every rule below is enforced by the system itself, not just hidden on screen.</p>
+
+  <section>
+    <h2>The four kinds of login</h2>
+    <div class="tablewrap"><table>
+      <tr><th>Role</th><th>Who it's for</th><th>How it's created</th></tr>
+      <tr><td><b>Administrator</b></td><td>The company owner and anyone you trust to run the whole system. (Owner and Administrator work identically.)</td><td>The first administrator is created when you start your trial. Further ones are added by an administrator.</td></tr>
+      <tr><td><b>Booking Agent</b></td><td>Staff who book bands into venues and manage their own bookings.</td><td>Added by an administrator (<i>Admin Dashboard → Team Logins → Add Team Login</i>). Nobody can sign themselves up.</td></tr>
+      <tr><td><b>Venue Portal</b></td><td>A venue's own contact, to browse available bands and request dates.</td><td>An administrator or agent sets a username and password on the venue's page.</td></tr>
+      <tr><td><b>Band Portal</b></td><td>A band, to see its gigs and mark the dates it is free.</td><td>An administrator sets it directly. An agent on the band can request it, and an administrator must approve.</td></tr>
+    </table></div>
+    <div class="note"><b>No self-signup.</b> Every account is assigned by an administrator, so only people you've chosen can get in.</div>
+  </section>
+
+  <section>
+    <h2>At a glance</h2>
+    <div class="tablewrap"><table>
+      <tr><th>What</th><th class="c">Admin</th><th class="c">Booking agent</th><th class="c">Backup agent*</th><th class="c">Venue</th><th class="c">Band</th></tr>
+      <tr><td>See every booking's venue, band, date, time, status</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c n">Own only</td><td class="c n">Own only</td></tr>
+      <tr><td>See pay and commission on a booking</td><td class="c y">All</td><td class="c p">Own bookings</td><td class="c p">Covered agent's</td><td class="c n">No</td><td class="c p">Own gig pay</td></tr>
+      <tr><td>Create a booking</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c n">Request only</td><td class="c n">No</td></tr>
+      <tr><td>Change a booking</td><td class="c y">Any</td><td class="c p">Own only</td><td class="c p">Covered agent's</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Delete a booking</td><td class="c y">Any</td><td class="c p">Own only</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>See contracts (they contain pay)</td><td class="c y">All</td><td class="c p">Own</td><td class="c p">Covered agent's</td><td class="c n">Sign only</td><td class="c n">Sign only</td></tr>
+      <tr><td>Add or edit venues and bands</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Assign agents to a band</td><td class="c y">Yes</td><td class="c p">Add cover only</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Approve band setups and band logins</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Create team logins</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>See admins' email and role</td><td class="c y">Yes</td><td class="c n">Name only</td><td class="c n">Name only</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Agency-wide earnings and team list</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Billing and subscription</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+    </table></div>
+    <p style="font-size:.85rem;color:var(--muted)">*A backup agent is simply a booking agent who has been named to cover someone. Their extra access applies only to the person they cover. The "Booking agent" column shows what they have in their own right.</p>
+  </section>
+
+  <section>
+    <h2>Each role in detail</h2>
+
+    <div class="role">
+      <h3>Administrator</h3>
+      <div class="two">
+        <div class="can"><b>Can</b><ul>
+          <li>See and change every booking and contract, including pay and commission.</li>
+          <li>Create, and approve, all logins: team, venue and band.</li>
+          <li>Assign one or several agents to any band and approve agents' band requests.</li>
+          <li>Name a backup to cover their own bookings when away.</li>
+          <li>Manage billing, and see agency-wide earnings, commission by agent and the team list.</li>
+        </ul></div>
+        <div class="cant"><b>Cannot</b><ul>
+          <li>See a password. Every password is stored scrambled, even from administrators.</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="role">
+      <h3>Booking Agent</h3>
+      <div class="two">
+        <div class="can"><b>Can</b><ul>
+          <li>See the whole booking calendar (venue, band, date, time, status) so double-booking is avoided.</li>
+          <li>See pay, commission and contracts for their <b>own</b> bookings, and change or delete them.</li>
+          <li>Add venues and bands. A new band must have at least one agent chosen and goes to an administrator for approval.</li>
+          <li>Request a band portal login for a band they work on.</li>
+          <li>Add a colleague as <b>cover</b> on a band (optionally with an end date) for vacation or time off.</li>
+          <li>Name a backup to cover their bookings.</li>
+          <li>Get notifications (bell) for venue requests on their bands.</li>
+        </ul></div>
+        <div class="cant"><b>Cannot</b><ul>
+          <li>See or change another agent's pay, commission, contracts or bookings, unless named as their backup.</li>
+          <li>Create team logins, approve requests, or assign agents to a band outright.</li>
+          <li>See an administrator's email or role. Administrators appear by name only.</li>
+          <li>See agency-wide earnings or other agents' money.</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="role">
+      <h3>Backup Agent (covering for someone)</h3>
+      <p>Any booking agent can name another agent as their backup, with an optional end date, and can remove them at any time. Administrators can do the same for themselves.</p>
+      <div class="two">
+        <div class="can"><b>Can, for the covered person's bookings only</b><ul>
+          <li>See pay and commission, and the contracts.</li>
+          <li>Change booking details if something needs fixing.</li>
+        </ul></div>
+        <div class="cant"><b>Cannot</b><ul>
+          <li>Delete the covered person's bookings.</li>
+          <li>Gain any administrator power. Covering for an administrator gives their <i>bookings</i> and nothing else: no team list, no approvals, no agency-wide money, no admin email.</li>
+        </ul></div>
+      </div>
+      <p>Access ends automatically on the end date, or the moment the backup is removed.</p>
+    </div>
+
+    <div class="role">
+      <h3>Venue Portal</h3>
+      <div class="two">
+        <div class="can"><b>Can</b><ul>
+          <li>See its own bookings and schedule.</li>
+          <li>Search for available bands by date and pay range, and see suggestions.</li>
+          <li>Send a booking request. The band's agents are notified.</li>
+          <li>Update the venue's own preferences and weekly schedule.</li>
+        </ul></div>
+        <div class="cant"><b>Cannot</b><ul>
+          <li>See band contact details. Everything goes through the agent.</li>
+          <li>See any other venue's data, or booking money.</li>
+          <li>Confirm a booking by itself. An agent handles it.</li>
+        </ul></div>
+      </div>
+    </div>
+
+    <div class="role">
+      <h3>Band Portal</h3>
+      <div class="two">
+        <div class="can"><b>Can</b><ul>
+          <li>See its own gigs, calendar, counts and earnings.</li>
+          <li>Mark the dates it is available, with a note.</li>
+          <li>Connect its own Google Calendar.</li>
+        </ul></div>
+        <div class="cant"><b>Cannot</b><ul>
+          <li>See any other band, any venue's private data, or the agency's finances.</li>
+          <li>Create or change bookings.</li>
+        </ul></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Setting up your company: first day</h2>
+    <ol>
+      <li><b>Confirm your email and set your password</b> from the link we send when you start your trial.</li>
+      <li><b>Add your team.</b> Admin Dashboard → <i>Team Logins → Add Team Login</i>. Choose Booking Agent for staff who book, Administrator only for people who should see everything.</li>
+      <li><b>Add venues and bands.</b> For each band, assign the agent or agents responsible. Set its pay ranges for each type of gig (for example, clubs with lights and sound versus clubs with no production).</li>
+      <li><b>Give portal logins</b> to venues and bands that should have them. Band logins asked for by an agent wait in <i>Band Approvals</i> on the Admin Dashboard until you approve.</li>
+      <li><b>Ask each agent to name a backup</b> (the 🤝 Backup button) before their first holiday.</li>
+      <li><b>Subscribe</b> before the trial ends (Billing). After the trial or if a subscription is canceled, the account becomes read-only. Nothing is deleted.</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Common situations</h2>
+    <h3>An agent is going on vacation</h3>
+    <p>Two separate things. For <b>their bookings</b>, they name a backup, who can then see and fix those bookings. For <b>their bands</b>, they (or an administrator) add a colleague as cover on each band, with an end date, so venue requests reach the colleague too.</p>
+    <h3>An agent adds a new band</h3>
+    <p>They must pick the agent or agents for it. An administrator gets a notification and approves or rejects, which also approves any portal login requested with it. The agent is notified of the decision.</p>
+    <h3>A venue wants to book a band</h3>
+    <p>The venue searches by date and pay range, picks a band and sends a request. Every active agent on that band is notified and handles the booking. The venue never sees the band's contact details.</p>
+    <h3>An agent leaves the company</h3>
+    <p>An administrator reassigns their bands, and anything that needs their bookings to be seen goes through an administrator, who can see and change everything.</p>
+    <h3>An administrator is away</h3>
+    <p>The administrator names a booking agent as their backup. That agent can handle the administrator's bookings but sees nothing else of the admin side.</p>
+  </section>
+
+  <section>
+    <h2>Privacy summary</h2>
+    <ul>
+      <li>Pay and commission are visible only to the booking's agent, that agent's backup and administrators.</li>
+      <li>Only the booking's agent, their backup or an administrator can change a booking. Only the agent or an administrator can delete it.</li>
+      <li>Companies are completely separate. One company can never see another's data.</li>
+      <li>Portal logins (venue and band) can only ever see their own information.</li>
+    </ul>
+  </section>
+
+  <footer>Gig Matrix · This guide describes how roles work in the system as built.</footer>
+</div>
+</body>
+</html>
