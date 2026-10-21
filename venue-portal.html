@@ -247,6 +247,7 @@
         </div>
         <button class="btn-gcal-connect" id="gcalConnectBtn" style="display:none;" onclick="connectGcal()">Connect with Google</button>
         <p class="gcal-note" id="gcalRefreshNote" style="display:none;">Your Google Calendar events appear on the Bookings Calendar tab as purple items, and suggested bands are only shown for dates you're free.</p>
+        <button class="btn-gcal-connect" id="gcalSyncBtn" style="display:none;margin-top:12px;" onclick="syncGigs(false)">&#128197; Add my upcoming gigs to Google Calendar</button>
       </div>
     </div>
   </div>
@@ -420,7 +421,7 @@ function toast(msg,type){
       history.replaceState(null, '', window.location.pathname);
       switchTab('gcal');
       toast(gc === 'connected' ? '✓ Google Calendar connected!' : 'Google Calendar connection was cancelled.', gc === 'connected' ? 'success' : 'error');
-      if (gc === 'connected') suggLoaded = false;
+      if (gc === 'connected') { suggLoaded = false; syncGigs(true); }   // back-fill bookings made before connecting
     }
     // Quietly learn whether a calendar is connected so events can overlay the grid
     if (!gcalStatusLoaded) { gcalStatusLoaded = true; loadGcalStatus(); }
@@ -467,6 +468,7 @@ function showGcalState(connected, email){
   document.getElementById('gcalDisconnected').style.display = connected ? 'none' : 'flex';
   document.getElementById('gcalConnectBtn').style.display = connected ? 'none' : 'block';
   document.getElementById('gcalRefreshNote').style.display = connected ? 'block' : 'none';
+  document.getElementById('gcalSyncBtn').style.display = connected ? 'block' : 'none';
   if (connected && email) document.getElementById('gcalEmail').textContent = 'Connected as ' + email + '.';
 }
 
@@ -484,6 +486,16 @@ async function connectGcal(){
   catch(e){ btn.disabled = false; btn.textContent = 'Connect with Google'; toast('Error: ' + e.message, 'error'); }
 }
 
+async function syncGigs(quiet){
+  var btn = document.getElementById('gcalSyncBtn'); if (btn) { btn.disabled = true; }
+  try {
+    var r = await gcalCall('sync_gigs');
+    if (r && r.success === false) { if (!quiet) toast(r.message || 'Not connected.', 'error'); }
+    else if (r.added) toast('\u2713 Added ' + r.added + ' upcoming gig' + (r.added > 1 ? 's' : '') + ' to your Google Calendar.', 'success');
+    else if (!quiet) toast('Your upcoming gigs are already on your Google Calendar.', 'success');
+  } catch(e) { if (!quiet) toast('Error: ' + e.message, 'error'); }
+  if (btn) { btn.disabled = false; }
+}
 async function disconnectGcal(){
   if (!confirm('Disconnect Google Calendar?')) return;
   try {

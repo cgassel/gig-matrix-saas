@@ -567,8 +567,15 @@
       if (!confirm('Mark this booking as Cancelled?\n\n' + (b.venues ? b.venues.name : '') + ' \u00b7 ' + (b.bands ? b.bands.name : '') + ' \u00b7 ' + b.booking_date)) return;
       var r = await sb.from('bookings').update({ status: 'Cancelled' }).eq('id', id);
       if (r.error) { showToast('Error: ' + r.error.message, 'error'); return; }
+      await syncGcal(id);
       showToast('Booking cancelled.');
       await loadBookings();
+    }
+
+    // Keep Google Calendar in step with a booking (add / move / remove). Never blocks the booking.
+    async function syncGcal(bookingId) {
+      try { await sb.functions.invoke('gcal-create-event', { body: { bookingId: bookingId } }); }
+      catch (e) { console.warn('Google Calendar sync skipped:', e); }
     }
 
     // ── Add / Edit modal ────────────────────────────────────────────────────
@@ -636,11 +643,13 @@
         if (editingBookingId) {
           var { error } = await sb.from('bookings').update(bookingData).eq('id', editingBookingId);
           if (error) throw error;
+          await syncGcal(editingBookingId);
           showToast('Booking updated.');
         } else {
           bookingData.business_id = currentBusinessId; // required — RLS checks this on insert
-          var { error: insErr } = await sb.from('bookings').insert(bookingData);
+          var { data: newBk, error: insErr } = await sb.from('bookings').insert(bookingData).select('id').single();
           if (insErr) throw insErr;
+          if (newBk) await syncGcal(newBk.id);
           showToast('Booking added.');
         }
         closeBookingModal();
@@ -677,8 +686,10 @@
       btn.textContent = 'Deleting\u2026';
 
       try {
-        var { error } = await sb.from('bookings').delete().eq('id', pendingDeleteId);
+        var deletedId = pendingDeleteId;
+        var { error } = await sb.from('bookings').delete().eq('id', deletedId);
         if (error) throw error;
+        await syncGcal(deletedId);   // removes its Google Calendar events
         showToast('Booking deleted.');
         closeDeleteModal();
         await loadBookings();

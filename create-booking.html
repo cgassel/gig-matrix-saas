@@ -569,13 +569,7 @@
         // Same as the original app. Silent for any venue/band that hasn't
         // connected a calendar, and never blocks the booking if it fails.
         try {
-          var gcalRes = await sb.functions.invoke('gcal-create-event', { body: {
-            venueId: bookingRow.venue_id, bandId: bookingRow.band_id,
-            venueName: selectedVenue.name, bandName: selectedBand.name,
-            date: bookingRow.booking_date,
-            startTime: document.getElementById('startTime').value, endTime: document.getElementById('endTime').value,
-            notes: bookingRow.notes || ''
-          }});
+          var gcalRes = await sb.functions.invoke('gcal-create-event', { body: { bookingId: bookingId } });
           var gr = gcalRes && gcalRes.data && gcalRes.data.results;
           if (gr) {
             var added = [];
