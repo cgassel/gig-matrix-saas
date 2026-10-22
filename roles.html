@@ -45,7 +45,7 @@
     <h2>The four kinds of login</h2>
     <div class="tablewrap"><table>
       <tr><th>Role</th><th>Who it's for</th><th>How it's created</th></tr>
-      <tr><td><b>Administrator</b></td><td>The company owner and anyone you trust to run the whole system. (Owner and Administrator work identically.)</td><td>The first administrator is created when you start your trial. Further ones are added by an administrator.</td></tr>
+      <tr><td><b>Administrator</b></td><td>The company owner and anyone you trust to run the whole system. Everyone with this role has the same powers.</td><td>The first administrator is created when you start your trial. Further ones are added by an administrator.</td></tr>
       <tr><td><b>Booking Agent</b></td><td>Staff who book bands into venues and manage their own bookings.</td><td>Added by an administrator (<i>Admin Dashboard → Team Logins → Add Team Login</i>). Nobody can sign themselves up.</td></tr>
       <tr><td><b>Venue Portal</b></td><td>A venue's own contact, to browse available bands and request dates.</td><td>An administrator or agent sets a username and password on the venue's page.</td></tr>
       <tr><td><b>Band Portal</b></td><td>A band, to see its gigs and mark the dates it is free.</td><td>An administrator sets it directly. An agent on the band can request it, and an administrator must approve.</td></tr>
@@ -65,7 +65,10 @@
       <tr><td>See contracts (they contain pay)</td><td class="c y">All</td><td class="c p">Own</td><td class="c p">Covered agent's</td><td class="c n">Sign only</td><td class="c n">Sign only</td></tr>
       <tr><td>Add or edit venues and bands</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td></tr>
       <tr><td>Assign agents to a band</td><td class="c y">Yes</td><td class="c p">Add cover only</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
-      <tr><td>Approve band setups and band logins</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Approve band setups and band / venue logins</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Archive a band that has bookings</td><td class="c y">Yes</td><td class="c p">Bands they work on</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Restore an archived band</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
+      <tr><td>Set the company time zone</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
       <tr><td>Create team logins</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
       <tr><td>See admins' email and role</td><td class="c y">Yes</td><td class="c n">Name only</td><td class="c n">Name only</td><td class="c n">No</td><td class="c n">No</td></tr>
       <tr><td>Agency-wide earnings and team list</td><td class="c y">Yes</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td><td class="c n">No</td></tr>
@@ -86,6 +89,7 @@
           <li>Assign one or several agents to any band and approve agents' band requests.</li>
           <li>Name a backup to cover their own bookings when away.</li>
           <li>Manage billing, and see agency-wide earnings, commission by agent and the team list.</li>
+          <li>Set the company time zone (Admin Dashboard, Company Settings) and restore archived bands.</li>
         </ul></div>
         <div class="cant"><b>Cannot</b><ul>
           <li>See a password. Every password is stored scrambled, even from administrators.</li>
@@ -100,7 +104,8 @@
           <li>See the whole booking calendar (venue, band, date, time, status) so double-booking is avoided.</li>
           <li>See pay, commission and contracts for their <b>own</b> bookings, and change or delete them.</li>
           <li>Add venues and bands. A new band must have at least one agent chosen and goes to an administrator for approval.</li>
-          <li>Request a band portal login for a band they work on.</li>
+          <li>Request a band portal login for a band they work on, or a venue portal login for any venue. An administrator approves it.</li>
+          <li>Archive a band they work on once it has bookings. It disappears from lists and suggestions, but its history stays. An administrator can restore it.</li>
           <li>Add a colleague as <b>cover</b> on a band (optionally with an end date) for vacation or time off.</li>
           <li>Name a backup to cover their bookings.</li>
           <li>Get notifications (bell) for venue requests on their bands.</li>
@@ -169,7 +174,7 @@
       <li><b>Confirm your email and set your password</b> from the link we send when you start your trial.</li>
       <li><b>Add your team.</b> Admin Dashboard → <i>Team Logins → Add Team Login</i>. Choose Booking Agent for staff who book, Administrator only for people who should see everything.</li>
       <li><b>Add venues and bands.</b> For each band, assign the agent or agents responsible. Set its pay ranges for each type of gig (for example, clubs with lights and sound versus clubs with no production).</li>
-      <li><b>Give portal logins</b> to venues and bands that should have them. Band logins asked for by an agent wait in <i>Band Approvals</i> on the Admin Dashboard until you approve.</li>
+      <li><b>Give portal logins</b> to venues and bands that should have them. Band and venue logins asked for by an agent wait in <i>Approvals</i> on the Admin Dashboard until you approve.</li>
       <li><b>Ask each agent to name a backup</b> (the 🤝 Backup button) before their first holiday.</li>
       <li><b>Subscribe</b> before the trial ends (Billing). After the trial or if a subscription is canceled, the account becomes read-only. Nothing is deleted.</li>
     </ol>

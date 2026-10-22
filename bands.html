@@ -109,6 +109,7 @@
     <div class="toolbar">
       <button class="add-btn" onclick="openAddModal()">+ Add Band</button>
       <input type="text" id="searchBox" placeholder="Search bands, genres, contacts..." oninput="renderTable()">
+      <label id="archivedToggle" style="display:none;align-items:center;gap:6px;font-size:0.84rem;color:#6b5e48;white-space:nowrap;"><input type="checkbox" id="showArchived" onchange="renderTable()"> <span id="archivedLbl">Show archived</span></label>
     </div>
 
     <div class="loading-state" id="loadingState"><p>Loading&#8230;</p></div>
@@ -459,7 +460,13 @@
 
     function renderTable() {
       var search = document.getElementById('searchBox').value.toLowerCase();
+      var archivedCount = allBands.filter(function(b){ return b.archived_at; }).length;
+      var showArch = document.getElementById('showArchived').checked;
+      var tg = document.getElementById('archivedToggle');
+      tg.style.display = (isAdminRole() && archivedCount > 0) ? 'flex' : 'none';
+      document.getElementById('archivedLbl').textContent = 'Show archived (' + archivedCount + ')';
       var filtered = allBands.filter(function(b) {
+        if (b.archived_at && !(showArch && isAdminRole())) return false;
         if (!search) return true;
         var haystack = [b.name, (b.genres || []).join(' '), b.contact_name].join(' ').toLowerCase();
         return haystack.indexOf(search) !== -1;
@@ -490,17 +497,19 @@
         ].filter(Boolean).join(' / ') || '\u2013';
 
         html +=
-          '<tr>' +
-            '<td data-label="Name"><strong>' + (b.on_roster ? '⭐ ' : '') + esc(b.name) + '</strong></td>' +
+          '<tr' + (b.archived_at ? ' style="opacity:0.6;"' : '') + '>' +
+            '<td data-label="Name"><strong>' + (b.on_roster ? '⭐ ' : '') + esc(b.name) + '</strong>' + (b.archived_at ? ' <span class="genre-pill">Archived</span>' : '') + '</td>' +
             '<td data-label="Genre(s)">' + genreHtml + '</td>' +
             '<td data-label="Size">' + esc(b.band_size || '\u2013') + '</td>' +
             '<td data-label="Rating">' + (b.band_rating ? '<span class="rating-badge">' + esc(b.band_rating) + '</span>' : '\u2013') + '</td>' +
             '<td data-label="Pay Rate">' + esc(payStr) + '</td>' +
             '<td data-label="Agents">' + agentsCell(b.id) + '</td>' +
             '<td><div class="row-actions">' +
-              '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
-              '<button class="edit-btn" onclick="openAgentsModal(\'' + b.id + '\')">Agents</button>' +
-              '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>' +
+              (b.archived_at
+                ? '<button class="edit-btn" onclick="restoreBand(\'' + b.id + '\')">Restore</button>'
+                : '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
+                  '<button class="edit-btn" onclick="openAgentsModal(\'' + b.id + '\')">Agents</button>' +
+                  '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>') +
             '</div></td>' +
           '</tr>';
       });
@@ -700,13 +709,20 @@
       }
     }
 
+    async function restoreBand(id) {
+      var r = await sb.rpc('restore_band', { p_band_id: id });
+      if (r.error) { showToast('Error: ' + r.error.message, 'error'); return; }
+      showToast('Band restored.');
+      await loadBands();
+    }
+
     // ── Delete ──────────────────────────────────────────────────────────────
 
     function openDeleteModal(id) {
       var b = allBands.find(function(x) { return x.id === id; });
       if (!b) return;
       pendingDeleteId = id;
-      document.getElementById('deleteMsg').textContent = 'Delete "' + b.name + '"? This cannot be undone.';
+      document.getElementById('deleteMsg').textContent = 'Delete "' + b.name + '"? If it has any booking history it will be archived instead (hidden, history kept) rather than erased.';
       document.getElementById('deleteModal').classList.add('show');
     }
 
@@ -729,10 +745,13 @@
       } catch (err) {
         var m = String((err && err.message) || '');
         if ((err && err.code === '23503') || m.indexOf('foreign key') !== -1) {
+          var archId = pendingDeleteId;
           closeDeleteModal();
-          alert('This band can\u2019t be deleted because it has bookings (past or upcoming) on record. ' +
-                'Deleting it would erase that booking and earnings history.\n\n' +
-                'To remove it, delete or reassign its bookings first. Or keep it and just stop booking it.');
+          if (confirm('This band has bookings on record, so it can\u2019t be deleted without erasing that history.\n\nArchive it instead? It will be hidden from lists, suggestions and requests; its bookings and earnings stay. An administrator can restore it later.')) {
+            var ar = await sb.rpc('archive_band', { p_band_id: archId });
+            if (ar.error) showToast('Error: ' + ar.error.message, 'error');
+            else { showToast('Band archived.'); await loadBands(); }
+          }
         } else {
           showToast('Error: ' + m, 'error');
         }

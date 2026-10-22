@@ -256,7 +256,7 @@
     }
 
     async function loadBands() {
-      var { data, error } = await sb.from('bands').select('*').order('name');
+      var { data, error } = await sb.from('bands').select('*').is('archived_at', null).order('name');
       if (error) { showError('Error loading bands: ' + error.message); return; }
       bands = data || [];
       var sel = document.getElementById('band');

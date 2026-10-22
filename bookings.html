@@ -328,7 +328,7 @@
     async function loadVenuesAndBands() {
       var [{ data: venues }, { data: bands }] = await Promise.all([
         sb.from('venues').select('id, name, category').order('name'),
-        sb.from('bands').select('id, name').order('name')
+        sb.from('bands').select('id, name, archived_at').order('name')
       ]);
       allVenues = venues || [];
       allBands  = bands  || [];
@@ -339,8 +339,9 @@
         : '<option value="">No venues yet — add one first</option>';
 
       var bandSelect = document.getElementById('bkBand');
-      bandSelect.innerHTML = allBands.length
-        ? allBands.map(function(b) { return '<option value="' + b.id + '">' + esc(b.name) + '</option>'; }).join('')
+      var activeBands = allBands.filter(function(b) { return !b.archived_at; });
+      bandSelect.innerHTML = activeBands.length
+        ? activeBands.map(function(b) { return '<option value="' + b.id + '">' + esc(b.name) + '</option>'; }).join('')
         : '<option value="">No bands yet — add one first</option>';
     }
 
@@ -601,7 +602,12 @@
       editingBookingId = id;
       document.getElementById('modalTitle').textContent = 'Edit Booking';
       document.getElementById('bkVenue').value       = b.venue_id || '';
-      document.getElementById('bkBand').value         = b.band_id || '';
+      var bandSel = document.getElementById('bkBand');
+      if (b.band_id && !Array.prototype.some.call(bandSel.options, function(o) { return o.value === b.band_id; })) {
+        var archBand = allBands.find(function(x) { return x.id === b.band_id; });
+        if (archBand) bandSel.insertAdjacentHTML('beforeend', '<option value="' + archBand.id + '">' + esc(archBand.name) + ' (archived)</option>');
+      }
+      bandSel.value = b.band_id || '';
       document.getElementById('bkDate').value         = b.booking_date || '';
       document.getElementById('bkStatus').value       = b.status || 'Pending';
       document.getElementById('bkStartTime').value    = b.start_time ? b.start_time.substring(0,5) : '20:00';

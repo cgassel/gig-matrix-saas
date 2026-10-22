@@ -577,6 +577,8 @@ async function submitAvailability(){
 
     btn.textContent='Submit Availability';
     toast('✓ Availability sent to your booking agent!','success');
+    // Tell venues with matching open dates (they get at most one email a day; never blocks this screen)
+    try { sb.functions.invoke('venue-match-alerts', { body: { portalToken: portalToken } }); } catch(e) {}
   } catch(err){
     btn.disabled=false;
     btn.textContent='Submit Availability';

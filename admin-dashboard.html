@@ -92,7 +92,7 @@
   .team-name { font-weight: 600; font-size: 0.88rem; }
   .team-email { font-size: 0.76rem; color: var(--muted); }
   .role-pill { font-size: 0.68rem; font-weight: 700; padding: 2px 10px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .role-pill.admin { background: #fdf1dc; color: var(--bronze3); }
+  .role-pill.admin, .role-pill.owner { background: #fdf1dc; color: var(--bronze3); }
   .role-pill.agent { background: #e3f2fd; color: #1565c0; }
   .add-team-btn { background: var(--bronze2); color: #fff; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
 
@@ -179,7 +179,7 @@
 
       <div class="panel-full" id="approvalsPanel" style="display:none;border-left:4px solid #C8960C;">
         <div class="panel-header">
-          <div class="panel-title">&#128221; Band Approvals <span class="panel-badge" id="approvalsCount">0</span></div>
+          <div class="panel-title">&#128221; Approvals <span class="panel-badge" id="approvalsCount">0</span></div>
         </div>
         <div id="approvalsList" style="padding:6px 20px 14px;"></div>
       </div>
@@ -273,6 +273,32 @@
             <div class="panel-title">&#128336; Recent Bookings (All Agents) <span class="panel-badge" id="recentCount">&#8211;</span></div>
           </div>
           <div id="recentPanel"></div>
+        </div>
+      </div>
+
+      <div class="panel-full" style="margin-bottom:18px;">
+        <div class="panel-header">
+          <div class="panel-title">&#9881;&#65039; Company Settings</div>
+        </div>
+        <div style="padding:14px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+          <label for="tzSelect" style="font-weight:700;font-size:0.86rem;">Company time zone</label>
+          <select id="tzSelect" style="padding:8px 10px;border:1.5px solid #e0d5c0;border-radius:8px;font-family:inherit;font-size:0.88rem;">
+            <option value="America/New_York">Eastern (New York)</option>
+            <option value="America/Chicago">Central (Chicago)</option>
+            <option value="America/Denver">Mountain (Denver)</option>
+            <option value="America/Phoenix">Mountain, no DST (Phoenix)</option>
+            <option value="America/Los_Angeles">Pacific (Los Angeles)</option>
+            <option value="America/Anchorage">Alaska</option>
+            <option value="Pacific/Honolulu">Hawaii</option>
+            <option value="America/Toronto">Eastern (Toronto)</option>
+            <option value="America/Vancouver">Pacific (Vancouver)</option>
+            <option value="Europe/London">UK (London)</option>
+            <option value="Europe/Paris">Central Europe (Paris)</option>
+            <option value="Australia/Sydney">Sydney</option>
+          </select>
+          <button class="add-team-btn" onclick="saveTimezone()">Save</button>
+          <span id="tzStatus" style="font-size:0.8rem;color:#6b5e48;"></span>
+          <div style="flex-basis:100%;font-size:0.78rem;color:#6b5e48;">Used for the times on Google Calendar events and for checking venue schedules against Google busy time.</div>
         </div>
       </div>
 
@@ -372,10 +398,28 @@
 
       loadNotifications();
       loadApprovals();
+      loadTimezone();
       await loadAll();
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashBody').style.display = 'block';
     })();
+
+    async function loadTimezone() {
+      var r = await sb.from('businesses').select('timezone').eq('id', currentBusinessId).maybeSingle();
+      var tz = r.data && r.data.timezone;
+      var sel = document.getElementById('tzSelect');
+      if (tz && !Array.prototype.some.call(sel.options, function(o){ return o.value === tz; })) {
+        sel.insertAdjacentHTML('beforeend', '<option value="' + esc(tz) + '">' + esc(tz) + '</option>');
+      }
+      if (tz) sel.value = tz;
+    }
+    async function saveTimezone() {
+      var st = document.getElementById('tzStatus');
+      st.style.color = '#6b5e48'; st.textContent = 'Saving\u2026';
+      var r = await sb.rpc('set_company_timezone', { p_tz: document.getElementById('tzSelect').value });
+      if (r.error) { st.style.color = '#8B2000'; st.textContent = r.error.message; return; }
+      st.style.color = '#2e7d32'; st.textContent = 'Saved. New Google Calendar events use this time zone.';
+    }
 
     async function loadAll() {
       var [bookingsRes, venuesRes, profilesRes] = await Promise.all([
@@ -435,7 +479,7 @@
       if (!notifData.length) { list.innerHTML = '<div class="notif-empty"><div style="font-size:2rem;">&#128277;</div>No notifications yet</div>'; return; }
       list.innerHTML = notifData.map(function(n, i) {
         var isBR = n.type === 'band_request';
-        var isBA = n.type === 'band_approval';
+        var isBA = n.type === 'band_approval' || n.type === 'venue_approval';
         // Bold the venue/band names the way the original did
         var msg = esc(n.message);
         var d = n.data || {};
@@ -472,7 +516,7 @@
 
     function handleNotifClick(i) {
       var n = notifData[i];
-      if (n && n.type === 'band_approval') { closeNotifDrawer(); var ap = document.getElementById('approvalsPanel'); if (ap) { loadApprovals(); ap.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
+      if (n && (n.type === 'band_approval' || n.type === 'venue_approval')) { closeNotifDrawer(); var ap = document.getElementById('approvalsPanel'); if (ap) { loadApprovals(); ap.scrollIntoView({ behavior: 'smooth', block: 'start' }); } return; }
       if (!n || n.type !== 'band_request' || !n.data) return;
       closeNotifDrawer();
       window.location.href = 'create-booking.html?venue=' + encodeURIComponent(n.data.venueId) +
@@ -483,12 +527,19 @@
 
     // ── BAND APPROVALS (agent-created bands + portal login requests) ───────────
     async function loadApprovals() {
-      var r = await sb.rpc('list_band_approvals', { p_status: 'Pending' });
-      var rows = r.data || [];
+      var rs = await Promise.all([
+        sb.rpc('list_band_approvals', { p_status: 'Pending' }),
+        sb.rpc('list_venue_login_requests', { p_status: 'Pending' })
+      ]);
+      var rows = (rs[0].data || []).concat((rs[1].data || []).map(function(v) { v.kind = 'venueLogin'; return v; }));
+      rows.sort(function(a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
       document.getElementById('approvalsPanel').style.display = rows.length ? 'block' : 'none';
       document.getElementById('approvalsCount').textContent = rows.length;
       document.getElementById('approvalsList').innerHTML = rows.map(function(x) {
-        var what = x.kind === 'setup'
+        var what = x.kind === 'venueLogin'
+          ? '<strong>' + esc(x.requestedByName || 'An agent') + '</strong> requested a portal login for the venue <strong>' + esc(x.venueName) + '</strong>' +
+            '<div style="color:var(--muted);font-size:0.82rem;margin-top:3px;">Username: <strong>' + esc(x.username) + '</strong></div>'
+          : x.kind === 'setup'
           ? '<strong>' + esc(x.requestedByName || 'An agent') + '</strong> added the band <strong>' + esc(x.bandName) + '</strong>' +
             '<div style="color:var(--muted);font-size:0.82rem;margin-top:3px;">Agents: ' + esc(x.agentNames || '—') +
             (x.username ? ' &middot; Portal login requested: <strong>' + esc(x.username) + '</strong>' : '') + '</div>'
@@ -497,16 +548,16 @@
         return '<div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid #f0ebe0;">' +
           '<div style="font-size:0.88rem;min-width:240px;flex:1;">' + what + '</div>' +
           '<div style="display:flex;gap:8px;">' +
-            '<button onclick="reviewApproval(\'' + x.id + '\', true)" style="background:#2e7d32;color:#fff;border:none;padding:8px 14px;border-radius:7px;font-weight:700;cursor:pointer;">Approve</button>' +
-            '<button onclick="reviewApproval(\'' + x.id + '\', false)" style="background:#fff;color:#8B2000;border:1.5px solid #8B2000;padding:8px 14px;border-radius:7px;font-weight:700;cursor:pointer;">Reject</button>' +
+            '<button onclick="reviewApproval(\'' + x.id + '\', true, \'' + x.kind + '\')" style="background:#2e7d32;color:#fff;border:none;padding:8px 14px;border-radius:7px;font-weight:700;cursor:pointer;">Approve</button>' +
+            '<button onclick="reviewApproval(\'' + x.id + '\', false, \'' + x.kind + '\')" style="background:#fff;color:#8B2000;border:1.5px solid #8B2000;padding:8px 14px;border-radius:7px;font-weight:700;cursor:pointer;">Reject</button>' +
           '</div></div>';
       }).join('');
     }
 
-    async function reviewApproval(id, approve) {
+    async function reviewApproval(id, approve, kind) {
       var note = null;
       if (!approve) { note = window.prompt('Reason for rejecting (optional — the agent will see it):', ''); if (note === null) return; }
-      var r = await sb.rpc('review_band_approval', { p_id: id, p_approve: approve, p_note: note });
+      var r = await sb.rpc(kind === 'venueLogin' ? 'review_venue_login_request' : 'review_band_approval', { p_id: id, p_approve: approve, p_note: note });
       if (r.error) { showToast(r.error.message, 'error'); return; }
       showToast(approve ? 'Approved' : 'Rejected');
       loadApprovals();
