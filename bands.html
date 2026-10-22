@@ -157,6 +157,10 @@
           <label>Phone <span class="req">*</span></label>
           <input type="tel" id="bPhone" required placeholder="555-1234">
 
+          <label>Time Zone</label>
+          <select id="bTimezone"></select>
+          <div class="field-hint" style="font-size:0.78rem;color:#6b5e48;margin-top:4px;">The band sees its gig times in this zone. Leave on the company default unless the band is based elsewhere.</div>
+
           <label>W9 Status</label>
           <select id="bW9Status">
             <option value="No">No</option>
@@ -387,6 +391,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="config.js"></script>
+  <script src="timezones.js"></script>
   <script src="trial-banner.js"></script>
   <script>
     var currentBusinessId = null;
@@ -407,10 +412,11 @@
 
       var { data: profile, error } = await sb
         .from('profiles')
-        .select('id, business_id, role, businesses(name)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
+        .select('id, business_id, role, businesses(name, timezone)').eq('id', (await sb.auth.getSession()).data.session.user.id).single();
 
       if (error || !profile) { window.location.href = 'complete-signup.html'; return; }
 
+      companyTz = (profile.businesses && profile.businesses.timezone) || 'America/Chicago';
       currentBusinessId = profile.business_id;
       currentRole = profile.role;
       currentProfileId = profile.id;
@@ -540,11 +546,13 @@
 
     // ── Add / Edit modal ────────────────────────────────────────────────────
 
+    var companyTz = 'America/Chicago';
     function openAddModal() {
       editingBandId = null;
       document.getElementById('modalTitle').textContent = '\u{1F680} Add New Band';
       document.getElementById('saveBtn').textContent = '\u{1F680} Add Band';
       document.getElementById('bandForm').reset();
+      gmFillTzSelect(document.getElementById('bTimezone'), companyTz, null);
       document.getElementById('bRating').value = '';
       selectedBandSize = null;
       selectedGenres = [];
@@ -593,6 +601,7 @@
       document.getElementById('bNameOnW9').value            = b.name_on_w9 || '';
       document.getElementById('bEmail').value                = b.email || '';
       document.getElementById('bPhone').value                = b.phone || '';
+      gmFillTzSelect(document.getElementById('bTimezone'), companyTz, b.timezone || null);
       document.getElementById('bW9Status').value              = b.w9_status || 'No';
       document.getElementById('bPayNoSound').value             = b.pay_rate_no_sound   != null ? b.pay_rate_no_sound   : '';
       document.getElementById('bPayWithSound').value           = b.pay_rate_with_sound != null ? b.pay_rate_with_sound : '';
@@ -648,6 +657,7 @@
         name_on_w9:          document.getElementById('bNameOnW9').value.trim() || null,
         email:               document.getElementById('bEmail').value.trim() || null,
         phone:               document.getElementById('bPhone').value.trim() || null,
+        timezone:            document.getElementById('bTimezone').value || null,
         w9_status:           document.getElementById('bW9Status').value,
         pay_rate_no_sound:   document.getElementById('bPayNoSound').value   !== '' ? parseFloat(document.getElementById('bPayNoSound').value)   : null,
         pay_rate_with_sound: document.getElementById('bPayWithSound').value !== '' ? parseFloat(document.getElementById('bPayWithSound').value) : null,

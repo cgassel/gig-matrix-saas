@@ -248,6 +248,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="config.js"></script>
+<script src="timezones.js"></script>
 <script>
 var today = new Date(); today.setHours(0,0,0,0);
 var gigYear = today.getFullYear();
@@ -448,9 +449,22 @@ function showBooking(id){
   var sc='s-'+b.status.toLowerCase();
   var startFmt=cleanTime(b.start_time), endFmt=cleanTime(b.end_time);
   var timeStr=(startFmt&&endFmt)?startFmt+' - '+endFmt:(startFmt||endFmt||'N/A');
+  var venueTimeRow='';
+  // Booking times are the venue's local time. Show them in the band's own zone when that differs.
+  try {
+    var vtz=b.venue_timezone, btz=b.band_timezone;
+    if (vtz && btz && vtz!==btz && b.start_time && b.end_time) {
+      var s0=gmZonedMs(b.booking_date, String(b.start_time).slice(0,5), vtz);
+      var e0=gmZonedMs(b.booking_date, String(b.end_time).slice(0,5), vtz);
+      if (e0<=s0) e0+=86400000;                                   // after-midnight set
+      var dayShift=(gmFormatDay(s0,btz)!==gmFormatDay(s0,vtz)) ? ' ('+gmFormatDay(s0,btz)+')' : '';
+      venueTimeRow=dRow('Venue time', timeStr+' '+gmTzAbbr(s0,vtz));
+      timeStr=gmFormatTime(s0,btz)+' - '+gmFormatTime(e0,btz)+' '+gmTzAbbr(s0,btz)+dayShift;
+    }
+  } catch(e) {}
   var h=dRow('Venue','<strong>'+esc(b.venue_name||'TBD')+'</strong>')+
         dRow('Date',new Date(b.booking_date+'T12:00:00').toLocaleDateString())+
-        dRow('Time',timeStr)+
+        dRow('Time',timeStr)+venueTimeRow+
         dRow('Status','<span class="sbadge '+sc+'">'+esc(b.status)+'</span>');
   if(b.pay_amount) h+=dRow('Pay','$'+parseFloat(b.pay_amount).toFixed(2));
   h+=dRow('Sound/Lights',esc(b.sound_lights||'–'));
