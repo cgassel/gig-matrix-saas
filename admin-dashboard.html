@@ -9,7 +9,7 @@
   :root {
     --bg:#f0ebe0; --bg2:#e8e0d0; --card:#faf8f4; --card2:#f2ede4;
     --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210;
-    --text:#1a1408; --muted:#6b5e48;
+    --text:#1a1408; --muted:#6b5e48; --dim:#a09070;
     --green:#2e7d5c; --green-dark:#2e7d32; --red:#8B2000; --amber:#b45309;
   }
   * { box-sizing: border-box; }
@@ -141,6 +141,32 @@
     .agent-row, .band-row { grid-template-columns: 1fr; gap: 4px; text-align: left; }
     .mono { text-align: left; }
   }
+  .quick-nav { display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px; margin-bottom: 16px; }
+  .nav-btn { background: var(--card); border: 1.5px solid var(--border); color: var(--bronze2); padding: 8px 4px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.18s; display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: inherit; text-align: center; line-height: 1.2; min-height: 58px; justify-content: center; text-decoration: none; }
+  .nav-btn .nav-icon { font-size: 1.2rem; }
+  .nav-btn:hover { background: var(--bronze2); color: white; border-color: var(--bronze2); }
+  .nav-btn.green { border-color: #c8e6c9; color: #1b5e20; }
+  .nav-btn.green:hover { background: var(--green); color: white; border-color: var(--green); }
+  @media (max-width: 900px) { .quick-nav { grid-template-columns: repeat(4, 1fr); } }
+  @media (max-width: 640px) { .quick-nav { display: none; } }
+  /* Open slots */
+  .slot-week-label { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); padding:7px 18px 5px; background:var(--bg); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+  .slot-week-dot { width:8px; height:8px; border-radius:50%; }
+  .open-slot-item { padding:11px 18px; border-bottom:1px solid var(--border); display:grid; grid-template-columns:auto 1fr; gap:12px; align-items:start; }
+  .open-slot-item:last-child { border-bottom:none; }
+  .band-match-chip { display:inline-flex; align-items:center; gap:5px; background:#f2ede4; color:var(--bronze2); font-size:0.72rem; font-weight:700; padding:3px 10px; border-radius:10px; cursor:pointer; border:1px solid rgba(160,112,24,0.2); }
+  .band-match-chip:hover { background:var(--bronze2); color:#fff; }
+  .band-match-chip.roster { background:rgba(200,150,12,0.14); border-color:#A07018; }
+  .slot-book-btn { background:#A07018; color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:0.72rem; font-weight:700; font-family:inherit; cursor:pointer; margin-top:6px; }
+  .slot-book-btn:hover { background:#8a6014; }
+  .video-panel { display:none; margin-top:10px; border-radius:10px; overflow:hidden; background:#000; }
+  .video-panel.open { display:block; }
+  .video-panel-header { display:flex; justify-content:space-between; align-items:center; background:#1a1408; padding:6px 10px; }
+  .video-panel-title { font-size:0.72rem; font-weight:700; color:#f5ead0; }
+  .video-panel-close { background:none; border:none; color:#f5ead0; font-size:1rem; cursor:pointer; opacity:0.7; }
+  .video-panel iframe { width:100%; height:200px; border:none; display:block; }
+  @media (max-width: 600px) { .open-slot-item { grid-template-columns:1fr; gap:6px; } }
+  .empty-state .empty-icon { font-size:1.6rem; margin-bottom:6px; }
 </style>
 </head>
 <body>
@@ -176,6 +202,18 @@
           <h1>&#128274; Agency Admin Dashboard</h1>
           <p id="dateText"></p>
         </div>
+      </div>
+
+      <div class="quick-nav">
+        <a class="nav-btn green" href="bands.html?add=1"><span class="nav-icon">&#127928;</span>Add Band</a>
+        <a class="nav-btn green" href="venues.html?add=1"><span class="nav-icon">&#127970;</span>Add Venue</a>
+        <a class="nav-btn green" href="create-booking.html"><span class="nav-icon">&#128197;</span>Create Booking</a>
+        <a class="nav-btn" href="bands.html"><span class="nav-icon">&#128203;</span>Band Directory</a>
+        <a class="nav-btn" href="venues.html"><span class="nav-icon">&#127963;</span>Venue Directory</a>
+        <a class="nav-btn" href="venue-map.html"><span class="nav-icon">&#128506;</span>Venue Map</a>
+        <a class="nav-btn" href="bookings.html"><span class="nav-icon">&#128198;</span>All Bookings</a>
+        <a class="nav-btn" href="bookings.html?mine=1"><span class="nav-icon">&#128197;</span>My Bookings</a>
+        <a class="nav-btn" href="contracts.html"><span class="nav-icon">&#128203;</span>Contracts</a>
       </div>
 
       <div class="panel-full" id="approvalsPanel" style="display:none;border-left:4px solid #C8960C;">
@@ -275,6 +313,19 @@
           </div>
           <div id="recentPanel"></div>
         </div>
+      </div>
+
+      <div class="panel-full">
+        <div class="panel-header">
+          <div class="panel-title">&#127925; Open Venue Slots &amp; Band Matches <span class="panel-badge" id="openSlotsCount">&#8211;</span></div>
+          <div class="period-tabs">
+            <button class="period-tab active" id="slotTab1" onclick="setSlotWeek(1)">This Week</button>
+            <button class="period-tab" id="slotTab2" onclick="setSlotWeek(2)">Week 2</button>
+            <button class="period-tab" id="slotTab3" onclick="setSlotWeek(3)">Week 3</button>
+            <button class="period-tab" id="slotTabAll" onclick="setSlotWeek(0)">All</button>
+          </div>
+        </div>
+        <div id="openSlotsPanel"><div class="empty-state"><div class="empty-icon">&#8987;</div><p>Loading open slots&#8230;</p></div></div>
       </div>
 
       <div class="panel-full" style="margin-bottom:18px;">
@@ -400,6 +451,7 @@
       loadNotifications();
       loadApprovals();
       loadTimezone();
+      loadOpenSlots();
       await loadAll();
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashBody').style.display = 'block';
@@ -434,6 +486,109 @@
       agentNameMap = {};
       allProfiles.forEach(function(p) { agentNameMap[p.id] = p.name; });
       renderAll();
+    }
+
+    // ── OPEN VENUE SLOTS & BAND MATCHES ────────────────────────────────────────
+    var allOpenSlots = [];
+    var currentSlotWeek = 1;
+
+    async function loadOpenSlots() {
+      var r = await sb.rpc('get_open_slots_all_venues');
+      renderOpenSlots(r.error ? [] : (r.data || []));
+    }
+
+    function setSlotWeek(week) {
+      currentSlotWeek = week;
+      ['1','2','3','All'].forEach(function(w) {
+        document.getElementById('slotTab' + w).classList.toggle('active', String(week) === (w === 'All' ? '0' : w));
+      });
+      renderOpenSlots(allOpenSlots);
+    }
+
+    function renderOpenSlots(slots) {
+      allOpenSlots = slots || [];
+      var el = document.getElementById('openSlotsPanel');
+      document.getElementById('openSlotsCount').textContent = allOpenSlots.length;
+
+      var now = new Date(); now.setHours(0,0,0,0);
+      var w1 = new Date(now.getTime() + 7*86400000), w2 = new Date(now.getTime() + 14*86400000), w3 = new Date(now.getTime() + 21*86400000);
+      var filtered = allOpenSlots.filter(function(s) {
+        var d = new Date(s.date + 'T12:00:00');
+        if (currentSlotWeek === 1) return d >= now && d < w1;
+        if (currentSlotWeek === 2) return d >= w1 && d < w2;
+        if (currentSlotWeek === 3) return d >= w2 && d < w3;
+        return true;
+      });
+      if (!filtered.length) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-icon">&#9989;</div><p>' +
+          (allOpenSlots.length ? 'No open slots for this period.' : 'No open slots. Venues need a weekly music schedule (set from the venue portal) to appear here.') + '</p></div>';
+        return;
+      }
+
+      var groups = [{label:'This Week',color:'#7CB342',slots:[]},{label:'Week 2',color:'#F9A825',slots:[]},{label:'Week 3',color:'#EF6C00',slots:[]}];
+      filtered.forEach(function(s) {
+        var d = new Date(s.date + 'T12:00:00');
+        if (d >= now && d < w1) groups[0].slots.push(s);
+        else if (d >= w1 && d < w2) groups[1].slots.push(s);
+        else if (d >= w2 && d < w3) groups[2].slots.push(s);
+      });
+
+      var parts = [];
+      groups.forEach(function(g) {
+        if (!g.slots.length) return;
+        parts.push('<div class="slot-week-label"><div class="slot-week-dot" style="background:' + g.color + '"></div>' + g.label + ' &mdash; ' + g.slots.length + ' open slot' + (g.slots.length !== 1 ? 's' : '') + '</div>');
+        g.slots.forEach(function(s, si) {
+          var d = new Date(s.date + 'T12:00:00');
+          var dayAbbr = d.toLocaleDateString('en-US', {weekday:'short'});
+          var vid = s.venueId + '_' + s.date.replace(/-/g,'');
+          var row = '<div class="open-slot-item"><div style="text-align:center;min-width:44px;"><div style="font-size:1.1rem;font-weight:800;color:var(--bronze2);font-family:monospace;line-height:1;">' + d.getDate() + '</div>' +
+            '<div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;color:var(--muted);">' + dayAbbr + '</div></div><div style="min-width:0;">' +
+            '<div style="font-size:0.88rem;font-weight:700;">' + esc(s.venueName) + '</div>' +
+            '<div style="font-size:0.74rem;color:var(--muted);margin-top:1px;">' + esc(s.venueCity || '') + (s.timeSlot ? ' &middot; ' + esc(s.timeSlot) : '') + '</div>';
+          if (s.bandMatches && s.bandMatches.length) {
+            row += '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">';
+            s.bandMatches.forEach(function(b) {
+              var video = '';
+              if (b.promoVideo && /^https?:\/\//i.test(b.promoVideo)) {
+                var yt = getYouTubeEmbedUrl(b.promoVideo);
+                video = yt
+                  ? '<button data-vp="' + vid + '" data-embed="' + esc(yt) + '" onclick="event.stopPropagation();openVideoPanel(this)" title="Watch promo video" style="margin-left:6px;background:#D32F2F;border:none;color:#fff;border-radius:4px;padding:1px 6px;font-size:0.72rem;cursor:pointer;font-weight:700;">&#9654; YouTube</button>'
+                  : '<a href="' + esc(b.promoVideo) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="margin-left:6px;background:#555;color:#fff;border-radius:4px;padding:1px 6px;font-size:0.72rem;font-weight:700;text-decoration:none;">&#9654; Video</a>';
+              }
+              row += '<span class="band-match-chip' + (b.onRoster ? ' roster' : '') + '" title="' + esc((b.criteria||[]).join(', ')) + '" onclick="bookSlot(\'' + s.venueId + '\',\'' + s.date + '\',\'' + b.bandId + '\')">' +
+                (b.onRoster ? '&#11088; ' : '&#127928; ') + esc(b.bandName) + '<span style="opacity:0.6;font-size:0.65rem;margin-left:2px;">' + b.score + '&#10003;</span>' + video + '</span>';
+            });
+            row += '</div><div class="video-panel" id="vp_' + vid + '"><div class="video-panel-header"><span class="video-panel-title">&#9654; Promo Video</span><button class="video-panel-close" onclick="closeVideoPanel(this)">&#x2715;</button></div><iframe src="" allowfullscreen allow="autoplay"></iframe></div>';
+          } else {
+            row += '<div style="margin-top:5px;font-size:0.72rem;color:var(--dim);font-style:italic;">No bands have submitted availability for this date</div>';
+          }
+          row += '<button class="slot-book-btn" onclick="bookSlot(\'' + s.venueId + '\',\'' + s.date + '\')">+ Create Booking</button></div></div>';
+          parts.push(row);
+        });
+      });
+      el.innerHTML = parts.join('');
+    }
+
+    function bookSlot(venueId, date, bandId) {
+      var q = 'venue=' + encodeURIComponent(venueId) + '&date=' + encodeURIComponent(date);
+      if (bandId) q += '&band=' + encodeURIComponent(bandId);
+      window.location.href = 'create-booking.html?' + q;
+    }
+
+    function getYouTubeEmbedUrl(url) {
+      var m = url.match(/youtu\.be\/([^?&#]+)/) || url.match(/[?&]v=([^&#]+)/) || url.match(/youtube\.com\/embed\/([^?&#]+)/) || url.match(/youtube\.com\/shorts\/([^?&#]+)/);
+      return m ? 'https://www.youtube.com/embed/' + m[1] + '?autoplay=1&rel=0' : '';
+    }
+    function openVideoPanel(btn) {
+      var panel = document.getElementById('vp_' + btn.getAttribute('data-vp'));
+      if (!panel) return;
+      panel.querySelector('iframe').src = btn.getAttribute('data-embed');
+      panel.classList.add('open');
+    }
+    function closeVideoPanel(btn) {
+      var panel = btn.closest('.video-panel');
+      panel.querySelector('iframe').src = '';
+      panel.classList.remove('open');
     }
 
     // ── NOTIFICATIONS (venue band requests routed to me) ───────────────────────
@@ -611,7 +766,7 @@
       refreshBackups();
     }
 
-    function refreshAll() { loadAll(); loadNotifications(); loadApprovals(); }
+    function refreshAll() { loadAll(); loadNotifications(); loadApprovals(); loadOpenSlots(); }
 
     function agencyEarnings(b) {
       var pay = parseFloat(b.pay_amount) || 0;
