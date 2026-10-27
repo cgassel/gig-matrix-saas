@@ -90,6 +90,7 @@
   .avail-day.selectable:hover { background: #f2ede4; border-color: var(--bronze2); }
   .avail-day.submitted { background: #e0f7fa; color: #00695c; border-color: #80cbc4; }
   .avail-day.selected { background: var(--bronze2); color: #fff; border-color: var(--bronze2); }
+  .avail-day.to-remove { background:#fff; color:#c62828; border:1.5px dashed #c62828; text-decoration:line-through; }
   .avail-legend { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; font-size: 0.72rem; color: var(--muted); }
   .legend-dot { width: 11px; height: 11px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 3px; }
   .avail-sidebar { display: flex; flex-direction: column; gap: 12px; }
@@ -175,7 +176,7 @@
   <div class="tab-pane" id="pane-availability">
     <div class="avail-layout">
       <div class="avail-picker">
-        <div class="avail-picker-intro">Click dates you're free to play. Your booking agent will see this list — it doesn't remove a date, so submitting again just adds more.</div>
+        <div class="avail-picker-intro">Click dates you're free to play. Click a teal (already submitted) date to take it back off your list. Then press Save Changes.</div>
         <div class="avail-month-nav">
           <button class="avail-nav-btn" onclick="availPrevMonth()">&#8249;</button>
           <div class="avail-month-title" id="availMonthTitle">Loading…</div>
@@ -184,7 +185,8 @@
         <div class="avail-calendar" id="availCalendar"></div>
         <div class="avail-legend">
           <span><span class="legend-dot" style="background:var(--bronze2);"></span>Selected (new)</span>
-          <span><span class="legend-dot" style="background:#e0f7fa;border:1.5px solid #80cbc4;"></span>Already submitted</span>
+          <span><span class="legend-dot" style="background:#e0f7fa;border:1.5px solid #80cbc4;"></span>Already submitted (click to remove)</span>
+          <span><span class="legend-dot" style="background:#fff;border:1.5px dashed #c62828;"></span>Will be removed</span>
           <span><span class="legend-dot" style="background:#fee2e2;border:1.5px solid #fca5a5;"></span>Already booked</span>
         </div>
       </div>
@@ -192,6 +194,7 @@
       <div class="avail-sidebar">
         <div class="avail-sub-panel">
           <div class="avail-sub-title">Dates Selected <span class="count-badge" id="selectedCount">0</span></div>
+          <div id="removeDatesList" style="margin-bottom:6px;"></div>
           <div id="selectedDatesList"><span class="empty-chips">Click dates on the calendar to add them</span></div>
         </div>
         <div class="avail-sub-panel">
@@ -260,6 +263,7 @@ var bandObj = null;
 var allBookings = [];
 var selectedDates = new Set();
 var submittedDates = new Set();
+var removeDates = new Set();
 var submittedNote = '';
 var bookedDateSet = new Set();
 
@@ -509,7 +513,7 @@ function renderAvailCal(){
   for(var day=1;day<=dim;day++){
     var ds=availYear+'-'+pad(availMonth+1)+'-'+pad(day);
     var d=new Date(availYear,availMonth,day); d.setHours(0,0,0,0);
-    var isPast=d<today, isBooked=bookedDateSet.has(ds), isSub=submittedDates.has(ds), isSel=selectedDates.has(ds);
+    var isPast=d<today, isBooked=bookedDateSet.has(ds), isSub=submittedDates.has(ds), isSel=selectedDates.has(ds), isRem=removeDates.has(ds);
     var classes=['avail-day'];
     var onclick='', title='';
     if(isPast){ classes.push('past'); title=' title="Past date"'; }
@@ -518,6 +522,7 @@ function renderAvailCal(){
       classes.push('selectable');
       if(isSub) classes.push('submitted');
       if(isSel) classes.push('selected');
+      if(isRem) classes.push('to-remove');
       onclick=' onclick="toggleDate(\''+ds+'\')"';
     }
     h+='<div class="'+classes.join(' ')+'"'+onclick+title+'>'+day+'</div>';
@@ -528,14 +533,27 @@ function availPrevMonth(){ if(--availMonth<0){availMonth=11;availYear--;} render
 function availNextMonth(){ if(++availMonth>11){availMonth=0;availYear++;} renderAvailCal(); }
 
 function toggleDate(ds){
-  if(selectedDates.has(ds)) selectedDates.delete(ds); else selectedDates.add(ds);
+  if(submittedDates.has(ds)){
+    if(removeDates.has(ds)) removeDates.delete(ds); else removeDates.add(ds);
+  } else {
+    if(selectedDates.has(ds)) selectedDates.delete(ds); else selectedDates.add(ds);
+  }
   renderAvailCal();
   renderSelectedChips();
 }
 function renderSelectedChips(){
   var count=selectedDates.size;
   document.getElementById('selectedCount').textContent=count;
-  document.getElementById('submitAvailBtn').disabled = count===0;
+  var rc=removeDates.size;
+  var btn0=document.getElementById('submitAvailBtn');
+  btn0.disabled = (count+rc)===0;
+  btn0.textContent = (count+rc)===0 ? 'Submit Availability' : 'Save Changes';
+  var rel=document.getElementById('removeDatesList');
+  rel.innerHTML = Array.from(removeDates).sort().map(function(ds){
+    var d=new Date(ds+'T00:00:00');
+    var lbl=d.toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'});
+    return '<span class="date-chip" style="background:#fee2e2;color:#c62828;text-decoration:line-through;">'+lbl+'<span class="remove" onclick="toggleDate(\''+ds+'\')">&#x21A9;</span></span>';
+  }).join('');
   var sorted=Array.from(selectedDates).sort();
   var el=document.getElementById('selectedDatesList');
   if(sorted.length===0){ el.innerHTML='<span class="empty-chips">Click dates on the calendar to add them</span>'; return; }
@@ -567,7 +585,7 @@ function renderOnFileList(){
 }
 
 async function submitAvailability(){
-  if(selectedDates.size===0) return;
+  if(selectedDates.size===0 && removeDates.size===0) return;
   var btn=document.getElementById('submitAvailBtn');
   btn.disabled=true; btn.textContent='Sending…';
 
@@ -575,9 +593,17 @@ async function submitAvailability(){
   var note=document.getElementById('availNote').value.trim();
 
   try {
-    var result = await sb.rpc('set_portal_band_availability', { p_token: portalToken, p_dates: dates, p_note: note });
-    if (result.error) throw result.error;
-
+    if (dates.length) {
+      var result = await sb.rpc('set_portal_band_availability', { p_token: portalToken, p_dates: dates, p_note: note });
+      if (result.error) throw result.error;
+    }
+    var rem=Array.from(removeDates).sort();
+    if (rem.length) {
+      var rr = await sb.rpc('remove_portal_band_availability', { p_token: portalToken, p_dates: rem });
+      if (rr.error) throw rr.error;
+      rem.forEach(function(d){ submittedDates.delete(d); });
+      removeDates.clear();
+    }
     dates.forEach(function(d){ submittedDates.add(d); });
     selectedDates.clear();
     submittedNote = note;
@@ -590,12 +616,12 @@ async function submitAvailability(){
     renderOnFileList();
 
     btn.textContent='Submit Availability';
-    toast('✓ Availability sent to your booking agent!','success');
+    toast('✓ Availability saved!','success');
     // Tell venues with matching open dates (they get at most one email a day; never blocks this screen)
-    try { sb.functions.invoke('venue-match-alerts', { body: { portalToken: portalToken } }); } catch(e) {}
+    if (dates.length) try { sb.functions.invoke('venue-match-alerts', { body: { portalToken: portalToken } }); } catch(e) {}
   } catch(err){
     btn.disabled=false;
-    btn.textContent='Submit Availability';
+    btn.textContent='Save Changes';
     toast('Error saving availability: '+(err.message||err),'error');
   }
 }
