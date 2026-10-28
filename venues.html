@@ -698,6 +698,7 @@
             '<td data-label="Phone">' + esc(v.phone || '\u2013') + '</td>' +
             '<td><div class="row-actions">' +
               '<button class="edit-btn" onclick="openEditModal(\'' + v.id + '\')">Edit</button>' +
+              '<button class="edit-btn" onclick="window.location.href=\'venue-schedule.html?venue=' + v.id + '\'">Schedule</button>' +
               '<button class="delete-btn" onclick="openDeleteModal(\'' + v.id + '\')">Delete</button>' +
             '</div></td>' +
           '</tr>';

@@ -139,6 +139,7 @@ var SLOT_DEFAULTS = [
 
 var activeDays = {};
 var portalToken = null;
+var staffVenueId = new URLSearchParams(location.search).get('venue'); // set when an admin/agent edits for a venue
 
 function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -164,19 +165,34 @@ function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,
 
 // ── BOOT ────────────────────────────────────────────────────────────────────
 (async function init() {
-  portalToken = sessionStorage.getItem('gm_portal_token');
-  var ownerType = sessionStorage.getItem('gm_portal_type');
-  if (!portalToken || ownerType !== 'venue') {
-    window.location.href = 'login.html';
-    return;
+  var venue;
+  if (staffVenueId) {
+    // Admin / agent editing on the venue's behalf
+    var sess = (await sb.auth.getSession()).data.session;
+    if (!sess) { window.location.href = 'login.html'; return; }
+    var vr = await sb.from('venues').select('id, name, schedule').eq('id', staffVenueId).maybeSingle();
+    if (vr.error || !vr.data) { window.location.href = 'venues.html'; return; }
+    venue = vr.data;
+    document.querySelector('.header p').textContent = 'Setting the schedule for ' + venue.name + ' (you are editing for the venue)';
+    document.querySelector('.btn-back').innerHTML = '&larr; Back to Venues';
+    document.querySelector('.section-intro').textContent = 'You are setting up this venue\u2019s weekly live music schedule for them. Select the days they book live music, how many slots each day has, and the start and end time of each. The venue can still change it themselves later.';
+  } else {
+    portalToken = sessionStorage.getItem('gm_portal_token');
+    var ownerType = sessionStorage.getItem('gm_portal_type');
+    if (!portalToken || ownerType !== 'venue') {
+      window.location.href = 'login.html';
+      return;
+    }
   }
 
   try {
-    var result = await sb.rpc('get_portal_venue', { p_token: portalToken });
-    if (result.error) throw result.error;
-    var rows = result.data || [];
-    if (rows.length === 0) throw new Error('Venue not found');
-    var venue = rows[0];
+    if (!staffVenueId) {
+      var result = await sb.rpc('get_portal_venue', { p_token: portalToken });
+      if (result.error) throw result.error;
+      var rows = result.data || [];
+      if (rows.length === 0) throw new Error('Venue not found');
+      venue = rows[0];
+    }
 
     document.getElementById('venueNameBar').textContent = venue.name;
 
@@ -337,9 +353,11 @@ async function saveSchedule() {
   hideMsg();
 
   try {
-    var result = await sb.rpc('set_portal_venue_schedule', { p_token: portalToken, p_schedule: buildScheduleObj() });
+    var result = staffVenueId
+      ? await sb.rpc('staff_set_venue_schedule', { p_venue_id: staffVenueId, p_schedule: buildScheduleObj() })
+      : await sb.rpc('set_portal_venue_schedule', { p_token: portalToken, p_schedule: buildScheduleObj() });
     if (result.error) throw result.error;
-    showMsg('success', '✓ Schedule saved! Your booking agent can now see your music availability.');
+    showMsg('success', staffVenueId ? '✓ Schedule saved for this venue.' : '✓ Schedule saved! Your booking agent can now see your music availability.');
   } catch(err) {
     showMsg('error', 'Error: ' + (err.message || err));
   } finally {
@@ -361,7 +379,7 @@ function hideMsg() {
   document.getElementById('errorMsg').classList.remove('visible');
 }
 
-function goToCalendar() { window.location.href = 'venue-portal.html'; }
+function goToCalendar() { window.location.href = staffVenueId ? 'venues.html' : 'venue-portal.html'; }
 </script>
 </body>
 </html>

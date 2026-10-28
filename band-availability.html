@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Band Availability — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --bg:#f0ebe0; --card:#faf8f4; --card2:#f2ede4; --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --bronze3:#7A5210; --text:#1a1408; --muted:#6b5e48; }
+  * { box-sizing: border-box; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); margin:0; min-height:100vh; padding:20px; color:var(--text); }
+  .container { max-width:900px; margin:0 auto; background:var(--card); border-radius:16px; box-shadow:0 4px 20px rgba(0,0,0,.1); overflow:hidden; }
+  .header { background:var(--bronze2); padding:22px 28px; color:#fff; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  .header h1 { font-size:1.3rem; font-weight:800; letter-spacing:1px; text-transform:uppercase; margin:0 0 3px; }
+  .header p { font-size:.85rem; opacity:.9; margin:0; }
+  .btn-back { background:rgba(255,255,255,.18); color:#fff; border:1.5px solid rgba(255,255,255,.6); padding:8px 16px; border-radius:7px; font-size:.85rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+  .content { padding:24px 28px; }
+  .msg { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:.9rem; display:none; }
+  .msg.success { background:#e8f5e9; color:#2e7d32; border-left:4px solid #4caf50; display:block; }
+  .msg.error { background:#ffebee; color:#c62828; border-left:4px solid #f44336; display:block; }
+  .layout { display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start; }
+  @media (max-width:760px) { .layout { grid-template-columns:1fr; } .content { padding:18px 16px; } }
+  .panel { background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.07); padding:16px; }
+  .intro { font-size:.84rem; color:var(--muted); margin-bottom:12px; line-height:1.5; }
+  .month-nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .month-title { font-weight:700; color:var(--bronze3); font-size:1rem; }
+  .nav-btn { width:30px; height:30px; border-radius:50%; border:1.5px solid var(--bronze2); background:var(--card2); color:var(--bronze2); cursor:pointer; }
+  .cal { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .dh { text-align:center; font-size:.68rem; font-weight:700; color:var(--muted); text-transform:uppercase; padding:2px 0 6px; }
+  .day { aspect-ratio:1; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:.86rem; font-weight:600; cursor:pointer; border:2px solid transparent; }
+  .day.empty { cursor:default; }
+  .day.past { color:#ccc; cursor:not-allowed; }
+  .day.booked { background:#fee2e2; color:#c62828; cursor:not-allowed; border-color:#fca5a5; }
+  .day.sel:hover { background:#f2ede4; border-color:var(--bronze2); }
+  .day.submitted { background:#e0f7fa; color:#00695c; border-color:#80cbc4; }
+  .day.selected { background:var(--bronze2); color:#fff; border-color:var(--bronze2); }
+  .day.to-remove { background:#fff; color:#c62828; border:1.5px dashed #c62828; text-decoration:line-through; }
+  .legend { display:flex; gap:12px; flex-wrap:wrap; margin-top:10px; font-size:.72rem; color:var(--muted); }
+  .dot { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
+  .side { display:flex; flex-direction:column; gap:12px; }
+  .st { font-size:.78rem; font-weight:700; color:var(--bronze2); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px; }
+  .chip { display:inline-block; font-size:.76rem; font-weight:600; padding:3px 9px; border-radius:9px; margin:0 5px 5px 0; background:#f0e6cf; color:var(--bronze3); }
+  .chip.rem { background:#fee2e2; color:#c62828; text-decoration:line-through; }
+  textarea { width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:7px; font-size:.86rem; font-family:inherit; min-height:64px; resize:vertical; }
+  .save { width:100%; padding:12px; background:var(--bronze2); color:#fff; border:none; border-radius:8px; font-weight:700; font-size:.95rem; cursor:pointer; }
+  .save:disabled { opacity:.5; cursor:not-allowed; }
+  .empty-t { color:#999; font-style:italic; font-size:.82rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div><h1>&#9989; Band Availability</h1><p id="sub">Loading…</p></div>
+    <button class="btn-back" onclick="window.location.href='bands.html'">&larr; Back to Bands</button>
+  </div>
+  <div class="content">
+    <div id="msg" class="msg"></div>
+    <div class="layout" id="main" style="display:none;">
+      <div class="panel">
+        <div class="intro">You are setting these dates for the band. Click a day to mark the band <b>available</b>. Click a teal day to take it back off. Then press <b>Save Changes</b>. Red days are already booked. Venues with matching open dates are emailed automatically.</div>
+        <div class="month-nav">
+          <button class="nav-btn" onclick="prevM()">&#8249;</button>
+          <div class="month-title" id="mt"></div>
+          <button class="nav-btn" onclick="nextM()">&#8250;</button>
+        </div>
+        <div class="cal" id="cal"></div>
+        <div class="legend">
+          <span><span class="dot" style="background:#A07018"></span>New</span>
+          <span><span class="dot" style="background:#e0f7fa;border:1px solid #80cbc4"></span>Already available</span>
+          <span><span class="dot" style="background:#fff;border:1px dashed #c62828"></span>Will be removed</span>
+          <span><span class="dot" style="background:#fee2e2;border:1px solid #fca5a5"></span>Booked</span>
+        </div>
+      </div>
+      <div class="side">
+        <div class="panel"><div class="st">Changes</div><div id="changes"><span class="empty-t">No changes yet</span></div></div>
+        <div class="panel"><div class="st">Note (optional)</div><textarea id="note" placeholder="e.g. Available most weekends through April"></textarea></div>
+        <div class="panel"><button class="save" id="saveBtn" onclick="save()" disabled>Save Changes</button></div>
+        <div class="panel"><div class="st">Currently on file <span id="cnt"></span></div><div id="onfile"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script>
+var bandId = new URLSearchParams(location.search).get('band');
+var submitted = new Set(), booked = new Set(), add = new Set(), rem = new Set();
+var today = new Date(); today.setHours(0,0,0,0);
+var Y = today.getFullYear(), M = today.getMonth();
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+function pad(n){ return n<10 ? '0'+n : ''+n; }
+function esc(v){ return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function say(type, t){ var e=document.getElementById('msg'); e.className='msg '+type; e.textContent=t; window.scrollTo(0,0); }
+function lbl(ds){ return new Date(ds+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',weekday:'short'}); }
+
+(async function init(){
+  var sess = (await sb.auth.getSession()).data.session;
+  if (!sess) { window.location.href = 'login.html'; return; }
+  if (!bandId) { window.location.href = 'bands.html'; return; }
+  var b = await sb.from('bands').select('id, name').eq('id', bandId).maybeSingle();
+  if (b.error || !b.data) { window.location.href = 'bands.html'; return; }
+  document.getElementById('sub').textContent = 'Setting availability for ' + b.data.name + ' (you are editing for the band)';
+  await load();
+  document.getElementById('main').style.display = 'grid';
+  render();
+})();
+
+async function load(){
+  var a = await sb.from('band_availability').select('available_date, note').eq('band_id', bandId);
+  submitted.clear();
+  (a.data || []).forEach(function(r){ submitted.add(r.available_date); });
+  var bk = await sb.from('bookings').select('booking_date, status').eq('band_id', bandId);
+  booked.clear();
+  (bk.data || []).forEach(function(r){ if (String(r.status||'').toLowerCase() !== 'cancelled') booked.add(r.booking_date); });
+}
+
+function render(){
+  document.getElementById('mt').textContent = MONTHS[M] + ' ' + Y;
+  var dim = new Date(Y, M+1, 0).getDate(), sdow = new Date(Y, M, 1).getDay(), h = '';
+  ['S','M','T','W','T','F','S'].forEach(function(d){ h += '<div class="dh">'+d+'</div>'; });
+  for (var i=0;i<sdow;i++) h += '<div class="day empty"></div>';
+  for (var d=1; d<=dim; d++){
+    var ds = Y+'-'+pad(M+1)+'-'+pad(d), dt = new Date(Y,M,d); dt.setHours(0,0,0,0);
+    var c = ['day'], oc = '';
+    if (dt < today) c.push('past');
+    else if (booked.has(ds)) c.push('booked');
+    else {
+      c.push('sel');
+      if (submitted.has(ds)) c.push('submitted');
+      if (add.has(ds)) c.push('selected');
+      if (rem.has(ds)) c.push('to-remove');
+      oc = ' onclick="tog(\''+ds+'\')"';
+    }
+    h += '<div class="'+c.join(' ')+'"'+oc+'>'+d+'</div>';
+  }
+  document.getElementById('cal').innerHTML = h;
+
+  var ch = Array.from(add).sort().map(function(x){ return '<span class="chip">+ '+esc(lbl(x))+'</span>'; })
+    .concat(Array.from(rem).sort().map(function(x){ return '<span class="chip rem">'+esc(lbl(x))+'</span>'; })).join('');
+  document.getElementById('changes').innerHTML = ch || '<span class="empty-t">No changes yet</span>';
+  document.getElementById('saveBtn').disabled = (add.size + rem.size) === 0;
+
+  var fut = Array.from(submitted).filter(function(x){ return new Date(x+'T00:00:00') >= today; }).sort();
+  document.getElementById('cnt').textContent = '(' + fut.length + ')';
+  document.getElementById('onfile').innerHTML = fut.length
+    ? fut.map(function(x){ return '<span class="chip">'+esc(lbl(x))+'</span>'; }).join('')
+    : '<span class="empty-t">None on file</span>';
+}
+function tog(ds){
+  if (submitted.has(ds)) { if (rem.has(ds)) rem.delete(ds); else rem.add(ds); }
+  else { if (add.has(ds)) add.delete(ds); else add.add(ds); }
+  render();
+}
+function prevM(){ if (--M < 0) { M = 11; Y--; } render(); }
+function nextM(){ if (++M > 11) { M = 0; Y++; } render(); }
+
+async function save(){
+  var btn = document.getElementById('saveBtn'); btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    var r = await sb.rpc('staff_set_band_availability', {
+      p_band_id: bandId, p_add: Array.from(add).sort(), p_remove: Array.from(rem).sort(),
+      p_note: document.getElementById('note').value.trim() });
+    if (r.error) throw r.error;
+    var hadAdds = add.size > 0;
+    add.clear(); rem.clear();
+    await load(); render();
+    say('success', '✓ Saved. ' + r.data.added + ' date(s) added, ' + r.data.removed + ' removed.');
+    if (hadAdds) { try { sb.functions.invoke('venue-match-alerts', { body: { bandId: bandId } }); } catch(e) {} }
+  } catch (e) {
+    say('error', 'Could not save: ' + (e.message || e));
+  } finally { btn.textContent = 'Save Changes'; render(); }
+}
+</script>
+</body>
+</html>

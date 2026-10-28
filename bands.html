@@ -515,6 +515,7 @@
               (b.archived_at
                 ? '<button class="edit-btn" onclick="restoreBand(\'' + b.id + '\')">Restore</button>'
                 : '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
+                  '<button class="edit-btn" onclick="window.location.href=\'band-availability.html?band=' + b.id + '\'">Availability</button>' +
                   '<button class="edit-btn" onclick="openAgentsModal(\'' + b.id + '\')">Agents</button>' +
                   '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>') +
             '</div></td>' +
