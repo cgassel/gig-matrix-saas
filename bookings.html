@@ -678,7 +678,7 @@
       pendingDeleteId = id;
       var venueName = b.venues ? b.venues.name : 'this venue';
       var bandName  = b.bands  ? b.bands.name  : 'this band';
-      document.getElementById('deleteMsg').textContent = 'Delete the booking for ' + bandName + ' at ' + venueName + '? This cannot be undone.';
+      document.getElementById('deleteMsg').textContent = 'Delete the booking for ' + bandName + ' at ' + venueName + '? Its contract is deleted too, even if it has been signed. This cannot be undone.';
       document.getElementById('deleteModal').classList.add('show');
     }
 
@@ -695,7 +695,7 @@
 
       try {
         var deletedId = pendingDeleteId;
-        var { error } = await sb.from('bookings').delete().eq('id', deletedId);
+        var { error } = await sb.rpc('delete_booking', { p_booking_id: deletedId });
         if (error) throw error;
         await syncGcal(deletedId);   // removes its Google Calendar events
         showToast('Booking deleted.');
