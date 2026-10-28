@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Unsubscribe</title>
+<style>body{font-family:'Segoe UI',Arial,sans-serif;background:#f0ebe0;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;padding:20px}
+.c{background:#faf8f4;max-width:440px;padding:32px;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.1);text-align:center;color:#1a1408}h1{color:#A07018;font-size:1.3rem}p{color:#6b5e48;line-height:1.5}</style></head>
+<body><div class="c"><h1 id="h">One moment…</h1><p id="p"></p></div>
+<script>
+var ok = new URLSearchParams(location.search).get('ok');
+document.getElementById('h').textContent = ok === '1' ? "You're unsubscribed" : "We couldn't process that link";
+document.getElementById('p').textContent = ok === '1' ? "You won't receive any more advertising emails from us. If this was a mistake, just reply to one of our earlier emails and we'll add you back." : "The link may be old or incomplete. Reply to the email you received and ask to be removed, and we'll take care of it.";
+</script></body></html>

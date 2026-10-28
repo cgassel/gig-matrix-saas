@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advertising — Gig Matrix</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root { --bg:#f0ebe0; --card:#faf8f4; --card2:#f2ede4; --border:#d4c4a0; --bronze1:#C8960C; --bronze2:#A07018; --text:#1a1408; --muted:#6b5e48; --green:#2e7d5c; --red:#8B2000; }
+  * { box-sizing:border-box; }
+  body { font-family:'Segoe UI',Arial,sans-serif; background:var(--bg); margin:0; color:var(--text); }
+  .topbar { background:#A07018; padding:12px 20px; display:flex; align-items:center; justify-content:space-between; color:#fff; flex-wrap:wrap; gap:10px; }
+  .topbar h1 { font-size:1.05rem; margin:0; } .topbar .biz { font-size:.78rem; opacity:.85; }
+  .topbar button { background:rgba(0,0,0,.2); color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-family:inherit; }
+  .wrap { max-width:1100px; margin:0 auto; padding:18px 16px 60px; }
+  .tabs { display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+  .tab { padding:9px 18px; border-radius:8px; border:1.5px solid var(--border); background:var(--card); color:var(--bronze2); font-weight:700; cursor:pointer; font-family:inherit; }
+  .tab.on { background:var(--bronze2); color:#fff; border-color:var(--bronze2); }
+  .panel { background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; margin-bottom:14px; }
+  .intro { font-size:.86rem; color:var(--muted); line-height:1.5; margin:0 0 10px; }
+  .msg { padding:10px 14px; border-radius:8px; margin-bottom:12px; font-size:.88rem; display:none; }
+  .msg.ok { display:block; background:#e8f5e9; color:#2e7d32; border-left:4px solid #4caf50; }
+  .msg.err { display:block; background:#ffebee; color:#c62828; border-left:4px solid #f44336; }
+  .msg.warn { display:block; background:#fff3cd; color:#7a5a00; border-left:4px solid #e0a800; }
+  label { font-size:.78rem; font-weight:700; color:var(--muted); display:block; margin:8px 0 3px; text-transform:uppercase; letter-spacing:.3px; }
+  input[type=text], input[type=search], select, textarea { width:100%; padding:8px 10px; border:1.5px solid var(--border); border-radius:7px; font:inherit; font-size:.9rem; }
+  textarea { min-height:140px; resize:vertical; }
+  .btn { background:var(--bronze2); color:#fff; border:none; padding:8px 14px; border-radius:7px; font-weight:700; cursor:pointer; font-family:inherit; font-size:.82rem; }
+  .btn.alt { background:var(--card2); color:var(--bronze2); border:1.5px solid var(--border); }
+  .btn.red { background:#fff; color:var(--red); border:1.5px solid var(--red); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; } @media (max-width:760px){ .grid2 { grid-template-columns:1fr; } }
+  table { width:100%; border-collapse:collapse; font-size:.86rem; }
+  th { text-align:left; font-size:.72rem; text-transform:uppercase; color:var(--muted); padding:6px 8px; border-bottom:1.5px solid var(--border); }
+  td { padding:8px; border-bottom:1px solid #eee; vertical-align:middle; }
+  .badge { display:inline-block; padding:2px 9px; border-radius:12px; font-size:.72rem; font-weight:700; }
+  .b-active { background:#e8f5e9; color:#2e7d32; } .b-paused { background:#eee; color:#666; } .b-booked { background:#e3f2fd; color:#1565c0; } .b-unsubscribed { background:#ffebee; color:#c62828; } .b-off { background:#f5f5f5; color:#999; }
+  .scroll { overflow-x:auto; }
+  .bandpick { max-height:220px; overflow-y:auto; border:1.5px solid var(--border); border-radius:7px; padding:6px 10px; }
+  .bandpick label { display:flex; gap:8px; align-items:center; text-transform:none; font-size:.88rem; color:var(--text); font-weight:500; margin:4px 0; }
+  .tpl { border:1.5px solid var(--border); border-radius:10px; padding:12px; margin-bottom:12px; }
+  .tpl h3 { margin:0 0 4px; font-size:.95rem; color:var(--bronze2); }
+  .hint { font-size:.76rem; color:var(--muted); }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div><h1>Weekly Venue Advertising</h1><div class="biz" id="bizName"></div></div>
+  <button onclick="signOut()">Sign Out</button>
+</div>
+<div class="wrap">
+  <div id="msg" class="msg"></div>
+  <div class="tabs">
+    <button class="tab on" data-t="venues">Venues</button>
+    <button class="tab" data-t="emails">The 5 Emails</button>
+    <button class="tab" data-t="settings">Settings &amp; Log</button>
+  </div>
+
+  <!-- VENUES -->
+  <div id="tab-venues">
+    <div class="panel">
+      <p class="intro">Pick venues that haven't booked with you yet. Each one gets <b>one email a week</b>, rotating through your 5 ads and starting over after #5. Sending stops by itself when a venue books or unsubscribes.</p>
+      <div class="grid2">
+        <div>
+          <label>Which bands?</label>
+          <select id="bandMode"><option value="roster">The whole roster</option><option value="selected">Only the bands I pick</option></select>
+          <div id="pickBox" class="hidden" style="margin-top:8px;"><div class="bandpick" id="bandPick"></div></div>
+        </div>
+        <div>
+          <label>Replies go to</label>
+          <select id="replyAgent"></select>
+          <div class="hint" style="margin-top:6px;">Venues reply straight to this person's email.</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn" onclick="applyAds(true)">Turn on weekly ads for checked venues</button>
+        <button class="btn alt" onclick="applyAds(false)">Pause checked venues</button>
+        <span class="hint" id="selCount">0 checked</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="row" style="margin-bottom:10px;">
+        <input type="search" id="vsearch" placeholder="Search venues…" style="max-width:260px;">
+        <select id="vfilter" style="max-width:220px;">
+          <option value="notbooked">Not booked yet</option><option value="on">On weekly ads</option><option value="all">All venues</option>
+        </select>
+        <button class="btn alt" onclick="checkAll(true)">Check all shown</button>
+        <button class="btn alt" onclick="checkAll(false)">Clear</button>
+      </div>
+      <div class="scroll"><table><thead><tr><th></th><th>Venue</th><th>Email</th><th>Status</th><th>Next</th><th>Bands</th><th></th></tr></thead><tbody id="vbody"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- EMAILS -->
+  <div id="tab-emails" class="hidden">
+    <div class="panel">
+      <p class="intro">These five emails go out in order, one per week per venue. <span id="tplAdminNote"></span> You can use <b>{{venue_name}}</b>, <b>{{contact_name}}</b>, <b>{{agency}}</b> and <b>{{agent_name}}</b>. The band list and your unsubscribe link and mailing address are added automatically. Keep claims accurate &mdash; only say things that are true for your agency.</p>
+    </div>
+    <div id="tplList"></div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div id="tab-settings" class="hidden">
+    <div class="panel">
+      <div id="setWarn" class="msg warn">Add your mailing address below before any ads can be sent. Marketing email legally has to include it.</div>
+      <div class="grid2">
+        <div><label>Send day</label><select id="setDay"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div>
+        <div><label>Send time (your company time zone)</label><select id="setHour"></select></div>
+      </div>
+      <label>Mailing address (shown at the bottom of every ad)</label>
+      <textarea id="setAddr" style="min-height:70px;" placeholder="Your Agency, 123 Main St, City, ST 12345"></textarea>
+      <div class="row" style="margin-top:10px;"><button class="btn" id="setSave" onclick="saveSettings()">Save settings</button><span class="hint" id="setNext"></span></div>
+    </div>
+    <div class="panel">
+      <h3 style="margin:0 0 8px;">Recent sends</h3>
+      <div class="scroll"><table><thead><tr><th>When</th><th>Venue</th><th>Ad #</th><th>Type</th><th>Result</th><th>Sent to</th></tr></thead><tbody id="logBody"></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+var venues = [], bands = [], agents = [], settings = null, checked = new Set(), isAdmin = false;
+var $ = function (id) { return document.getElementById(id); };
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function show(text, kind) { var m = $('msg'); m.className = 'msg ' + (kind || 'ok'); m.textContent = text; window.scrollTo(0, 0); if (kind !== 'err') setTimeout(function () { m.className = 'msg'; }, 7000); }
+async function signOut() { await sb.auth.signOut(); location.href = 'login.html'; }
+async function rpc(name, args) { var r = await sb.rpc(name, args || {}); if (r.error) throw new Error(r.error.message); return r.data; }
+
+(async function init() {
+  var s = (await sb.auth.getSession()).data.session;
+  if (!s) { location.href = 'login.html'; return; }
+  var p = (await sb.from('profiles').select('role, businesses(name)').eq('id', s.user.id).maybeSingle()).data;
+  if (!p || !['admin', 'owner', 'agent'].includes(p.role)) { location.href = 'login.html'; return; }
+  $('bizName').textContent = (p.businesses && p.businesses.name) || '';
+  for (var h = 0; h < 24; h++) { var o = document.createElement('option'); o.value = h; o.textContent = (h % 12 || 12) + ':00 ' + (h < 12 ? 'AM' : 'PM'); $('setHour').appendChild(o); }
+  document.querySelectorAll('.tab').forEach(function (b) { b.onclick = function () {
+    document.querySelectorAll('.tab').forEach(function (x) { x.classList.toggle('on', x === b); });
+    ['venues', 'emails', 'settings'].forEach(function (t) { $('tab-' + t).classList.toggle('hidden', t !== b.dataset.t); });
+    if (b.dataset.t === 'settings') loadLog();
+  }; });
+  $('bandMode').onchange = function () { $('pickBox').classList.toggle('hidden', this.value !== 'selected'); };
+  $('vsearch').oninput = renderVenues; $('vfilter').onchange = renderVenues;
+  try { await loadAll(); } catch (e) { show(e.message, 'err'); }
+})();
+
+async function loadAll() {
+  settings = await rpc('get_ad_settings'); isAdmin = !!settings.isAdmin;
+  $('setDay').value = settings.weekday; $('setHour').value = settings.hour; $('setAddr').value = settings.address || '';
+  $('setWarn').style.display = settings.address ? 'none' : 'block';
+  $('setNext').textContent = 'Next send date: ' + settings.nextDate + ' (' + settings.timezone + ')';
+  $('setSave').disabled = !isAdmin; if (!isAdmin) $('setNext').textContent += ' — only an administrator can change these.';
+  var b = await sb.from('bands').select('id, name, on_roster, archived_at').is('archived_at', null).order('name');
+  bands = b.data || [];
+  var a = await sb.from('profiles').select('id, name, role, removed_at').is('removed_at', null).order('name');
+  agents = (a.data || []).filter(function (x) { return ['admin', 'owner', 'agent'].includes(x.role); });
+  $('replyAgent').innerHTML = agents.map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('');
+  var me = (await sb.auth.getSession()).data.session.user.id; if (agents.some(function (x) { return x.id === me; })) $('replyAgent').value = me;
+  $('bandPick').innerHTML = bands.map(function (x) { return '<label><input type="checkbox" value="' + x.id + '"> ' + esc(x.name) + (x.on_roster ? '' : ' <span class="hint">(not on roster)</span>') + '</label>'; }).join('') || '<span class="hint">No bands yet.</span>';
+  await loadVenues(); await loadTemplates();
+}
+async function loadVenues() { venues = await rpc('list_ad_venues'); renderVenues(); }
+
+function statusBadge(v) {
+  if (v.has_booked && !v.status) return '<span class="badge b-booked">Booked</span>';
+  if (!v.status) return '<span class="badge b-off">Off</span>';
+  var t = { active: 'Weekly ads on', paused: 'Paused', booked: 'Booked — stopped', unsubscribed: 'Unsubscribed' }[v.status];
+  return '<span class="badge b-' + v.status + '">' + t + '</span>';
+}
+function renderVenues() {
+  var q = $('vsearch').value.toLowerCase(), f = $('vfilter').value;
+  var rows = venues.filter(function (v) {
+    if (q && (v.name + ' ' + (v.city || '')).toLowerCase().indexOf(q) < 0) return false;
+    if (f === 'notbooked') return !v.has_booked;
+    if (f === 'on') return v.status === 'active';
+    return true;
+  });
+  $('vbody').innerHTML = rows.map(function (v) {
+    var on = v.status === 'active';
+    var bandTxt = !v.status ? '' : (v.band_mode === 'selected' ? (v.band_ids || []).length + ' picked' : 'Whole roster');
+    return '<tr><td><input type="checkbox" data-id="' + v.venue_id + '"' + (checked.has(v.venue_id) ? ' checked' : '') + '></td>' +
+      '<td><b>' + esc(v.name) + '</b><div class="hint">' + esc([v.city, v.state].filter(Boolean).join(', ')) + '</div></td>' +
+      '<td>' + (v.email ? esc(v.email) : '<span class="hint">no email</span>') + '</td><td>' + statusBadge(v) + (v.sent_count ? '<div class="hint">' + v.sent_count + ' sent</div>' : '') + '</td>' +
+      '<td>' + (on ? esc(v.next_send_on || '') + '<div class="hint">Ad #' + v.next_slot + '</div>' : '') + '</td><td>' + bandTxt + '</td>' +
+      '<td style="white-space:nowrap;">' + (v.status ? '<button class="btn alt" data-act="test" data-id="' + v.venue_id + '">Test to me</button> ' : '') +
+      (on || v.status === 'paused' ? '<button class="btn alt" data-act="now" data-id="' + v.venue_id + '">Send now</button> <button class="btn alt" data-act="edit" data-id="' + v.venue_id + '">Load settings</button>' : '') + '</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="hint">No venues match.</td></tr>';
+  updateCount();
+}
+$('vbody').addEventListener('change', function (e) {
+  var id = e.target.dataset && e.target.dataset.id; if (!id || e.target.type !== 'checkbox') return;
+  e.target.checked ? checked.add(id) : checked.delete(id); updateCount();
+});
+$('vbody').addEventListener('click', function (e) {
+  var b = e.target.closest('button[data-act]'); if (!b) return;
+  var id = b.dataset.id, v = venues.find(function (x) { return x.venue_id === id; });
+  if (b.dataset.act === 'edit') {
+    $('bandMode').value = v.band_mode || 'roster'; $('bandMode').onchange();
+    var set = new Set(v.band_ids || []); $('bandPick').querySelectorAll('input').forEach(function (c) { c.checked = set.has(c.value); });
+    if (v.reply_agent_id) $('replyAgent').value = v.reply_agent_id;
+    checked = new Set([id]); renderVenues(); show('Loaded ' + v.name + '. Change the choices at the top, then press "Turn on weekly ads".', 'warn');
+  } else sendAction(b.dataset.act === 'now' ? 'send_now' : 'test', id, b, v);
+});
+function updateCount() { $('selCount').textContent = checked.size + ' checked'; }
+function checkAll(on) {
+  document.querySelectorAll('#vbody input[type=checkbox]').forEach(function (c) { c.checked = on; on ? checked.add(c.dataset.id) : checked.delete(c.dataset.id); });
+  updateCount();
+}
+async function applyAds(active) {
+  var ids = Array.from(checked); if (!ids.length) return show('Check at least one venue first.', 'err');
+  var mode = $('bandMode').value, picked = Array.from($('bandPick').querySelectorAll('input:checked')).map(function (c) { return c.value; });
+  if (active && !settings.address) show('Heads up: nothing will send until you add your mailing address in Settings.', 'warn');
+  try {
+    var r = await rpc('set_venue_ads', { p_venue_ids: ids, p_active: active, p_band_mode: mode, p_band_ids: picked, p_reply_agent: $('replyAgent').value || null });
+    var skipped = (r.skipped || []).map(function (s) { return s.name + ' (' + s.reason + ')'; });
+    if (!(active && !settings.address)) show((active ? 'Weekly ads on for ' : 'Paused ') + r.updated + ' venue' + (r.updated === 1 ? '' : 's') + '.' + (skipped.length ? ' Skipped: ' + skipped.join('; ') : ''), skipped.length ? 'warn' : 'ok');
+    checked = new Set(); await loadVenues();
+  } catch (e) { show(e.message, 'err'); }
+}
+async function sendAction(action, venueId, btn, v) {
+  if (action === 'send_now' && !confirm('Send the next ad to ' + v.name + ' right now?')) return;
+  btn.disabled = true;
+  try {
+    var s = (await sb.auth.getSession()).data.session;
+    var r = await sb.functions.invoke('venue-ads', { body: { action: action, venueId: venueId }, headers: { Authorization: 'Bearer ' + s.access_token } });
+    if (r.error) { var t = ''; try { t = (await r.error.context.json()).error; } catch (x) {} throw new Error(t || r.error.message); }
+    show(action === 'test' ? 'Test of ad #' + r.data.slot + ' sent to ' + r.data.sentTo + '.' : 'Ad #' + r.data.slot + ' sent to ' + r.data.sentTo + '.');
+    if (action === 'send_now') await loadVenues();
+  } catch (e) { show(e.message, 'err'); }
+  btn.disabled = false;
+}
+
+// Templates
+async function loadTemplates() {
+  var t = await rpc('get_ad_templates');
+  $('tplAdminNote').textContent = isAdmin ? 'You can edit the wording.' : 'Only an administrator can edit the wording.';
+  $('tplList').innerHTML = t.map(function (x) {
+    return '<div class="tpl" data-slot="' + x.slot + '"><h3>Ad #' + x.slot + (x.customized ? ' <span class="hint">(edited)</span>' : '') + '</h3>' +
+      '<label>Subject</label><input type="text" class="t-sub" maxlength="200" value="' + esc(x.subject) + '"' + (isAdmin ? '' : ' disabled') + '>' +
+      '<label>Headline</label><input type="text" class="t-head" maxlength="200" value="' + esc(x.headline) + '"' + (isAdmin ? '' : ' disabled') + '>' +
+      '<label>Message</label><textarea class="t-body" maxlength="5000"' + (isAdmin ? '' : ' disabled') + '>' + esc(x.body) + '</textarea>' +
+      (isAdmin ? '<div class="row" style="margin-top:8px;"><button class="btn" data-a="save">Save ad #' + x.slot + '</button>' + (x.customized ? '<button class="btn alt" data-a="reset">Restore original wording</button>' : '') + '</div>' : '') + '</div>';
+  }).join('');
+}
+$('tplList').addEventListener('click', async function (e) {
+  var b = e.target.closest('button[data-a]'); if (!b) return;
+  var box = b.closest('.tpl'), slot = Number(box.dataset.slot);
+  try {
+    if (b.dataset.a === 'save') await rpc('save_ad_template', { p_slot: slot, p_subject: box.querySelector('.t-sub').value, p_headline: box.querySelector('.t-head').value, p_body: box.querySelector('.t-body').value });
+    else { if (!confirm('Restore the original wording for ad #' + slot + '?')) return; await rpc('reset_ad_template', { p_slot: slot }); }
+    show('Ad #' + slot + (b.dataset.a === 'save' ? ' saved.' : ' restored.')); await loadTemplates();
+  } catch (err) { show(err.message, 'err'); }
+});
+
+// Settings + log
+async function saveSettings() {
+  try { await rpc('set_ad_settings', { p_weekday: Number($('setDay').value), p_hour: Number($('setHour').value), p_address: $('setAddr').value });
+    show('Settings saved.'); settings = await rpc('get_ad_settings'); $('setWarn').style.display = settings.address ? 'none' : 'block';
+    $('setNext').textContent = 'Next send date: ' + settings.nextDate + ' (' + settings.timezone + ')'; await loadVenues();
+  } catch (e) { show(e.message, 'err'); }
+}
+async function loadLog() {
+  try {
+    var l = await rpc('get_ad_log', { p_limit: 100 });
+    $('logBody').innerHTML = l.map(function (x) {
+      return '<tr><td>' + esc(new Date(x.sent_at).toLocaleString()) + '</td><td>' + esc(x.venue_name) + '</td><td>' + (x.slot || '') + '</td><td>' + esc(x.kind) + '</td>' +
+        '<td>' + (x.status === 'sent' ? '<span class="badge b-active">Sent</span>' : '<span class="badge b-unsubscribed" title="' + esc(x.error) + '">Failed</span>') + '</td><td>' + esc(x.to_email) + '</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="hint">Nothing sent yet.</td></tr>';
+  } catch (e) { show(e.message, 'err'); }
+}
+</script>
+<script src="staff-nav.js"></script>
+</body>
+</html>

@@ -19,7 +19,8 @@
       { href: 'venue-map.html', icon: '🗺', label: 'Venue Map', key: 'venue-map.html' },
       { href: 'bookings.html', icon: '📆', label: 'All Bookings', key: 'bookings.html' },
       { href: 'bookings.html?mine=1', icon: '📅', label: 'My Bookings', key: 'mine' },
-      { href: 'contracts.html', icon: '📋', label: 'Contracts', key: 'contracts.html' }
+      { href: 'contracts.html', icon: '📋', label: 'Contracts', key: 'contracts.html' },
+      { href: 'advertising.html', icon: '📣', label: 'Advertising', key: 'advertising.html' }
     ];
 
     var style = document.createElement('style');
