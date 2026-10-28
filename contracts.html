@@ -334,7 +334,7 @@
         }).join('');
       }
       var assignSel = document.getElementById('cAssignedAgent');
-      assignSel.innerHTML = businessAgents.map(function(a) {
+      assignSel.innerHTML = businessAgents.filter(function(a){ return !a.removed; }).map(function(a) {
         var label = a.id === currentProfileId ? (a.name + ' (You)') : a.name;
         return '<option value="' + a.id + '"' + (a.id === currentProfileId ? ' selected' : '') + '>' + esc(label) + '</option>';
       }).join('');
@@ -436,7 +436,7 @@
         : (bandLocked ? '\u{1F512} Step 2 \u2013 Locked until venue signs' : '\u23F3 Step 2 \u2013 Awaiting band signature');
 
       var assignSel = document.getElementById('vAssignedAgent');
-      assignSel.innerHTML = businessAgents.map(function(a) {
+      assignSel.innerHTML = businessAgents.filter(function(a){ return !a.removed; }).map(function(a) {
         var label = a.id === currentProfileId ? (a.name + ' (You)') : a.name;
         return '<option value="' + a.id + '"' + (a.id === c.assigned_agent_id ? ' selected' : '') + '>' + esc(label) + '</option>';
       }).join('');

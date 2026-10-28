@@ -625,7 +625,7 @@
         : '<div style="font-size:0.84rem;color:#999;">You have no backup agent right now.</div>';
       var taken = {}; myBackups.forEach(function(r){ taken[r.backup_id] = true; });
       document.getElementById('backupPick').innerHTML = '<option value="">Choose an agent&hellip;</option>' +
-        teamProfiles.filter(function(p){ return p.id !== currentProfileId && !taken[p.id]; })
+        teamProfiles.filter(function(p){ return p.id !== currentProfileId && !taken[p.id] && !p.removed; })
           .map(function(p){ return '<option value="' + p.id + '">' + esc(p.name || p.email) + '</option>'; }).join('');
       document.getElementById('backupEnd').value = '';
     }

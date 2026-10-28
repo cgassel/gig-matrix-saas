@@ -111,7 +111,7 @@
           // an administrator. Don't send them to a self-serve setup page;
           // sign them back out and explain.
           await sb.auth.signOut();
-          showLoginError('Your login exists, but no account has been set up for you yet. Please contact your administrator.');
+          showLoginError('This login is not active. Your access may have been removed, or your account has not been set up yet. Please contact your administrator.');
           btn.disabled = false;
           btn.textContent = 'Log In';
           return;

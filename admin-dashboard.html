@@ -412,6 +412,22 @@
     </div>
   </div>
 
+  <!-- Remove team member modal -->
+  <div id="removeOverlay" onclick="if(event.target===this)closeRemoveMember()" style="display:none;position:fixed;inset:0;background:rgba(20,14,4,0.6);z-index:300;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto;">
+    <div style="background:#faf8f4;border-radius:14px;max-width:460px;width:100%;padding:22px;box-shadow:0 8px 40px rgba(0,0,0,0.25);">
+      <h2 style="margin:0 0 6px;font-size:1.1rem;">Remove <span id="rmName"></span>?</h2>
+      <p style="font-size:0.82rem;color:#6b5e48;margin:0 0 12px;line-height:1.45;">They will be signed out and can no longer log in. <strong>Nothing is deleted</strong> &mdash; their bookings, contracts and history stay, and you can restore them later.</p>
+      <div id="rmError" style="display:none;background:#fdecea;color:#8B2000;padding:10px 14px;border-radius:8px;font-size:0.84rem;margin-bottom:12px;"></div>
+      <p id="rmInfo" style="font-size:0.86rem;margin:0 0 10px;"></p>
+      <label style="display:block;font-size:0.72rem;font-weight:700;text-transform:uppercase;color:#6b5e48;margin:6px 0 5px;">Hand their bands and open contracts to</label>
+      <select id="rmTransfer" style="width:100%;padding:9px;border:1px solid #d4c4a0;border-radius:8px;"></select>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">
+        <button onclick="closeRemoveMember()" style="padding:9px 16px;border:none;border-radius:8px;background:#f0ebe0;cursor:pointer;">Cancel</button>
+        <button id="rmBtn" onclick="confirmRemoveMember()" style="padding:9px 16px;border:none;border-radius:8px;background:#8B2000;color:#fff;font-weight:700;cursor:pointer;">Remove access</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Add team login modal -->
   <div class="modal-overlay" id="teamModal">
     <div class="modal">
@@ -603,7 +619,7 @@
       var [bookingsRes, venuesRes, profilesRes] = await Promise.all([
         sb.from('bookings').select(BK_COLS + ', venues(name,city,state), bands(name,commission_pct)').order('booking_date', { ascending: false }),
         sb.from('venues').select('*'),
-        sb.from('profiles').select('id, name, email, role').order('name')
+        sb.from('profiles').select('id, name, email, role, removed_at').order('name')
       ]);
       allBookings = await attachMoney(bookingsRes.data || []);
       allVenues   = venuesRes.data   || [];
@@ -870,7 +886,7 @@
         : '<div style="font-size:0.84rem;color:#999;">You have no backup agent right now.</div>';
       var taken = {}; myBackups.forEach(function(r){ taken[r.backup_id] = true; });
       document.getElementById('backupPick').innerHTML = '<option value="">Choose an agent&hellip;</option>' +
-        teamProfiles.filter(function(p){ return p.id !== currentProfileId && !taken[p.id]; })
+        teamProfiles.filter(function(p){ return p.id !== currentProfileId && !taken[p.id] && !p.removed; })
           .map(function(p){ return '<option value="' + p.id + '">' + esc(p.name || p.email) + '</option>'; }).join('');
       document.getElementById('backupEnd').value = '';
     }
@@ -1204,16 +1220,64 @@
     }
 
     // ── TEAM LOGINS ──────────────────────────────────────────────────────────────
+    var removeTargetId = null;
+    async function openRemoveMember(id) {
+      var p = allProfiles.find(function(x){ return x.id === id; });
+      if (!p) return;
+      removeTargetId = id;
+      document.getElementById('rmName').textContent = p.name;
+      document.getElementById('rmError').style.display = 'none';
+      var bandsRes = await sb.from('band_agents').select('band_id').eq('agent_id', id).eq('is_cover', false);
+      var n = (bandsRes.data || []).length;
+      document.getElementById('rmInfo').innerHTML = n
+        ? '<b>' + esc(p.name) + '</b> is the booking agent on <b>' + n + ' band' + (n === 1 ? '' : 's') + '</b>. Choose who takes them over, or those bands will have no agent.'
+        : '<b>' + esc(p.name) + '</b> is not the agent on any band.';
+      var opts = allProfiles.filter(function(x){ return x.id !== id && !x.removed_at; })
+        .map(function(x){ return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('');
+      document.getElementById('rmTransfer').innerHTML = '<option value="">Nobody (leave unassigned)</option>' + opts;
+      document.getElementById('removeOverlay').style.display = 'flex';
+    }
+    function closeRemoveMember() { document.getElementById('removeOverlay').style.display = 'none'; }
+    async function confirmRemoveMember() {
+      var btn = document.getElementById('rmBtn'), err = document.getElementById('rmError');
+      btn.disabled = true; btn.textContent = 'Removing…'; err.style.display = 'none';
+      try {
+        var r = await sb.functions.invoke('admin-remove-user', { body: { action: 'remove', profileId: removeTargetId, transferTo: document.getElementById('rmTransfer').value || null } });
+        if (r.error) { var m = r.error.message; try { var j = await r.error.context.json(); if (j && j.error) m = j.error; } catch (e) {} throw new Error(m); }
+        if (r.data && r.data.error) throw new Error(r.data.error);
+        closeRemoveMember();
+        showToast('Team member removed.', 'success');
+        await loadAll();
+      } catch (e) { err.textContent = e.message || String(e); err.style.display = 'block'; }
+      btn.disabled = false; btn.textContent = 'Remove access';
+    }
+    async function restoreMember(id) {
+      if (!confirm('Restore this team member? They will be able to log in again. Their old band assignments are not restored.')) return;
+      var r = await sb.functions.invoke('admin-remove-user', { body: { action: 'restore', profileId: id } });
+      var msg = r.error ? r.error.message : (r.data && r.data.error);
+      if (msg) { showToast(msg, 'error'); return; }
+      showToast('Team member restored.', 'success');
+      await loadAll();
+    }
+
     function roleLabel(r) { return (r === 'admin' || r === 'owner') ? 'Administrator' : 'Booking Agent'; }
 
     function renderTeam() {
       var el = document.getElementById('teamPanel');
       if (!allProfiles.length) { el.innerHTML = '<div class="empty-state"><div class="ei">&#128100;</div><p>No team members found.</p></div>'; return; }
-      var h = '';
+      var h = '', gone = '';
       allProfiles.forEach(function(p) {
-        h += '<div class="team-row"><div><div class="team-name">' + esc(p.name) + '</div><div class="team-email">' + esc(p.email||'') + '</div></div>' +
-          '<span class="role-pill ' + esc(p.role) + '">' + esc(roleLabel(p.role)) + '</span></div>';
+        if (p.removed_at) {
+          gone += '<div class="team-row" style="opacity:.65;"><div><div class="team-name">' + esc(p.name) + ' <span style="font-size:0.7rem;color:#8B2000;font-weight:700;">REMOVED</span></div><div class="team-email">' + esc(p.email||'') + '</div></div>' +
+            '<button class="add-team-btn" style="background:#6b5e48;" onclick="restoreMember(\'' + p.id + '\')">Restore</button></div>';
+          return;
+        }
+        h += '<div class="team-row"><div><div class="team-name">' + esc(p.name) + (p.id === currentProfileId ? ' <span style="font-size:0.7rem;color:#6b5e48;">(you)</span>' : '') + '</div><div class="team-email">' + esc(p.email||'') + '</div></div>' +
+          '<div style="display:flex;align-items:center;gap:10px;"><span class="role-pill ' + esc(p.role) + '">' + esc(roleLabel(p.role)) + '</span>' +
+          (p.id === currentProfileId ? '' : '<button onclick="openRemoveMember(\'' + p.id + '\')" style="background:none;border:1.5px solid #8B2000;color:#8B2000;padding:5px 12px;border-radius:7px;font-weight:700;font-size:0.76rem;cursor:pointer;">Remove</button>') +
+          '</div></div>';
       });
+      if (gone) h += '<div style="padding:10px 20px 4px;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:#6b5e48;background:#f2ede4;">Removed team members</div>' + gone;
       el.innerHTML = h;
     }
 
