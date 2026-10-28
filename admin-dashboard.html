@@ -148,7 +148,7 @@
   .nav-btn.green { border-color: #c8e6c9; color: #1b5e20; }
   .nav-btn.green:hover { background: var(--green); color: white; border-color: var(--green); }
   @media (max-width: 900px) { .quick-nav { grid-template-columns: repeat(4, 1fr); } }
-  @media (max-width: 640px) { .quick-nav { display: none; } }
+  @media (max-width: 640px) { .quick-nav { grid-template-columns: repeat(3, 1fr); } }
   /* Open slots */
   .slot-week-label { font-size:0.7rem; font-weight:800; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); padding:7px 18px 5px; background:var(--bg); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
   .slot-week-dot { width:8px; height:8px; border-radius:50%; }
@@ -167,6 +167,26 @@
   .video-panel iframe { width:100%; height:200px; border:none; display:block; }
   @media (max-width: 600px) { .open-slot-item { grid-template-columns:1fr; gap:6px; } }
   .empty-state .empty-icon { font-size:1.6rem; margin-bottom:6px; }
+  .vs-sum { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; padding:16px 20px 4px; }
+  @media (max-width:700px){ .vs-sum{ grid-template-columns:1fr 1fr; } }
+  .vs-card { background:var(--card2); border-radius:10px; padding:12px 14px; border-bottom:3px solid #C8960C; }
+  .vs-card.g { border-bottom-color:#2e7d5c; } .vs-card.a { border-bottom-color:#b45309; } .vs-card.b { border-bottom-color:#A07018; }
+  .vs-lbl { font-size:0.62rem; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:#6b5e48; margin-bottom:4px; }
+  .vs-val { font-family:'Consolas',monospace; font-size:1.3rem; }
+  .vs-controls { display:flex; gap:10px; padding:12px 20px; flex-wrap:wrap; }
+  .vs-controls input, .vs-controls select { padding:9px 12px; border:1.5px solid #d4c4a0; border-radius:8px; font-size:0.88rem; font-family:inherit; background:#fff; }
+  .vs-controls input { flex:1; min-width:160px; }
+  .vs-row { border-top:1px solid #e8e0d0; }
+  .vs-head { display:grid; grid-template-columns:auto 1fr auto auto auto auto; gap:12px; align-items:center; padding:11px 20px; cursor:pointer; }
+  .vs-head:hover, .vs-head.open { background:var(--card2); }
+  .vs-rank { width:24px; height:24px; border-radius:50%; background:#e8e0d0; text-align:center; line-height:24px; font-size:0.72rem; font-weight:700; color:#6b5e48; }
+  .vs-rank.g { background:rgba(200,150,12,.14); color:#C8960C; } .vs-rank.s { background:rgba(120,120,120,.12); color:#707070; } .vs-rank.b { background:rgba(160,112,24,.12); color:#A07018; }
+  .vs-name { font-weight:700; font-size:0.9rem; } .vs-meta { font-size:0.72rem; color:#6b5e48; margin-top:2px; }
+  .vs-pill { text-align:center; min-width:64px; } .vs-pill .v { font-family:'Consolas',monospace; font-weight:700; font-size:0.9rem; } .vs-pill .l { font-size:0.6rem; text-transform:uppercase; letter-spacing:.6px; color:#6b5e48; }
+  .vs-body { padding:10px 20px 12px; background:var(--card2); border-top:1px solid #e8e0d0; display:none; }
+  .vs-agent { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #e8e0d0; font-size:0.86rem; }
+  .vs-agent:last-child { border-bottom:none; }
+  @media (max-width:640px){ .vs-head{ grid-template-columns:auto 1fr auto auto; } .vs-head .vs-pill:nth-of-type(3){ display:none; } }
 </style>
 </head>
 <body>
@@ -177,15 +197,8 @@
       <div class="biz" id="bizName"></div>
     </div>
     <div class="topbar-right">
-      <a href="bands.html">Bands</a>
-      <a href="venues.html">Venues</a>
-      <a href="venue-map.html">Map</a>
-      <a href="bookings.html">Bookings</a>
-      <a href="bookings.html?mine=1">My Bookings</a>
-      <a href="contracts.html">Contracts</a>
       <a href="roles.html">Roles Guide</a>
       <a href="billing.html">Billing</a>
-      <a href="venue-stats.html">Venue Stats</a>
       <button onclick="openBackupModal()" title="Choose who can cover your bookings while you are away">&#129309; Backup</button>
       <button class="notif-bell-btn" id="notifBellBtn" onclick="toggleNotifDrawer()" title="Notifications">&#128276;<span class="notif-count" id="notifCount"></span></button>
       <button class="refresh-btn" style="color:#fff;border-color:rgba(255,255,255,0.4);" onclick="refreshAll()">&#8635; Refresh</button>
@@ -328,6 +341,29 @@
         <div id="openSlotsPanel"><div class="empty-state"><div class="empty-icon">&#8987;</div><p>Loading open slots&#8230;</p></div></div>
       </div>
 
+      <div class="panel-full" id="vsPanel">
+        <div class="panel-header">
+          <div class="panel-title">&#127963; Venue Performance <span class="panel-badge" id="vsCount">&#8211;</span></div>
+          <span style="font-size:0.74rem;color:#6b5e48;">All venues, all agents &mdash; bookings, band pay and agency commission</span>
+        </div>
+        <div class="vs-sum">
+          <div class="vs-card"><div class="vs-lbl">Total Venues</div><div class="vs-val" id="vsSumVenues">&mdash;</div></div>
+          <div class="vs-card g"><div class="vs-lbl">Total Bookings</div><div class="vs-val" id="vsSumBookings">&mdash;</div></div>
+          <div class="vs-card b"><div class="vs-lbl">Total Band Pay</div><div class="vs-val" id="vsSumPay">&mdash;</div></div>
+          <div class="vs-card a"><div class="vs-lbl">Total Agency Commission</div><div class="vs-val" id="vsSumComm">&mdash;</div></div>
+        </div>
+        <div class="vs-controls">
+          <input type="text" id="vsSearch" placeholder="Search venues&hellip;" oninput="vsApply()">
+          <select id="vsSort" onchange="vsApply()">
+            <option value="bookings">Sort: Most Booked</option>
+            <option value="pay">Sort: Highest Band Pay</option>
+            <option value="commission">Sort: Highest Commission</option>
+            <option value="name">Sort: Name A&ndash;Z</option>
+          </select>
+        </div>
+        <div id="vsCards"><div class="empty-state"><p>Loading venue stats&hellip;</p></div></div>
+      </div>
+
       <div class="panel-full" style="margin-bottom:18px;">
         <div class="panel-header">
           <div class="panel-title">&#9881;&#65039; Company Settings</div>
@@ -431,6 +467,82 @@
     var earningsPeriod = 'month';
     var bandPeriod = 'month';
 
+
+    // ── Venue Performance (was the separate Venue Stats page) ──
+    var vsAll = [], vsFiltered = [];
+    function vsFmt(n){ return '$' + Math.round(n||0).toLocaleString('en-US'); }
+    function vsEsc(t){ return String(t==null?'':t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    async function loadVenueStats() {
+      var wrap = document.getElementById('vsCards');
+      try {
+        var r = await sb.from('bookings')
+          .select('id, venue_id, booking_date, status, created_by, venues(name), bands(commission_pct)')
+          .neq('status', 'Cancelled');
+        if (r.error) throw r.error;
+        var rows = await attachMoney(r.data || []);
+        var dir = await sb.rpc('team_directory'), names = {};
+        (dir.data || []).forEach(function(p){ names[p.id] = p.name; });
+        var venues = {};
+        (rows || []).forEach(function(b){
+          var pay = parseFloat(b.pay_amount) || 0;
+          var pct = parseFloat(b.commission_pct) || 0;
+          if (!pct && b.bands) pct = parseFloat(b.bands.commission_pct) || 0;
+          var comm = pay * pct / 100;
+          var v = venues[b.venue_id] || (venues[b.venue_id] = { name: b.venues ? b.venues.name : '(deleted venue)', n: 0, pay: 0, comm: 0, agents: {}, last: null });
+          v.n++; v.pay += pay; v.comm += comm;
+          var aid = b.created_by || 'unknown';
+          var a = v.agents[aid] || (v.agents[aid] = { name: names[aid] || 'Unknown agent', n: 0, comm: 0 });
+          a.n++; a.comm += comm;
+          if (!v.last || b.booking_date > v.last) v.last = b.booking_date;
+        });
+        vsAll = Object.keys(venues).map(function(k){
+          var v = venues[k];
+          v.list = Object.keys(v.agents).map(function(x){ return v.agents[x]; }).sort(function(a,b){ return b.comm - a.comm; });
+          return v;
+        });
+        var tb = 0, tp = 0, tc = 0;
+        vsAll.forEach(function(v){ tb += v.n; tp += v.pay; tc += v.comm; });
+        document.getElementById('vsSumVenues').textContent = vsAll.length;
+        document.getElementById('vsSumBookings').textContent = tb;
+        document.getElementById('vsSumPay').textContent = vsFmt(tp);
+        document.getElementById('vsSumComm').textContent = vsFmt(tc);
+        document.getElementById('vsCount').textContent = vsAll.length;
+        vsApply();
+      } catch (e) {
+        wrap.innerHTML = '<div class="empty-state"><p>Could not load venue stats: ' + vsEsc(e.message || e) + '</p></div>';
+      }
+    }
+    function vsApply() {
+      var q = document.getElementById('vsSearch').value.toLowerCase(), by = document.getElementById('vsSort').value;
+      vsFiltered = vsAll.filter(function(v){ return !q || v.name.toLowerCase().indexOf(q) !== -1; });
+      vsFiltered.sort(function(a,b){
+        if (by === 'bookings') return b.n - a.n;
+        if (by === 'pay') return b.pay - a.pay;
+        if (by === 'commission') return b.comm - a.comm;
+        return a.name.localeCompare(b.name);
+      });
+      var wrap = document.getElementById('vsCards');
+      if (!vsFiltered.length) { wrap.innerHTML = '<div class="empty-state"><p>No venue booking data found.</p></div>'; return; }
+      wrap.innerHTML = vsFiltered.map(function(v, i){
+        var rc = i===0?'g':i===1?'s':i===2?'b':'';
+        return '<div class="vs-row"><div class="vs-head" id="vsh-'+i+'" onclick="vsToggle('+i+')">' +
+          '<span class="vs-rank '+rc+'">'+(i+1)+'</span><div><div class="vs-name">'+vsEsc(v.name)+'</div>' +
+          (v.last ? '<div class="vs-meta">Last booked: '+vsEsc(v.last)+'</div>' : '') + '</div>' +
+          '<div class="vs-pill"><div class="v">'+v.n+'</div><div class="l">bookings</div></div>' +
+          '<div class="vs-pill"><div class="v" style="color:#A07018;">'+vsFmt(v.pay)+'</div><div class="l">band pay</div></div>' +
+          '<div class="vs-pill"><div class="v" style="color:#2e7d5c;">'+vsFmt(v.comm)+'</div><div class="l">commission</div></div>' +
+          '<span style="color:#6b5e48;font-size:0.7rem;">&#9660;</span></div>' +
+          '<div class="vs-body" id="vsb-'+i+'">' + v.list.map(function(a){
+            return '<div class="vs-agent"><span>&#128100; '+vsEsc(a.name)+'</span><span>'+a.n+' booking'+(a.n===1?'':'s')+' &middot; <b style="color:#2e7d5c;">'+vsFmt(a.comm)+'</b></span></div>';
+          }).join('') + '</div></div>';
+      }).join('');
+    }
+    function vsToggle(i) {
+      var b = document.getElementById('vsb-'+i), open = b.style.display === 'block';
+      b.style.display = open ? 'none' : 'block';
+      document.getElementById('vsh-'+i).classList.toggle('open', !open);
+    }
+
     (async function init() {
       var { data: { session } } = await sb.auth.getSession();
       if (!session) { window.location.href = 'login.html'; return; }
@@ -452,6 +564,7 @@
       loadApprovals();
       loadTimezone();
       loadOpenSlots();
+      loadVenueStats();
       await loadAll();
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('dashBody').style.display = 'block';
@@ -766,7 +879,7 @@
       refreshBackups();
     }
 
-    function refreshAll() { loadAll(); loadNotifications(); loadApprovals(); loadOpenSlots(); }
+    function refreshAll() { loadAll(); loadNotifications(); loadApprovals(); loadOpenSlots(); loadVenueStats(); }
 
     function agencyEarnings(b) {
       var pay = parseFloat(b.pay_amount) || 0;
