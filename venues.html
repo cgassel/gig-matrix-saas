@@ -423,6 +423,14 @@
             <span id="portalLoginStatus" style="margin-left:10px;font-size:0.8rem;"></span>
           </div>
 
+          <div id="venueNotesSection" style="display:none;">
+            <div class="section-title">&#128205; Load-in, Parking, Food &amp; Drink, and Contact Log</div>
+            <div class="form-group">
+              <div style="font-size:0.76rem;color:#6b5e48;margin-bottom:8px;">These save on their own with the buttons below &mdash; you don't need to press Save Changes for them. Staff only; the venue never sees this.</div>
+              <div id="venueNotesMount"></div>
+            </div>
+          </div>
+
           <div class="section-title">&#128221; General Notes</div>
           <div class="form-group">
             <label>Internal Notes</label>
@@ -457,6 +465,7 @@
   <script src="config.js"></script>
   <script src="nav-fix.js"></script>
   <script src="staff-nav.js"></script>
+  <script src="venue-notes.js"></script>
   <script src="scorecard.js"></script>
   <script src="timezones.js"></script>
   <script>
@@ -724,6 +733,7 @@
     var companyTz = 'America/Chicago';
     function openAddModal() {
       editingVenueId = null;
+      document.getElementById('venueNotesSection').style.display = 'none';
       document.getElementById('modalTitle').textContent = '\u{1F3DB}\uFE0F Add New Venue';
       document.getElementById('saveBtn').textContent = '\u2713 Add Venue to Directory';
       document.getElementById('venueForm').reset();
@@ -745,6 +755,8 @@
       var v = allVenues.find(function(x) { return x.id === id; });
       if (!v) return;
       editingVenueId = id;
+      document.getElementById('venueNotesSection').style.display = 'block';
+      gmVenueNotes.mount(document.getElementById('venueNotesMount'), id, {});
       document.getElementById('modalTitle').textContent = 'Edit Venue';
       document.getElementById('saveBtn').textContent = 'Save Changes';
       var canSetLogin = true;   // admins set it directly; agents send a request for admin approval

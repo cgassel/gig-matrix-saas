@@ -90,6 +90,7 @@
         <select id="venue" required onchange="updateVenueInfo()"><option value="">-- Loading venues... --</option></select>
       </div>
       <div class="info-box" id="venueInfo" style="display:none;"><strong>Venue Details:</strong> <span id="venueDetails"></span></div>
+      <div class="info-box" id="venueNotesBox" style="display:none;background:#fffdf5;"></div>
 
       <div class="section-title">Select Band</div>
       <div class="form-group">
@@ -196,6 +197,7 @@
 
   <script src="config.js"></script>
   <script src="staff-nav.js"></script>
+  <script src="venue-notes.js"></script>
   <script src="booking-money.js"></script>
   <script src="contract-template.js"></script>
   <script>
@@ -278,6 +280,9 @@
           ' | Sound: ' + (selectedVenue.has_sound_status || '–') +
           ' | Lights: ' + (selectedVenue.has_lighting_status || '–');
         document.getElementById('venueInfo').style.display = 'block';
+        var nb = document.getElementById('venueNotesBox');
+        nb.style.display = 'block';
+        gmVenueNotes.mount(nb, selectedVenue.id, { readOnly: true });
         var hint = document.getElementById('tzHint');
         var vtz = selectedVenue.timezone || window._companyTz || 'America/Chicago';
         hint.textContent = '\u{1F552} Times are local to the venue (' + vtz.replace(/_/g, ' ') + ').';
@@ -288,6 +293,7 @@
         refreshContractIfOpen();
       } else {
         document.getElementById('venueInfo').style.display = 'none';
+        document.getElementById('venueNotesBox').style.display = 'none';
         selectedVenue = null;
       }
       checkAvailability();

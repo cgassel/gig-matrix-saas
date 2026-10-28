@@ -40,26 +40,14 @@
       .main > div:first-child { flex: 0 0 48vh !important; min-height: 280px; }
       .side-panel { width: 100%; border-left: none; border-top: 1.5px solid var(--border); flex: 1 0 auto; max-height: none; }
       .venue-list { max-height: 30vh; }
-      .venue-detail { max-height: none; }
+      .venue-detail.open { flex: none; overflow: visible; }
+      .side-panel.has-detail .venue-list { flex: none; }
       body { overflow: auto; height: auto; min-height: 100vh; }
     }
-    .notes-box { margin-top: 12px; padding-top: 12px; border-top: 1.5px solid var(--border); }
-    .notes-box h4 { margin: 0 0 8px; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--bronze2); }
-    .notes-box label { display: block; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; color: var(--muted); margin: 8px 0 3px; }
-    .notes-box textarea, .notes-box input, .notes-box select { width: 100%; padding: 7px 9px; border: 1.5px solid var(--border); border-radius: 7px; font: inherit; font-size: 0.82rem; background: #fff; box-sizing: border-box; }
-    .notes-box textarea { min-height: 54px; resize: vertical; }
-    .notes-row { display: flex; gap: 6px; } .notes-row > * { flex: 1; min-width: 0; }
-    .btn-note { width: 100%; margin-top: 8px; padding: 8px; border: none; border-radius: 7px; background: var(--bronze2); color: #fff; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
-    .btn-note:disabled { opacity: .5; }
-    .note-msg { font-size: 0.76rem; min-height: 15px; margin-top: 5px; text-align: center; color: var(--green); } .note-msg.err { color: var(--red); }
-    .hist-item { padding: 7px 0; border-bottom: 1px solid #eadfc8; font-size: 0.8rem; } .hist-item:last-child { border-bottom: none; }
-    .hist-meta { font-size: 0.7rem; color: var(--muted); }
-    .hist-del { background: none; border: none; color: var(--red); font-size: 0.7rem; cursor: pointer; text-decoration: underline; padding: 0; margin-left: 6px; }
-    .last-contact-big { background: var(--card); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; margin-bottom: 4px; font-size: 0.84rem; font-weight: 700; }
     .loading-overlay { position: absolute; inset: 0; background: var(--card); display: flex; align-items: center; justify-content: center; z-index: 400; color: var(--muted); }
     .loading-overlay.hidden { display: none; }
 
-    .side-panel { width: 360px; background: var(--card); border-left: 1.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+    .side-panel { width: 430px; background: var(--card); border-left: 1.5px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
     .panel-header { padding: 12px 16px; border-bottom: 1.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .panel-title { font-size: 0.82rem; font-weight: 700; color: var(--text); text-transform: uppercase; letter-spacing: 0.5px; }
     .venue-count { font-size: 0.78rem; color: var(--bronze2); font-weight: 600; }
@@ -77,8 +65,10 @@
     .contact-reminder.overdue { color: #b71c1c; background: #ffebee; border-color: #ef9a9a; }
     .no-venues { padding: 30px 16px; text-align: center; color: var(--muted); font-size: 0.86rem; }
 
-    .venue-detail { display: none; padding: 16px; border-top: 2px solid var(--border); background: var(--card2); max-height: 60vh; overflow-y: auto; }
-    .venue-detail.open { display: block; }
+    .venue-detail { display: none; padding: 16px; border-top: 2px solid var(--border); background: var(--card2); }
+    .venue-detail.open { display: block; flex: 1 1 0; min-height: 0; overflow-y: auto; }
+    .side-panel.has-detail .venue-list { flex: 0 0 125px; }
+    .side-panel.has-detail .panel-search { padding: 6px 12px; }
     .detail-name { font-size: 1.1rem; font-weight: 800; margin-bottom: 4px; }
     .detail-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 0.74rem; font-weight: 700; text-transform: uppercase; margin-bottom: 10px; color: #fff; }
     .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
@@ -158,28 +148,7 @@
         <div class="detail-field" style="margin-bottom:8px;"><div class="detail-field-label">Contact</div><div class="detail-field-value" id="detailContact"></div></div>
         <div class="detail-field"><div class="detail-field-label">Phone</div><div class="detail-field-value" id="detailPhone"></div></div>
 
-        <div class="notes-box">
-          <h4>&#128221; Venue Notes</h4>
-          <label>Load-in</label><textarea id="noteLoadIn" placeholder="Where to load in, door/dock, times, elevators, stage access&hellip;"></textarea>
-          <label>Parking</label><textarea id="noteParking" placeholder="Where bands park, permits, distance from the door&hellip;"></textarea>
-          <label>Food &amp; drink</label><textarea id="noteFood" placeholder="Band meal, drink tickets or discounts, who to ask&hellip;"></textarea>
-          <button class="btn-note" id="btnSaveNotes" onclick="saveNotes()">Save notes</button>
-          <div class="note-msg" id="notesMsg"></div>
-          <div class="hist-meta" id="notesMeta" style="text-align:center;"></div>
-        </div>
-
-        <div class="notes-box">
-          <h4>&#128222; Contact Log</h4>
-          <div class="last-contact-big" id="lastContactBig">Last contacted: &ndash;</div>
-          <div class="notes-row">
-            <div><label>Date</label><input type="date" id="contactDate"></div>
-            <div><label>How</label><select id="contactMethod"><option>Call</option><option>Email</option><option>Text</option><option>In person</option><option>Other</option></select></div>
-          </div>
-          <label>What was said</label><textarea id="contactNote" placeholder="e.g. Spoke with the manager, wants live music Fridays starting in March."></textarea>
-          <button class="btn-note" id="btnAddContact" onclick="addContact()">Log contact</button>
-          <div class="note-msg" id="contactMsg"></div>
-          <div id="contactHistory"></div>
-        </div>
+        <div id="venueNotesMount" style="margin-top:12px;padding-top:12px;border-top:1.5px solid var(--border);"></div>
 
         <div class="detail-flyer-section" id="detailFlyerSection" style="display:none;">
           <button class="btn-flyer" id="btnSendFlyer" onclick="sendFlyer()">&#9993; Send Gig Matrix Flyer</button>
@@ -207,6 +176,7 @@
   <script src="config.js"></script>
   <script src="nav-fix.js"></script>
   <script src="staff-nav.js"></script>
+  <script src="venue-notes.js"></script>
   <script>
     var map = null;
     var allVenues = [];
@@ -414,12 +384,14 @@
       }
 
       document.getElementById('venueDetail').classList.add('open');
-      loadVenueExtras(v);
+      document.querySelector('.side-panel').classList.add('has-detail');
+      mountNotes(v);
     }
 
     function closeDetail() {
       activeVenueId = null;
       document.getElementById('venueDetail').classList.remove('open');
+      document.querySelector('.side-panel').classList.remove('has-detail');
       renderList();
     }
 
@@ -493,7 +465,7 @@
         if (lg.error) throw lg.error;
         await sb.from('venues').update({ last_flyer_sent_date: today }).eq('id', v.id);
         v.last_contact_date = today; v.last_flyer_sent_date = today;
-        loadVenueExtras(v);
+        mountNotes(v);
 
         btn.textContent = '✓ Flyer Sent!';
         status.textContent = 'Email sent to ' + v.email;
@@ -519,7 +491,7 @@
         var { error } = await sb.rpc('add_venue_contact', { p_venue_id: v.id, p_date: today, p_method: 'Other', p_note: 'Marked as contacted' });
         if (error) throw error;
         v.last_contact_date = today;
-        loadVenueExtras(v);
+        mountNotes(v);
         document.getElementById('lastContactNote').textContent = 'Last contacted today';
         status.textContent = 'Contact logged successfully';
         renderList();
@@ -529,85 +501,20 @@
       }
     }
 
-    // ── NOTES + CONTACT LOG ───────────────────────────────────────────────────
+    function mountNotes(v) {
+      gmVenueNotes.mount(document.getElementById('venueNotesMount'), v.id, { onContactChange: function(last) {
+        v.last_contact_date = last;
+        var days = daysSinceContact(last);
+        var lcn = document.getElementById('lastContactNote');
+        if (lcn) lcn.textContent = days === null ? 'Never contacted' : ('Last contacted ' + days + ' days ago');
+        renderList();
+      } });
+    }
     function localToday() { var d = new Date(); return d.getFullYear() + '-' + ('0'+(d.getMonth()+1)).slice(-2) + '-' + ('0'+d.getDate()).slice(-2); }
-    function niceDate(ds) { var p = String(ds).slice(0,10).split('-'); return new Date(+p[0], +p[1]-1, +p[2]).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }); }
     function contactLabel(ds) {
       if (!ds) return 'never';
-      var days = daysSinceContact(ds);
-      var ago = days === null ? '' : (days <= 0 ? ' (today)' : ' (' + days + ' day' + (days === 1 ? '' : 's') + ' ago)');
-      return niceDate(ds) + ago;
-    }
-    function setNoteMsg(id, text, err) { var e = document.getElementById(id); e.textContent = text || ''; e.className = 'note-msg' + (err ? ' err' : ''); }
-
-    async function loadVenueExtras(v) {
-      var id = v.id;
-      document.getElementById('contactDate').value = localToday();
-      document.getElementById('contactDate').max = localToday();
-      document.getElementById('contactNote').value = '';
-      setNoteMsg('notesMsg', ''); setNoteMsg('contactMsg', '');
-      document.getElementById('lastContactBig').textContent = 'Last contacted: ' + contactLabel(v.last_contact_date);
-      document.getElementById('contactHistory').innerHTML = '<div class="hist-meta">Loading&hellip;</div>';
-      var [n, h] = await Promise.all([
-        sb.from('venue_notes').select('load_in, parking, food_drink, updated_at').eq('venue_id', id).maybeSingle(),
-        sb.rpc('venue_contact_history', { p_venue_id: id })
-      ]);
-      if (activeVenueId !== id) return;      // they clicked another venue meanwhile
-      var nd = n.data || {};
-      document.getElementById('noteLoadIn').value = nd.load_in || '';
-      document.getElementById('noteParking').value = nd.parking || '';
-      document.getElementById('noteFood').value = nd.food_drink || '';
-      document.getElementById('notesMeta').textContent = nd.updated_at ? 'Last saved ' + new Date(nd.updated_at).toLocaleString() : 'No notes saved yet';
-      renderHistory(h.data || [], h.error);
-    }
-
-    function renderHistory(rows, err) {
-      var el = document.getElementById('contactHistory');
-      if (err) { el.innerHTML = '<div class="hist-meta">Could not load history: ' + esc(err.message) + '</div>'; return; }
-      if (!rows.length) { el.innerHTML = '<div class="hist-meta" style="margin-top:8px;">No contact logged yet.</div>'; return; }
-      el.innerHTML = '<div style="margin-top:8px;">' + rows.map(function(r) {
-        return '<div class="hist-item"><b>' + esc(niceDate(r.contacted_on)) + '</b> &middot; ' + esc(r.method) +
-          '<button class="hist-del" onclick="deleteContact(\'' + r.id + '\')">delete</button>' +
-          (r.note ? '<div>' + esc(r.note) + '</div>' : '') +
-          '<div class="hist-meta">by ' + esc(r.by_name) + '</div></div>';
-      }).join('') + '</div>';
-    }
-
-    async function saveNotes() {
-      var v = allVenues.find(function(x){ return x.id === activeVenueId; }); if (!v) return;
-      var btn = document.getElementById('btnSaveNotes'); btn.disabled = true; setNoteMsg('notesMsg', 'Saving…');
-      var r = await sb.rpc('save_venue_notes', { p_venue_id: v.id, p_load_in: document.getElementById('noteLoadIn').value,
-        p_parking: document.getElementById('noteParking').value, p_food_drink: document.getElementById('noteFood').value });
-      btn.disabled = false;
-      if (r.error) { setNoteMsg('notesMsg', r.error.message, true); return; }
-      setNoteMsg('notesMsg', 'Notes saved');
-      document.getElementById('notesMeta').textContent = 'Last saved ' + new Date().toLocaleString();
-    }
-
-    async function addContact() {
-      var v = allVenues.find(function(x){ return x.id === activeVenueId; }); if (!v) return;
-      var note = document.getElementById('contactNote').value.trim();
-      var btn = document.getElementById('btnAddContact'); btn.disabled = true; setNoteMsg('contactMsg', 'Saving…');
-      var r = await sb.rpc('add_venue_contact', { p_venue_id: v.id, p_date: document.getElementById('contactDate').value,
-        p_method: document.getElementById('contactMethod').value, p_note: note });
-      btn.disabled = false;
-      if (r.error) { setNoteMsg('contactMsg', r.error.message, true); return; }
-      v.last_contact_date = r.data;
-      setNoteMsg('contactMsg', 'Contact logged');
-      await loadVenueExtras(v); setNoteMsg('contactMsg', 'Contact logged');
-      var days = daysSinceContact(v.last_contact_date);
-      var lcn = document.getElementById('lastContactNote'); if (lcn) lcn.textContent = days === null ? 'Never contacted' : ('Last contacted ' + days + ' days ago');
-      renderList();
-    }
-
-    async function deleteContact(id) {
-      var v = allVenues.find(function(x){ return x.id === activeVenueId; }); if (!v) return;
-      if (!confirm('Delete this contact entry?')) return;
-      var r = await sb.rpc('delete_venue_contact', { p_id: id });
-      if (r.error) { setNoteMsg('contactMsg', r.error.message, true); return; }
-      v.last_contact_date = r.data;
-      await loadVenueExtras(v);
-      renderList();
+      var p = String(ds).slice(0,10).split('-');
+      return new Date(+p[0], +p[1]-1, +p[2]).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
     }
 
     function esc(s) { return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
