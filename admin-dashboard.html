@@ -187,6 +187,15 @@
   .vs-agent { display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid #e8e0d0; font-size:0.86rem; }
   .vs-agent:last-child { border-bottom:none; }
   @media (max-width:640px){ .vs-head{ grid-template-columns:auto 1fr auto auto; } .vs-head .vs-pill:nth-of-type(3){ display:none; } }
+  /* ── Uniform, centered navigation buttons ── */
+  .quick-nav { display: flex !important; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 18px; }
+  .quick-nav .nav-btn { flex: 0 0 112px; width: 112px; min-height: 68px; padding: 10px 6px; box-sizing: border-box; }
+  @media (max-width: 640px) { .quick-nav { display: flex !important; gap: 8px; } .quick-nav .nav-btn { flex: 0 0 calc(33.333% - 6px); width: calc(33.333% - 6px); min-height: 62px; } }
+  /* top bar: links and buttons look the same */
+  .topbar-right { justify-content: flex-end; gap: 8px; }
+  .topbar-right a, .topbar-right button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 36px; padding: 0 14px; border-radius: 6px; border: none; background: rgba(0,0,0,0.2); color: #fff; font-family: inherit; font-size: 0.82rem; font-weight: 600; text-decoration: none; cursor: pointer; box-sizing: border-box; }
+  .topbar-right a:hover, .topbar-right button:hover { background: rgba(0,0,0,0.32); }
+  .topbar-right .refresh-btn { border: none !important; color: #fff !important; }
 </style>
 </head>
 <body>

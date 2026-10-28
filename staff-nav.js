@@ -24,8 +24,8 @@
 
     var style = document.createElement('style');
     style.textContent =
-      '.gm-staffnav{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 16px;background:#f2ede4;border-bottom:1px solid #d4c4a0;}' +
-      '.gm-staffnav a{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:9px;border:1.5px solid #d4c4a0;background:#faf8f4;color:#A07018;font:600 0.78rem "Segoe UI",Arial,sans-serif;text-decoration:none;white-space:nowrap;}' +
+      '.gm-staffnav{display:flex;justify-content:safe center;gap:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:10px 16px;background:#f2ede4;border-bottom:1px solid #d4c4a0;}' +
+      '.gm-staffnav a{flex:0 0 132px;width:132px;box-sizing:border-box;justify-content:center;display:flex;align-items:center;gap:6px;padding:8px 8px;border-radius:9px;border:1.5px solid #d4c4a0;background:#faf8f4;color:#A07018;font:600 0.78rem "Segoe UI",Arial,sans-serif;text-decoration:none;white-space:nowrap;}' +
       '.gm-staffnav a:hover{background:#A07018;color:#fff;border-color:#A07018;}' +
       '.gm-staffnav a.on{background:#A07018;color:#fff;border-color:#A07018;}';
     document.head.appendChild(style);
