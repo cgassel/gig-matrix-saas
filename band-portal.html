@@ -146,7 +146,10 @@
     <button class="tab-btn active" id="tab-gigs" onclick="switchTab('gigs')">&#128197; My Gigs</button>
     <button class="tab-btn" id="tab-availability" onclick="switchTab('availability')">&#9989; My Availability</button>
     <button class="tab-btn" id="tab-gcal" onclick="switchTab('gcal')">&#128279; Google Calendar</button>
+    <button class="tab-btn" id="tab-messages" onclick="switchTab('messages')">&#128172; Messages <span id="msgBadge" style="display:none;background:#c62828;color:#fff;border-radius:9px;padding:0 6px;font-size:.7rem;margin-left:4px;"></span></button>
   </div>
+
+  <div class="tab-pane" id="pane-messages"><div id="chatMount"></div></div>
 
   <!-- TAB 1: MY GIGS -->
   <div class="tab-pane active" id="pane-gigs">
@@ -251,6 +254,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="config.js"></script>
+<script src="portal-chat.js"></script>
 <script src="timezones.js"></script>
 <script>
 var today = new Date(); today.setHours(0,0,0,0);
@@ -282,6 +286,8 @@ function toast(msg,type){
     window.location.href = 'login.html';
     return;
   }
+
+  try { gmPortalChat.init({ token: portalToken, mount: document.getElementById('chatMount'), onUnread: setMsgBadge }); } catch (e) {}
 
   try {
     var bandResult = await sb.rpc('get_portal_band', { p_token: portalToken });
@@ -326,12 +332,14 @@ function toast(msg,type){
 
 var gcalStatusLoaded = false, gcalConnected = false, gcalEvents = [];
 function switchTab(t){
-  ['gigs','availability','gcal'].forEach(function(x){
+  ['gigs','availability','gcal','messages'].forEach(function(x){
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('pane-'+x).classList.toggle('active', x===t);
   });
   if (t==='gcal' && !gcalStatusLoaded){ gcalStatusLoaded=true; loadGcalStatus(); }
+  if (window.gmPortalChat) { if (t==='messages') gmPortalChat.open(); else gmPortalChat.close(); }
 }
+function setMsgBadge(n){ var b=document.getElementById('msgBadge'); if(!b) return; b.textContent=n>99?'99+':n; b.style.display=n>0?'inline':'none'; }
 
 // ── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
 async function gcalCall(action, extra){

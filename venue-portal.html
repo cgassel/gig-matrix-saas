@@ -201,6 +201,7 @@
     <button class="tab-btn active" id="tab-calendar" onclick="switchTab('calendar')">&#128197; Bookings Calendar</button>
     <button class="tab-btn" id="tab-gcal" onclick="switchTab('gcal')">&#128279; Google Calendar</button>
     <button class="tab-btn" id="tab-suggestions" onclick="switchTab('suggestions')">&#10024; Band Suggestions <span class="badge" id="suggBadge" style="display:none;"></span></button>
+    <button class="tab-btn" id="tab-messages" onclick="switchTab('messages')">&#128172; Messages <span class="badge" id="msgBadge" style="display:none;background:#c62828;"></span></button>
   </div>
 
   <!-- TAB 1: BOOKINGS CALENDAR -->
@@ -253,6 +254,8 @@
   </div>
 
   <!-- TAB 3: BAND SUGGESTIONS -->
+  <div class="tab-pane" id="pane-messages"><div id="chatMount"></div></div>
+
   <div class="tab-pane" id="pane-suggestions">
     <div class="sched-pills" id="schedDaysPills"></div>
     <div id="suggPanel"><div class="loading-block">Loading…</div></div>
@@ -370,6 +373,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="config.js"></script>
+<script src="portal-chat.js"></script>
 <script>
 var GENRES = ['Rock','Classic Rock','Blues','Jazz','Country','R&B/Soul','Folk','Alternative','Funk','Pop','Cover Band','Tribal Funk','Reggae','Hip-Hop','Metal','Other'];
 
@@ -393,6 +397,8 @@ function toast(msg,type){
     window.location.href = 'login.html';
     return;
   }
+
+  try { gmPortalChat.init({ token: portalToken, mount: document.getElementById('chatMount'), onUnread: setMsgBadge }); } catch (e) {}
 
   document.getElementById('genreGrid').innerHTML = GENRES.map(function(g, i){
     var id = 'pg_' + i;
@@ -440,13 +446,15 @@ function toast(msg,type){
 
 var suggLoaded = false, gcalStatusLoaded = false, gcalConnected = false, gcalEvents = [];
 function switchTab(t){
-  ['calendar','gcal','suggestions'].forEach(function(x){
+  ['calendar','gcal','suggestions','messages'].forEach(function(x){
     document.getElementById('tab-'+x).classList.toggle('active', x===t);
     document.getElementById('pane-'+x).classList.toggle('active', x===t);
   });
   if (t==='gcal' && !gcalStatusLoaded){ gcalStatusLoaded=true; loadGcalStatus(); }
   if (t==='suggestions' && !suggLoaded){ suggLoaded=true; loadSuggestions(); }
+  if (window.gmPortalChat) { if (t==='messages') gmPortalChat.open(); else gmPortalChat.close(); }
 }
+function setMsgBadge(n){ var b=document.getElementById('msgBadge'); if(!b) return; b.textContent=n>99?'99+':n; b.style.display=n>0?'inline':'none'; }
 
 // ── GOOGLE CALENDAR ─────────────────────────────────────────────────────────
 // All Google work happens in the gcal-portal Edge Function, which checks our portal session.

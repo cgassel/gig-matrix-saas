@@ -20,6 +20,7 @@
       { href: 'bookings.html', icon: '📆', label: 'All Bookings', key: 'bookings.html' },
       { href: 'bookings.html?mine=1', icon: '📅', label: 'My Bookings', key: 'mine' },
       { href: 'contracts.html', icon: '📋', label: 'Contracts', key: 'contracts.html' },
+      { href: 'messages.html', icon: '💬', label: 'Messages', key: 'messages.html' },
       { href: 'advertising.html', icon: '📣', label: 'Advertising', key: 'advertising.html' }
     ];
 
@@ -42,6 +43,7 @@
       return '<a href="' + it.href + '"' + (on ? ' class="on"' : '') + '><span>' + it.icon + '</span>' + it.label + '</a>';
     }).join('');
 
+    if (!window.gmChatBadgeRefresh) { var cb = document.createElement('script'); cb.src = 'chat-badge.js'; document.head.appendChild(cb); }
     var top = document.querySelector('.topbar');
     if (top && top.parentNode) top.parentNode.insertBefore(bar, top.nextSibling);
     else document.body.insertBefore(bar, document.body.firstChild);
