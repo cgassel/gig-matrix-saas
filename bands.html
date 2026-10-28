@@ -393,6 +393,7 @@
   <script src="config.js"></script>
   <script src="nav-fix.js"></script>
   <script src="staff-nav.js"></script>
+  <script src="scorecard.js"></script>
   <script src="timezones.js"></script>
   <script src="trial-banner.js"></script>
   <script>
@@ -451,6 +452,7 @@
     })();
 
     async function loadBands() {
+      await gmScorecard.loadGrades('band');
       var { data, error } = await sb.from('bands').select('*').order('name', { ascending: true });
       document.getElementById('loadingState').style.display = 'none';
       if (error) { showToast('Error loading bands: ' + error.message, 'error'); return; }
@@ -517,6 +519,7 @@
                 ? '<button class="edit-btn" onclick="restoreBand(\'' + b.id + '\')">Restore</button>'
                 : '<button class="edit-btn" onclick="openEditModal(\'' + b.id + '\')">Edit</button>' +
                   '<button class="edit-btn" onclick="window.location.href=\'band-availability.html?band=' + b.id + '\'">Availability</button>' +
+                  (currentRole !== 'contract_agent' ? '<button class="edit-btn" onclick="gmScorecard.open(\'band\',\'' + b.id + '\',(allBands.find(function(x){return x.id===\'' + b.id + '\';})||{}).name,function(){renderTable();})">' + gmScorecard.label('band', b.id) + '</button>' : '') +
                   '<button class="edit-btn" onclick="openAgentsModal(\'' + b.id + '\')">Agents</button>' +
                   '<button class="delete-btn" onclick="openDeleteModal(\'' + b.id + '\')">Delete</button>') +
             '</div></td>' +

@@ -457,6 +457,7 @@
   <script src="config.js"></script>
   <script src="nav-fix.js"></script>
   <script src="staff-nav.js"></script>
+  <script src="scorecard.js"></script>
   <script src="timezones.js"></script>
   <script>
     var currentBusinessId = null;
@@ -652,6 +653,7 @@
     // ── Load / render list ───────────────────────────────────────────────────
 
     async function loadVenues() {
+      await gmScorecard.loadGrades('venue');
       var { data, error } = await sb.from('venues').select('*').order('name', { ascending: true });
       document.getElementById('loadingState').style.display = 'none';
       if (error) { showToast('Error loading venues: ' + error.message, 'error'); return; }
@@ -700,6 +702,7 @@
             '<td><div class="row-actions">' +
               '<button class="edit-btn" onclick="openEditModal(\'' + v.id + '\')">Edit</button>' +
               '<button class="edit-btn" onclick="window.location.href=\'venue-schedule.html?venue=' + v.id + '\'">Schedule</button>' +
+              (currentRole !== 'contract_agent' ? '<button class="edit-btn" onclick="gmScorecard.open(\'venue\',\'' + v.id + '\',(allVenues.find(function(x){return x.id===\'' + v.id + '\';})||{}).name,function(){renderTable();})">' + gmScorecard.label('venue', v.id) + '</button>' : '') +
               '<button class="delete-btn" onclick="openDeleteModal(\'' + v.id + '\')">Delete</button>' +
             '</div></td>' +
           '</tr>';
